@@ -22,6 +22,7 @@ export const schoolProfile = sqliteTable("school_profile", {
   principalCtaLabel: text("principal_cta_label").notNull().default("Selengkapnya"),
   principalCtaUrl: text("principal_cta_url").notNull().default("/profil"),
   identity: text("identity", { mode: "json" }).$type<Record<string, string>>().notNull().default({}),
+  management: text("management", { mode: "json" }).$type<Record<string, unknown>>().notNull().default({}),
   organization: text("organization").notNull().default(""),
   accreditation: text("accreditation").notNull().default(""),
   location: text("location").notNull().default("")

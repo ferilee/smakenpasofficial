@@ -18,6 +18,49 @@ import {
 } from "./schema";
 import { hashPassword, socialProfileUrl } from "../lib/utils";
 
+const managementContent = {
+  kurikulum: {
+    lead: "Mengatur arah pembelajaran agar selaras dengan kebutuhan sekolah, industri, dan capaian lulusan.",
+    points: [
+      "Penyusunan perangkat ajar dan kalender akademik.",
+      "Koordinasi pembelajaran lintas mata pelajaran dan jurusan.",
+      "Evaluasi hasil belajar, asesmen, dan tindak lanjut mutu.",
+      "Sinkronisasi dengan kebutuhan DUDIKA dan dunia kerja."
+    ],
+    resources: []
+  },
+  kesiswaan: {
+    lead: "Membina peserta didik agar disiplin, berkembang, dan aktif dalam kegiatan sekolah.",
+    points: [
+      "Pembinaan disiplin, tata tertib, dan budaya positif.",
+      "Pendampingan OSIS, ekstrakurikuler, dan kepemimpinan siswa.",
+      "Pemantauan absensi, kedisiplinan, dan kesejahteraan siswa.",
+      "Koordinasi layanan BK dan pengembangan prestasi non-akademik."
+    ],
+    resources: []
+  },
+  prasaranasarana: {
+    lead: "Menjaga ruang belajar, laboratorium, dan inventaris sekolah tetap layak, aman, dan siap pakai.",
+    points: [
+      "Pendataan dan pemeliharaan ruang, alat, dan inventaris.",
+      "Pengaturan penggunaan laboratorium, kelas, dan fasilitas umum.",
+      "Perencanaan kebutuhan pengadaan dan perbaikan fasilitas.",
+      "Monitoring kebersihan, keamanan, dan kelayakan sarana."
+    ],
+    resources: []
+  },
+  humas: {
+    lead: "Menjaga komunikasi dengan orang tua, mitra industri, dan masyarakat agar sekolah tetap terbuka dan relevan.",
+    points: [
+      "Kemitraan dengan industri, dunia kerja, dan lembaga eksternal.",
+      "Publikasi kegiatan sekolah dan pengelolaan informasi resmi.",
+      "Koordinasi layanan informasi untuk orang tua dan masyarakat.",
+      "Dukungan promosi sekolah, PPDB, dan citra institusi."
+    ],
+    resources: []
+  }
+};
+
 export async function seed() {
   migrate();
 
@@ -80,6 +123,7 @@ export async function seed() {
       principalPhotoUrl: "https://i.ibb.co.com/Xr553J1B/Dermawan.png",
       principalCtaLabel: "Selengkapnya",
       principalCtaUrl: "/profil",
+      management: managementContent,
       identity: {
         "Nama Sekolah": "SMK Negeri Pasirian.",
         NSS: "32 1 05 21 05 009",
@@ -116,6 +160,7 @@ export async function seed() {
       principalPhotoUrl: "https://i.ibb.co.com/Xr553J1B/Dermawan.png",
       principalCtaLabel: "Selengkapnya",
       principalCtaUrl: "/profil",
+      management: managementContent,
       identity: {
         "Nama Sekolah": "SMK Negeri Pasirian.",
         NSS: "32 1 05 21 05 009",

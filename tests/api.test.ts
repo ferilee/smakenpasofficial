@@ -163,11 +163,24 @@ describe("settings and profile endpoints", () => {
     const before = await json(await request("/profile"));
     const res = await adminRequest("/profile", jsonInit("PUT", {
       ...before.data,
-      location: "Lokasi Test"
+      location: "Lokasi Test",
+      management: {
+        ...(before.data.management || {}),
+        kurikulum: {
+          lead: "Kurikulum Test",
+          points: ["Poin A", "Poin B"],
+          resources: [
+            { label: "Panduan Kurikulum", type: "file", url: "https://example.test/panduan-kurikulum.pdf" },
+            { label: "Portal Kurikulum", type: "link", url: "https://example.test/kurikulum" }
+          ]
+        }
+      }
     }));
     const body = await json(res);
     expect(res.status).toBe(200);
     expect(body.data.location).toBe("Lokasi Test");
+    expect(body.data.management.kurikulum.lead).toBe("Kurikulum Test");
+    expect(body.data.management.kurikulum.resources.length).toBe(2);
   });
 });
 

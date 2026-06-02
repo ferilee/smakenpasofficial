@@ -76,6 +76,58 @@ const statsLabels = {
   users: "User Admin"
 };
 
+const profileFields = ["history", "vision", "mission", "principalName", "principalGreeting", "principalPhotoUrl", "principalCtaLabel", "principalCtaUrl", "organization", "accreditation", "location"];
+const managementEditorBlueprint = [
+  {
+    key: "kurikulum",
+    label: "Kurikulum",
+    defaultLead: "Mengatur arah pembelajaran agar selaras dengan kebutuhan sekolah, industri, dan capaian lulusan.",
+    defaultPoints: [
+      "Penyusunan perangkat ajar dan kalender akademik.",
+      "Koordinasi pembelajaran lintas mata pelajaran dan jurusan.",
+      "Evaluasi hasil belajar, asesmen, dan tindak lanjut mutu.",
+      "Sinkronisasi dengan kebutuhan DUDIKA dan dunia kerja."
+    ],
+    defaultResources: []
+  },
+  {
+    key: "kesiswaan",
+    label: "Kesiswaan",
+    defaultLead: "Membina peserta didik agar disiplin, berkembang, dan aktif dalam kegiatan sekolah.",
+    defaultPoints: [
+      "Pembinaan disiplin, tata tertib, dan budaya positif.",
+      "Pendampingan OSIS, ekstrakurikuler, dan kepemimpinan siswa.",
+      "Pemantauan absensi, kedisiplinan, dan kesejahteraan siswa.",
+      "Koordinasi layanan BK dan pengembangan prestasi non-akademik."
+    ],
+    defaultResources: []
+  },
+  {
+    key: "prasaranasarana",
+    label: "Prasarana dan Sarana",
+    defaultLead: "Menjaga ruang belajar, laboratorium, dan inventaris sekolah tetap layak, aman, dan siap pakai.",
+    defaultPoints: [
+      "Pendataan dan pemeliharaan ruang, alat, dan inventaris.",
+      "Pengaturan penggunaan laboratorium, kelas, dan fasilitas umum.",
+      "Perencanaan kebutuhan pengadaan dan perbaikan fasilitas.",
+      "Monitoring kebersihan, keamanan, dan kelayakan sarana."
+    ],
+    defaultResources: []
+  },
+  {
+    key: "humas",
+    label: "Humas",
+    defaultLead: "Menjaga komunikasi dengan orang tua, mitra industri, dan masyarakat agar sekolah tetap terbuka dan relevan.",
+    defaultPoints: [
+      "Kemitraan dengan industri, dunia kerja, dan lembaga eksternal.",
+      "Publikasi kegiatan sekolah dan pengelolaan informasi resmi.",
+      "Koordinasi layanan informasi untuk orang tua dan masyarakat.",
+      "Dukungan promosi sekolah, PPDB, dan citra institusi."
+    ],
+    defaultResources: []
+  }
+];
+
 function getPreferredTheme() {
   const saved = localStorage.getItem(themeStorageKey);
   if (saved === "dark" || saved === "light") return saved;
@@ -160,6 +212,77 @@ function formFields(config, item = {}) {
     const type = field === "password" ? "password" : field.toLowerCase().includes("date") || field === "publishedAt" ? "date" : "text";
     return `<div class="field"><label>${fieldLabel(field)}</label><input type="${type}" name="${field}" value="${value}"></div>`;
   }).join("");
+}
+
+function splitLines(value) {
+  return String(value ?? "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
+function managementEditor(data = {}) {
+  const management = data.management || {};
+  return `
+    <section class="management-admin">
+      <div class="toolbar">
+        <div>
+          <h2>Manajemen Sekolah</h2>
+          <p>Konten ini ditampilkan pada modal akses cepat di beranda.</p>
+        </div>
+      </div>
+      <div class="management-admin-grid">
+        ${managementEditorBlueprint.map((item) => {
+          const current = management[item.key] || {};
+          const lead = esc(current.lead || item.defaultLead);
+          const points = esc(Array.isArray(current.points) ? current.points.join("\n") : String(current.points || item.defaultPoints.join("\n")));
+          const resources = esc(Array.isArray(current.resources) ? current.resources.map((resource) => `${resource.label || ""} | ${resource.type || "link"} | ${resource.url || ""}`).join("\n") : String(current.resources || ""));
+          return `
+            <article class="management-admin-card">
+              <h3>${esc(item.label)}</h3>
+              <div class="field">
+                <label>Ringkasan</label>
+                <textarea name="management_${item.key}_lead">${lead}</textarea>
+              </div>
+              <div class="field">
+                <label>Poin detail per baris</label>
+                <textarea name="management_${item.key}_points">${points}</textarea>
+              </div>
+              <div class="field">
+                <label>Berkas / tautan per baris</label>
+                <textarea name="management_${item.key}_resources" placeholder="Judul | file/link | https://...">${resources}</textarea>
+                <p class="hint">Format: label | file/link | URL. Baris tipe <strong>file</strong> akan tampil sebagai unduhan, <strong>link</strong> akan buka situs eksternal.</p>
+              </div>
+            </article>`;
+        }).join("")}
+      </div>
+    </section>`;
+}
+
+function splitManagementResources(value) {
+  return String(value ?? "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const [label = "", type = "", url = ""] = line.split("|").map((part) => part.trim());
+      if (!label || !url) return null;
+      return {
+        label,
+        type: /^(file|berkas|download)$/i.test(type) ? "file" : "link",
+        url
+      };
+    })
+    .filter(Boolean);
+}
+
+function buildManagementPayload(form) {
+  return Object.fromEntries(managementEditorBlueprint.map((item) => {
+    const lead = String(form.querySelector(`[name="management_${item.key}_lead"]`)?.value || "").trim();
+    const points = splitLines(form.querySelector(`[name="management_${item.key}_points"]`)?.value || "");
+    const resources = splitManagementResources(form.querySelector(`[name="management_${item.key}_resources"]`)?.value || "");
+    return [item.key, { lead, points, resources }];
+  }));
 }
 
 function loginView() {
@@ -319,7 +442,7 @@ function setActive(page) {
 async function renderPage(page) {
   setActive(page);
   if (page === "overview") return overview();
-  if (page === "profile") return singleton("Profil Sekolah", "/api/profile", ["history", "vision", "mission", "principalName", "principalGreeting", "principalPhotoUrl", "principalCtaLabel", "principalCtaUrl", "organization", "accreditation", "location"]);
+  if (page === "profile") return profileAdminPage();
   if (page === "settings") return singleton("Pengaturan Website", "/api/settings", ["schoolName", "tagline", "logoUrl", "faviconUrl", "themeColor", "address", "email", "phone", "whatsapp", "wordpressUrl", "ppdbUrl", "metaDescription", "footerText"]);
   if (page === "upload") return uploadPage();
   return resourcePage(page);
@@ -347,6 +470,24 @@ async function singleton(title, path, fields) {
     event.preventDefault();
     const body = formPayload(event.target, fields);
     await api(path, { method: "PUT", body: JSON.stringify(body) });
+    notify("Data tersimpan.");
+  });
+}
+
+async function profileAdminPage() {
+  const data = await api("/api/profile");
+  document.querySelector("#main").innerHTML = `
+    <div class="toolbar"><div><h1>Profil Sekolah</h1><p>Perbarui data utama website.</p></div></div>
+    <form class="card form" id="single-form">
+      ${formFields({ fields: profileFields }, data || {})}
+      ${managementEditor(data || {})}
+      <button class="btn">Simpan</button>
+    </form>`;
+  document.querySelector("#single-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const body = formPayload(event.target, profileFields);
+    body.management = buildManagementPayload(event.target);
+    await api("/api/profile", { method: "PUT", body: JSON.stringify(body) });
     notify("Data tersimpan.");
   });
 }

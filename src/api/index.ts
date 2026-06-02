@@ -295,7 +295,7 @@ export function apiRoutes() {
   app.put("/profile", requireAdmin, async (c) => {
     const body = await c.req.json<Record<string, unknown>>();
     const current = await db.select().from(schoolProfile).get();
-    const data = pick(body, ["history", "vision", "mission", "principalName", "principalGreeting", "principalPhotoUrl", "principalCtaLabel", "principalCtaUrl", "identity", "organization", "accreditation", "location"]);
+    const data = pick(body, ["history", "vision", "mission", "principalName", "principalGreeting", "principalPhotoUrl", "principalCtaLabel", "principalCtaUrl", "identity", "management", "organization", "accreditation", "location"]);
     const [row] = current
       ? await db.update(schoolProfile).set(data as never).where(eq(schoolProfile.id, current.id)).returning()
       : await db.insert(schoolProfile).values(data as never).returning();

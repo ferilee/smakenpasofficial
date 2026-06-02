@@ -160,16 +160,10 @@ function layout(content, data = state.home) {
     </header>
     ${content}
     <footer class="footer">
-      <div class="container split">
-        <div>
-          <h2>${esc(school)}</h2>
-          <p>${esc(data?.settings?.tagline || "Pusat informasi resmi sekolah.")}</p>
-        </div>
-        <div>
-          <p>${esc(data?.settings?.address || "")}</p>
-          <p>${esc(data?.settings?.email || "")} ${data?.settings?.phone ? " | " + esc(data.settings.phone) : ""}</p>
-          <p>${esc(data?.settings?.footerText || "")}</p>
-        </div>
+      <div class="container footer-compact">
+        <strong>${esc(school)}</strong>
+        <p>${esc(data?.settings?.tagline || "Pusat informasi resmi sekolah.")}</p>
+        <span>${esc(data?.settings?.footerText || "Informasi resmi sekolah.")}</span>
       </div>
     </footer>
     ${bottomNavigation()}`;
@@ -264,6 +258,123 @@ function quickAccessSection() {
         </a>`).join("")}
       </div>
     </div>
+  </section>`;
+}
+
+const managementBlueprint = [
+  {
+    key: "kurikulum",
+    label: "Kurikulum",
+    tone: "aqua",
+    title: "Manajemen Kurikulum",
+    defaultLead: "Mengatur arah pembelajaran agar selaras dengan kebutuhan sekolah, industri, dan capaian lulusan.",
+    defaultPoints: [
+      "Penyusunan perangkat ajar dan kalender akademik.",
+      "Koordinasi pembelajaran lintas mata pelajaran dan jurusan.",
+      "Evaluasi hasil belajar, asesmen, dan tindak lanjut mutu.",
+      "Sinkronisasi dengan kebutuhan DUDIKA dan dunia kerja."
+    ],
+    defaultResources: []
+  },
+  {
+    key: "kesiswaan",
+    label: "Kesiswaan",
+    tone: "violet",
+    title: "Manajemen Kesiswaan",
+    defaultLead: "Membina peserta didik agar disiplin, berkembang, dan aktif dalam kegiatan sekolah.",
+    defaultPoints: [
+      "Pembinaan disiplin, tata tertib, dan budaya positif.",
+      "Pendampingan OSIS, ekstrakurikuler, dan kepemimpinan siswa.",
+      "Pemantauan absensi, kedisiplinan, dan kesejahteraan siswa.",
+      "Koordinasi layanan BK dan pengembangan prestasi non-akademik."
+    ],
+    defaultResources: []
+  },
+  {
+    key: "prasaranasarana",
+    label: "Prasarana dan Sarana",
+    tone: "gold",
+    title: "Manajemen Prasarana dan Sarana",
+    defaultLead: "Menjaga ruang belajar, laboratorium, dan inventaris sekolah tetap layak, aman, dan siap pakai.",
+    defaultPoints: [
+      "Pendataan dan pemeliharaan ruang, alat, dan inventaris.",
+      "Pengaturan penggunaan laboratorium, kelas, dan fasilitas umum.",
+      "Perencanaan kebutuhan pengadaan dan perbaikan fasilitas.",
+      "Monitoring kebersihan, keamanan, dan kelayakan sarana."
+    ],
+    defaultResources: []
+  },
+  {
+    key: "humas",
+    label: "Humas",
+    tone: "teal",
+    title: "Manajemen Hubungan Masyarakat",
+    defaultLead: "Menjaga komunikasi dengan orang tua, mitra industri, dan masyarakat agar sekolah tetap terbuka dan relevan.",
+    defaultPoints: [
+      "Kemitraan dengan industri, dunia kerja, dan lembaga eksternal.",
+      "Publikasi kegiatan sekolah dan pengelolaan informasi resmi.",
+      "Koordinasi layanan informasi untuk orang tua dan masyarakat.",
+      "Dukungan promosi sekolah, PPDB, dan citra institusi."
+    ],
+    defaultResources: []
+  }
+];
+
+function splitManagementResources(value) {
+  return String(value ?? "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const [label = "", type = "", url = ""] = line.split("|").map((part) => part.trim());
+      const finalType = /^(file|berkas|download)$/i.test(type) ? "file" : "link";
+      if (!label || !url) return null;
+      return { label, type: finalType, url };
+    })
+    .filter(Boolean);
+}
+
+function normalizeManagementContent(raw = {}) {
+  return managementBlueprint.map((item) => {
+    const current = raw?.[item.key] || {};
+    const points = Array.isArray(current.points) ? current.points : splitLines(current.points || "");
+    const resources = Array.isArray(current.resources) ? current.resources : splitManagementResources(current.resources || "");
+    return {
+      ...item,
+      lead: String(current.lead || item.defaultLead || "").trim(),
+      points: points.length ? points : item.defaultPoints,
+      resources: resources.length ? resources : item.defaultResources || []
+    };
+  });
+}
+
+function managementSchoolSection(management = {}) {
+  const items = normalizeManagementContent(management);
+
+  return `<section class="management-access">
+    <div class="management-access-head">
+      <p>MANAGEMENT SEKOLAH</p>
+      <h3>Akses cepat unit kerja sekolah</h3>
+      <span>Lihat detail singkat empat bidang manajemen yang menggerakkan operasional sekolah.</span>
+    </div>
+    <div class="management-grid">
+      ${items.map((item) => `<button class="management-card ${item.tone}" type="button" data-management-open="${esc(item.key)}">
+        <strong>${esc(item.label)}</strong>
+        <span>Buka detail</span>
+      </button>`).join("")}
+    </div>
+    <div class="management-modal" data-management-modal hidden>
+      <div class="management-modal-backdrop" data-management-close></div>
+      <article class="management-modal-box" role="dialog" aria-modal="true" aria-labelledby="management-modal-title">
+        <button class="management-modal-close" type="button" data-management-close aria-label="Tutup">&times;</button>
+        <p class="management-modal-kicker">Manajemen Sekolah</p>
+        <h3 id="management-modal-title" data-management-title></h3>
+        <p class="management-modal-lead" data-management-lead></p>
+        <div class="management-modal-list" data-management-list></div>
+        <div class="management-modal-resources" data-management-resources hidden></div>
+      </article>
+    </div>
+    <script type="application/json" id="management-school-data">${JSON.stringify(items).replace(/</g, "\\u003c")}</script>
   </section>`;
 }
 
@@ -687,6 +798,7 @@ async function homePage() {
           </div>
           <div class="photo-panel"></div>
           </div>
+          ${managementSchoolSection(data.profile.management || {})}
         </div>
       </section>
       ${quickAccessSection()}
@@ -920,6 +1032,56 @@ function setupTestimonialCarousel() {
   applyFilter();
 }
 
+function setupManagementModal() {
+  const payload = document.querySelector("#management-school-data");
+  const modal = document.querySelector("[data-management-modal]");
+  const title = document.querySelector("[data-management-title]");
+  const lead = document.querySelector("[data-management-lead]");
+  const list = document.querySelector("[data-management-list]");
+  const resources = document.querySelector("[data-management-resources]");
+  if (!payload || !modal || !title || !lead || !list || !resources) return;
+  const items = JSON.parse(payload.textContent || "[]");
+  if (!Array.isArray(items) || !items.length) return;
+  const byKey = new Map(items.map((item) => [item.key, item]));
+
+  const closeModal = () => {
+    modal.classList.remove("open");
+    setTimeout(() => {
+      if (!modal.classList.contains("open")) modal.hidden = true;
+    }, 220);
+  };
+
+  const openModal = (key) => {
+    const item = byKey.get(key);
+    if (!item) return;
+    title.textContent = item.title;
+    lead.textContent = item.lead;
+    list.innerHTML = item.points.map((point) => `<div class="management-modal-item"><span></span><p>${esc(point)}</p></div>`).join("");
+    const resourceItems = Array.isArray(item.resources) ? item.resources : [];
+    resources.hidden = resourceItems.length === 0;
+    resources.innerHTML = resourceItems.length ? `
+      <p class="management-modal-resources-title">Berkas dan Tautan</p>
+      <div class="management-modal-resource-list">
+        ${resourceItems.map((resource) => {
+          const isFile = resource.type === "file";
+          const href = esc(resource.url);
+          const label = esc(resource.label || (isFile ? "Unduh Berkas" : "Lihat Tautan"));
+          return `<a class="management-resource-button ${isFile ? "file" : "link"}" href="${href}" ${isFile ? 'download rel="noopener noreferrer"' : 'target="_blank" rel="noopener noreferrer"'}>${label}<span>${isFile ? "Unduh" : "Lihat"}</span></a>`;
+        }).join("")}
+      </div>` : "";
+    modal.hidden = false;
+    requestAnimationFrame(() => modal.classList.add("open"));
+  };
+
+  document.querySelectorAll("[data-management-open]").forEach((button) => {
+    button.addEventListener("click", () => openModal(button.dataset.managementOpen || ""));
+  });
+  modal.querySelectorAll("[data-management-close]").forEach((button) => button.addEventListener("click", closeModal));
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && modal.classList.contains("open")) closeModal();
+  });
+}
+
 function registerPwa() {
   if (pwaRegistered) return;
   pwaRegistered = true;
@@ -1139,6 +1301,7 @@ async function render() {
     setupAgendaCalendar();
     setupTestimonialForm();
     setupTestimonialCarousel();
+    setupManagementModal();
     document.querySelectorAll("[data-theme-toggle]").forEach((button) => button.addEventListener("click", toggleTheme));
     applyTheme(document.documentElement.dataset.theme || getPreferredTheme());
     registerPwa();
