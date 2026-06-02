@@ -127,13 +127,14 @@ function notify(message, type = "success") {
   const toast = document.createElement("div");
   toast.className = `toast ${type}`;
   toast.setAttribute("role", "status");
-  toast.textContent = message;
+  toast.style.setProperty("--toast-duration", "5000ms");
+  toast.innerHTML = `<span class="toast-content">${esc(message)}</span><span class="toast-bar" aria-hidden="true"></span>`;
   stack.appendChild(toast);
   requestAnimationFrame(() => toast.classList.add("show"));
   setTimeout(() => {
     toast.classList.remove("show");
-    setTimeout(() => toast.remove(), 220);
-  }, 3200);
+    setTimeout(() => toast.remove(), 240);
+  }, 5000);
 }
 
 function dateKey(value) {
@@ -775,7 +776,22 @@ function pageHero(title, text) {
 
 async function profilePage() {
   const data = await loadProfile();
-  const identity = data.profile.identity || {};
+  const identityRows = [
+    ["Nama Sekolah", "SMK Negeri Pasirian."],
+    ["NSS", data.profile.identity?.NSS || "32 1 05 21 05 009"],
+    ["NPSN", data.profile.identity?.NPSN || "20521455"],
+    ["Status Akreditasi", data.profile.identity?.["Status Akreditasi"] || data.profile.accreditation || "Negeri"],
+    ["Alamat Sekolah", data.profile.identity?.["Alamat Sekolah"] || data.settings?.address || "Jalan Raya Condro – Pasirian/ 67372"],
+    ["Kabupaten", data.profile.identity?.Kabupaten || "Lumajang"],
+    ["Propinsi", data.profile.identity?.Propinsi || "Jawa Timur"],
+    ["Telepon/Fax", data.profile.identity?.["Telepon/Fax"] || data.settings?.phone || "(0334) 574253"],
+    ["SK Pendirian Pejabat", data.profile.identity?.["SK Pendirian Pejabat"] || "Bupati Lumajang"],
+    ["Nomor", data.profile.identity?.Nomor || "188.45/656/427.12/2003"],
+    ["Tanggal Penetapan", data.profile.identity?.["Tanggal Penetapan"] || "15 Desember 2003"],
+    ["Tanggal Berdiri", data.profile.identity?.["Tanggal Berdiri"] || "24 Juli 2003"],
+    ["Luas Tanah", data.profile.identity?.["Luas Tanah"] || "20620 m2 ( sertifikat tgl 24 Maret 2005 )"],
+    ["IMB", data.profile.identity?.IMB || "SK Kepala Dinas Kimpraswil Kab. Lumajang – No. 188.45/40/427.39/2004 – tanggal 5 Maret 2004"]
+  ];
   return layout(`
     <main>
       ${pageHero("Profil Sekolah", "Sejarah, visi misi, identitas, fasilitas, dan lokasi sekolah.")}
@@ -786,10 +802,16 @@ async function profilePage() {
           <h2>Misi</h2><p class="prose">${esc(data.profile.mission)}</p>
         </div>
         <div class="card">
-          <h3>Identitas</h3>
-          ${Object.entries(identity).map(([key, value]) => `<p><strong>${esc(key)}:</strong> ${esc(value)}</p>`).join("")}
-          <p><strong>Akreditasi:</strong> ${esc(data.profile.accreditation)}</p>
-          <p><strong>Lokasi:</strong> ${esc(data.profile.location)}</p>
+          <h3>Identitas Sekolah</h3>
+          <div class="identity-list">
+            ${identityRows.map(([label, value]) => `
+              <div class="identity-row">
+                <span class="identity-label">${esc(label)}</span>
+                <span class="identity-separator">:</span>
+                <span class="identity-value">${esc(value)}</span>
+              </div>
+            `).join("")}
+          </div>
         </div>
       </div></section>
       <section class="soft"><div class="container">${sectionHead("Fasilitas", "Fasilitas pendukung kegiatan belajar.")}<div class="grid">${data.facilities.map((item) => card(item.name, item.description)).join("")}</div></div></section>

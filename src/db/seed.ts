@@ -55,16 +55,16 @@ export async function seed() {
   const settings = await db.select().from(schoolSettings).get();
   if (!settings) {
     await db.insert(schoolSettings).values({
-      schoolName: "SMK Negeri Pas",
+      schoolName: "SMK Negeri Pasirian.",
       tagline: "Unggul, Adaptif, Berkarakter, dan Siap Kerja",
-      address: "Jl. Pendidikan No. 1, Kota Sekolah",
-      email: "info@smknegeripas.sch.id",
-      phone: "(021) 2005-2005",
+      address: "Jalan Raya Condro – Pasirian/ 67372",
+      email: "info@smkpasirian.sch.id",
+      phone: "(0334) 574253",
       whatsapp: "6281220052005",
       wordpressUrl: "https://domainsekolah.sch.id/blog",
       ppdbUrl: "https://domainsekolah.sch.id/ppdb",
-      metaDescription: "Website resmi SMK Negeri Pas sebagai pusat informasi sekolah.",
-      footerText: "SMK Negeri Pas. Seluruh hak cipta dilindungi.",
+      metaDescription: "Website resmi SMK Negeri Pasirian sebagai pusat informasi sekolah.",
+      footerText: "SMK Negeri Pasirian. Seluruh hak cipta dilindungi.",
       socialLinks: { instagram: "https://instagram.com/smknegeripas", youtube: "https://youtube.com" }
     });
   }
@@ -75,26 +75,66 @@ export async function seed() {
       history: "SMK Negeri Pas berdiri sebagai satuan pendidikan vokasi yang menyiapkan lulusan kompeten, berkarakter, dan relevan dengan kebutuhan industri.",
       vision: "Menjadi sekolah vokasi unggulan yang menghasilkan lulusan profesional, berakhlak, dan berdaya saing global.",
       mission: "Menyelenggarakan pembelajaran berbasis industri.\nMenguatkan karakter, literasi, dan budaya kerja.\nMengembangkan kemitraan dengan dunia usaha dan dunia industri.",
-      principalName: "Drs. Budi Santoso",
-      principalGreeting: "Selamat datang di website resmi sekolah. Semoga kanal ini menjadi pintu informasi yang terbuka bagi siswa, orang tua, alumni, industri, dan masyarakat.",
-      principalPhotoUrl: "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=500&q=80",
+      principalName: "Dermawan Triwahyono, S.T., M.M.",
+      principalGreeting: "Selamat datang di portal resmi SMK Negeri Pasirian. Tempat pengetahuan, kreativitas, dan potensi bertemu untuk membentuk masa depan yang gemilang. Kami adalah sebuah lembaga pendidikan yang berkomitmen untuk mempersiapkan generasi muda yang unggul, disiplin, dan siap bersaing.",
+      principalPhotoUrl: "https://i.ibb.co.com/Xr553J1B/Dermawan.png",
       principalCtaLabel: "Selengkapnya",
       principalCtaUrl: "/profil",
       identity: {
-        NPSN: "20052005",
-        Status: "Negeri",
-        Jenjang: "SMK",
-        Kurikulum: "Merdeka"
+        "Nama Sekolah": "SMK Negeri Pasirian.",
+        NSS: "32 1 05 21 05 009",
+        NPSN: "20521455",
+        "Status Akreditasi": "Negeri",
+        "Alamat Sekolah": "Jalan Raya Condro – Pasirian/ 67372",
+        Kabupaten: "Lumajang",
+        Propinsi: "Jawa Timur",
+        "Telepon/Fax": "(0334) 574253",
+        "SK Pendirian Pejabat": "Bupati Lumajang",
+        Nomor: "188.45/656/427.12/2003",
+        "Tanggal Penetapan": "15 Desember 2003",
+        "Tanggal Berdiri": "24 Juli 2003",
+        "Luas Tanah": "20620 m2 ( sertifikat tgl 24 Maret 2005 )",
+        IMB: "SK Kepala Dinas Kimpraswil Kab. Lumajang – No. 188.45/40/427.39/2004 – tanggal 5 Maret 2004"
       },
       organization: "Kepala Sekolah, Wakil Kepala Sekolah, Kepala Program Keahlian, Wali Kelas, Guru, dan Tenaga Kependidikan.",
       accreditation: "A",
       location: "Kota Sekolah, Indonesia"
     });
   } else {
+    await db.update(schoolSettings).set({
+      schoolName: "SMK Negeri Pasirian.",
+      address: "Jalan Raya Condro – Pasirian/ 67372",
+      email: "info@smkpasirian.sch.id",
+      phone: "(0334) 574253",
+      metaDescription: "Website resmi SMK Negeri Pasirian sebagai pusat informasi sekolah.",
+      footerText: "SMK Negeri Pasirian. Seluruh hak cipta dilindungi."
+    }).where(eq(schoolSettings.id, settings!.id));
     await db.update(schoolProfile).set({
-      principalPhotoUrl: profile.principalPhotoUrl || "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=500&q=80",
-      principalCtaLabel: profile.principalCtaLabel || "Selengkapnya",
-      principalCtaUrl: profile.principalCtaUrl || "/profil"
+      mission: "Menyelenggarakan pembelajaran berbasis industri.\nMenguatkan karakter, literasi, dan budaya kerja.\nMengembangkan kemitraan dengan dunia usaha dan dunia industri.",
+      principalName: "Dermawan Triwahyono, S.T., M.M.",
+      principalGreeting: "Selamat datang di portal resmi SMK Negeri Pasirian. Tempat pengetahuan, kreativitas, dan potensi bertemu untuk membentuk masa depan yang gemilang. Kami adalah sebuah lembaga pendidikan yang berkomitmen untuk mempersiapkan generasi muda yang unggul, disiplin, dan siap bersaing.",
+      principalPhotoUrl: "https://i.ibb.co.com/Xr553J1B/Dermawan.png",
+      principalCtaLabel: "Selengkapnya",
+      principalCtaUrl: "/profil",
+      identity: {
+        "Nama Sekolah": "SMK Negeri Pasirian.",
+        NSS: "32 1 05 21 05 009",
+        NPSN: "20521455",
+        "Status Akreditasi": "Negeri",
+        "Alamat Sekolah": "Jalan Raya Condro – Pasirian/ 67372",
+        Kabupaten: "Lumajang",
+        Propinsi: "Jawa Timur",
+        "Telepon/Fax": "(0334) 574253",
+        "SK Pendirian Pejabat": "Bupati Lumajang",
+        Nomor: "188.45/656/427.12/2003",
+        "Tanggal Penetapan": "15 Desember 2003",
+        "Tanggal Berdiri": "24 Juli 2003",
+        "Luas Tanah": "20620 m2 ( sertifikat tgl 24 Maret 2005 )",
+        IMB: "SK Kepala Dinas Kimpraswil Kab. Lumajang – No. 188.45/40/427.39/2004 – tanggal 5 Maret 2004"
+      },
+      organization: "Kepala Sekolah, Wakil Kepala Sekolah, Kepala Program Keahlian, Wali Kelas, Guru, dan Tenaga Kependidikan.",
+      accreditation: "A",
+      location: "Kota Sekolah, Indonesia"
     }).where(eq(schoolProfile.id, profile.id));
   }
 

@@ -112,13 +112,14 @@ function notify(message, type = "success") {
   const toast = document.createElement("div");
   toast.className = `toast ${type}`;
   toast.setAttribute("role", "status");
-  toast.textContent = message;
+  toast.style.setProperty("--toast-duration", "5000ms");
+  toast.innerHTML = `<span class="toast-content">${esc(message)}</span><span class="toast-bar" aria-hidden="true"></span>`;
   stack.appendChild(toast);
   requestAnimationFrame(() => toast.classList.add("show"));
   setTimeout(() => {
     toast.classList.remove("show");
-    setTimeout(() => toast.remove(), 220);
-  }, 3200);
+    setTimeout(() => toast.remove(), 240);
+  }, 5000);
 }
 
 async function api(path, options = {}) {
