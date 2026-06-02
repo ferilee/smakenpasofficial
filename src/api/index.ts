@@ -23,7 +23,7 @@ import {
   testimonials,
   users
 } from "../db/schema";
-import { fail, hashPassword, ok, pick, slugify, socialProfileUrl, verifyPassword } from "../lib/utils";
+import { fail, hashPassword, normalizeTeacherImportRow, ok, parseCsv, pick, resolveGoogleSheetCsvUrl, slugify, socialProfileUrl, verifyPassword } from "../lib/utils";
 
 type AnyTable = any;
 
@@ -73,6 +73,27 @@ function normalizeBody(resource: keyof typeof tableFields, body: Record<string, 
     data.facebook = socialProfileUrl("facebook", String(data.facebook || ""));
   }
   return data;
+}
+
+function normalizeTeacherStatus(value: string) {
+  const input = String(value || "").trim();
+  if (!input) return "active";
+  return /non|tidak|inactive|pensiun|purna/i.test(input) ? "inactive" : "active";
+}
+
+async function readGoogleSheetTeachers(sheetUrl: string) {
+  const csvUrl = resolveGoogleSheetCsvUrl(sheetUrl);
+  if (!csvUrl) throw new Error("URL Google Sheets tidak valid.");
+  const response = await fetch(csvUrl);
+  if (!response.ok) throw new Error("Gagal mengambil data Google Sheets.");
+  const rows = parseCsv(await response.text());
+  if (rows.length < 2) throw new Error("Google Sheets tidak memiliki data.");
+  const headers = rows[0].map((header) => String(header || "").trim());
+  const records = rows.slice(1).map((row) => normalizeTeacherImportRow(headers, row)).filter((row): row is NonNullable<typeof row> => Boolean(row?.name));
+  return records.map((row) => ({
+    ...row,
+    status: normalizeTeacherStatus(row.status)
+  }));
 }
 
 async function requireAdmin(c: any, next: any) {
@@ -283,6 +304,46 @@ export function apiRoutes() {
 
   crud(app, "/majors", majors, "majors", true);
   crud(app, "/teachers", teachers, "teachers", true);
+
+  app.post("/teachers/import/google-sheets", requireAdmin, async (c) => {
+    const body = await c.req.json<Record<string, unknown>>();
+    const sheetUrl = String(body.url || body.sheetUrl || "").trim();
+    const mode = String(body.mode || "upsert").trim() === "replace" ? "replace" : "upsert";
+    const imported = await readGoogleSheetTeachers(sheetUrl);
+    if (!imported.length) return c.json(fail("Tidak ada data guru yang bisa diimpor."), 400);
+
+    let inserted = 0;
+    let updated = 0;
+    if (mode === "replace") {
+      await db.delete(teachers);
+      if (imported.length) {
+        await db.insert(teachers).values(imported as never);
+        inserted = imported.length;
+      }
+    } else {
+      const existingTeachers = await db.select().from(teachers);
+      const byName = new Map(existingTeachers.map((teacher) => [teacher.name.toLowerCase(), teacher]));
+      for (const row of imported) {
+        const existing = byName.get(row.name.toLowerCase());
+        if (existing) {
+          await db.update(teachers).set({
+            photoUrl: row.photoUrl,
+            position: row.position,
+            subject: row.subject,
+            expertise: row.expertise,
+            status: row.status
+          }).where(eq(teachers.id, existing.id));
+          updated += 1;
+        } else {
+          await db.insert(teachers).values(row as never);
+          inserted += 1;
+        }
+      }
+    }
+
+    return c.json(ok({ imported: imported.length, inserted, updated, mode }));
+  });
+
   crud(app, "/facilities", facilities, "facilities", true);
   crud(app, "/galleries", galleries, "galleries", true);
   crud(app, "/gallery-items", galleryItems as never, "galleryItems", true);

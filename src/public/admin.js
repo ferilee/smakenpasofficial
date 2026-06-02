@@ -357,7 +357,10 @@ async function resourcePage(key) {
   document.querySelector("#main").innerHTML = `
     <div class="toolbar">
       <div><h1>${config.title}</h1><p>Kelola data ${config.title.toLowerCase()}.</p></div>
-      <button class="btn" id="add">Tambah</button>
+      <div class="toolbar-actions">
+        ${key === "teachers" ? '<button class="btn secondary" id="import-sheet">Import Google Sheets</button>' : ""}
+        <button class="btn" id="add">Tambah</button>
+      </div>
     </div>
     <div class="table-wrap">
       <table>
@@ -377,6 +380,9 @@ async function resourcePage(key) {
           </tr>`).join("") || '<tr><td colspan="4" class="empty">Belum ada data.</td></tr>'}</tbody>
       </table>
     </div>`;
+  if (key === "teachers") {
+    document.querySelector("#import-sheet").addEventListener("click", () => openTeacherImport());
+  }
   document.querySelector("#add").addEventListener("click", () => openForm(key));
   document.querySelectorAll("[data-edit]").forEach((button) => button.addEventListener("click", () => openForm(key, rows.find((row) => row.id === Number(button.dataset.edit)))));
   document.querySelectorAll("[data-view]").forEach((button) => button.addEventListener("click", () => openDetail(key, rows.find((row) => row.id === Number(button.dataset.view)))));
@@ -411,6 +417,43 @@ async function resourcePage(key) {
     await updateMenuBadges();
   }));
   await updateMenuBadges();
+}
+
+function openTeacherImport() {
+  const modal = document.querySelector("#modal");
+  const box = document.querySelector("#modal-box");
+  box.innerHTML = `
+    <div class="toolbar"><h2>Import Guru & Tendik dari Google Sheets</h2><button class="btn ghost" id="close">Tutup</button></div>
+    <form class="form" id="teacher-import-form">
+      <div class="field">
+        <label>URL Google Sheets</label>
+        <input name="url" placeholder="https://docs.google.com/spreadsheets/d/..." required>
+        <p class="hint">Gunakan sheet yang sudah dibuka publik atau URL ekspor CSV. Header kolom akan dipetakan otomatis.</p>
+      </div>
+      <div class="field">
+        <label>Mode Import</label>
+        <select name="mode">
+          <option value="upsert">Tambah / perbarui data yang sudah ada</option>
+          <option value="replace">Hapus semua lalu impor ulang</option>
+        </select>
+      </div>
+      <button class="btn">Import</button>
+    </form>`;
+  modal.classList.add("open");
+  document.querySelector("#close").addEventListener("click", () => modal.classList.remove("open"));
+  document.querySelector("#teacher-import-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const body = Object.fromEntries(new FormData(event.target));
+    try {
+      const result = await api("/api/teachers/import/google-sheets", { method: "POST", body: JSON.stringify(body) });
+      modal.classList.remove("open");
+      await resourcePage("teachers");
+      await updateMenuBadges();
+      notify(`Import selesai: ${result.inserted} baru, ${result.updated} diperbarui.`);
+    } catch (error) {
+      notify(error.message || "Import Google Sheets gagal.", "error");
+    }
+  });
 }
 
 function openDetail(key, item = {}) {

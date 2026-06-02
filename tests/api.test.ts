@@ -195,6 +195,43 @@ describe("admin CRUD endpoints", () => {
     expect(Array.isArray(body.data)).toBe(true);
   });
 
+  test("teachers can be imported from google sheets", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("docs.google.com/spreadsheets")) {
+        return new Response(
+          [
+            "Nama,Jabatan,Mapel,Bidang Keahlian,Status",
+            "Guru Import 1,Guru,Matematika,Matematika,active",
+            "Guru Import 2,Wakil Kepala Sekolah,BK,Manajemen Kesiswaan,nonaktif"
+          ].join("\n"),
+          { status: 200, headers: { "Content-Type": "text/csv" } }
+        );
+      }
+      return originalFetch(input);
+    };
+
+    try {
+      const res = await adminRequest("/teachers/import/google-sheets", jsonInit("POST", {
+        url: "https://docs.google.com/spreadsheets/d/mock-sheet/edit#gid=0",
+        mode: "upsert"
+      }));
+      const body = await json(res);
+      expect(res.status).toBe(200);
+      expect(body.data.imported).toBe(2);
+      expect(body.data.inserted + body.data.updated).toBe(2);
+
+      const teachersBody = await json(await request("/teachers"));
+      const importedOne = teachersBody.data.find((teacher: any) => teacher.name === "Guru Import 1");
+      const importedTwo = teachersBody.data.find((teacher: any) => teacher.name === "Guru Import 2");
+      expect(importedOne.subject).toBe("Matematika");
+      expect(importedTwo.status).toBe("inactive");
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
   test("facilities list endpoint returns array", async () => {
     const body = await json(await request("/facilities"));
     expect(Array.isArray(body.data)).toBe(true);
