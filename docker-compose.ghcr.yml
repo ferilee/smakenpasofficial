@@ -1,22 +1,26 @@
 services:
-  web:
+  app:
     image: ghcr.io/ferilee/smakenpasofficial:latest
+    container_name: smakenpasofficial
     ports:
       - "2005:2005"
+    env_file:
+      - .env
     environment:
+      NODE_ENV: production
       PORT: 2005
       DATABASE_URL: /app/data/app.db
       UPLOAD_DIR: /app/uploads
-      TOKEN_SECRET: ganti-secret-produksi
     volumes:
-      - ./data:/app/data
-      - ./uploads:/app/uploads
+      - sqlite_data:/app/data
+      - upload_data:/app/uploads
+    networks:
+      - ferileenet
 
-  rustfs:
-    image: rustfs/rustfs:latest
-    profiles:
-      - storage
-    ports:
-      - "9000:9000"
-    volumes:
-      - ./rustfs-data:/data
+volumes:
+  sqlite_data:
+  upload_data:
+
+networks:
+  ferileenet:
+    external: true

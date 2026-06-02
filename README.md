@@ -313,6 +313,14 @@ Contoh Docker Compose yang memakai image GHCR ada di:
 docker-compose.ghcr.yml
 ```
 
+Compose ini disiapkan untuk deployment seperti Arcane:
+
+- image: `ghcr.io/ferilee/smakenpasofficial:latest`
+- container: `smakenpasofficial`
+- port: `2005`
+- network eksternal: `ferileenet`
+- volume: `sqlite_data` untuk SQLite dan `upload_data` untuk file upload lokal
+
 Jalankan:
 
 ```bash
@@ -326,6 +334,12 @@ PORT=2005
 DATABASE_URL=./data/app.db
 UPLOAD_DIR=./uploads
 TOKEN_SECRET=ganti-secret-produksi
+```
+
+Untuk `docker-compose.ghcr.yml`, simpan secret di file `.env`:
+
+```txt
+TOKEN_SECRET=ganti-secret-produksi-yang-kuat
 ```
 
 ## Catatan Produksi
