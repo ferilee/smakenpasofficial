@@ -436,6 +436,165 @@ function teacherCard(item) {
   </article>`;
 }
 
+function teacherCategory(item) {
+  const position = String(item.position || "").toLowerCase();
+  if (position.includes("wakil")) return "Wakil Kepala Sekolah";
+  if (position.includes("kepala sekolah") || position.includes("principal")) return "Kepala Sekolah";
+  if (position.includes("ketua") || position.includes("konsentrasi") || position.includes("kaprodi") || position.includes("kompetensi keahlian")) return "Ketua Konsentrasi Keahlian";
+  return "Guru-guru";
+}
+
+function teacherSpotlight(item, title, note = "") {
+  const image = item.photoUrl || makeMajorIllustration(item.name, Number(item.id || 0));
+  const detailUrl = `/guru-tendik/${encodeURIComponent(item.id || "")}`;
+  return `<article class="teacher-spotlight-card">
+    <div class="teacher-spotlight-image">
+      <img src="${esc(image)}" alt="${esc(item.name)}">
+    </div>
+    <div class="teacher-spotlight-body">
+      <span class="teacher-category-tag">${esc(title)}</span>
+      <h3>${esc(item.name)}</h3>
+      <p class="teacher-meta">${esc(item.position || item.subject || "Guru / Tendik")}</p>
+      ${note ? `<p class="teacher-note">${esc(note)}</p>` : ""}
+      <div class="teacher-detail-grid">
+        ${item.subject ? `<div><strong>Mapel</strong><span>${esc(item.subject)}</span></div>` : ""}
+        ${item.expertise ? `<div><strong>Bidang</strong><span>${esc(item.expertise)}</span></div>` : ""}
+        ${item.status ? `<div><strong>Status</strong><span>${esc(item.status)}</span></div>` : ""}
+      </div>
+      <a class="major-btn" href="${detailUrl}">LIHAT DETAIL GURU &#8594;</a>
+    </div>
+  </article>`;
+}
+
+function teacherPrincipalSpotlight(item) {
+  const image = item.photoUrl || makeMajorIllustration(item.name, Number(item.id || 0));
+  const detailUrl = `/guru-tendik/${encodeURIComponent(item.id || "")}`;
+  return `<article class="teacher-principal-card">
+    <div class="teacher-principal-image">
+      <img src="${esc(image)}" alt="${esc(item.name)}">
+    </div>
+    <div class="teacher-principal-body">
+      <span class="teacher-category-tag">Kepala Sekolah</span>
+      <h3>${esc(item.name)}</h3>
+      <p class="teacher-meta">${esc(item.position || item.subject || "Kepala Sekolah")}</p>
+      <p class="teacher-note">${esc(item.expertise || "Sosok utama pemimpin sekolah.")}</p>
+      <div class="teacher-detail-grid">
+        ${item.subject ? `<div><strong>Mapel</strong><span>${esc(item.subject)}</span></div>` : ""}
+        ${item.status ? `<div><strong>Status</strong><span>${esc(item.status)}</span></div>` : ""}
+        ${item.expertise ? `<div><strong>Bidang</strong><span>${esc(item.expertise)}</span></div>` : ""}
+      </div>
+      <a class="major-btn" href="${detailUrl}">LIHAT DETAIL GURU &#8594;</a>
+    </div>
+  </article>`;
+}
+
+function teacherSpotlightGrid(items, title, note = "") {
+  return `<div class="teacher-spotlight-grid">
+    ${items.map((item) => teacherSpotlight(item, title, note)).join("")}
+  </div>`;
+}
+
+function teachersGroupedSections(teachers = []) {
+  const grouped = {
+    kepala: teachers.filter((item) => teacherCategory(item) === "Kepala Sekolah"),
+    wakil: teachers.filter((item) => teacherCategory(item) === "Wakil Kepala Sekolah"),
+    ketua: teachers.filter((item) => teacherCategory(item) === "Ketua Konsentrasi Keahlian"),
+    guru: teachers.filter((item) => teacherCategory(item) === "Guru-guru")
+  };
+  const section = (title, items, mode, note) => !items.length ? "" : `
+    <section class="teacher-group">
+      <div class="container">
+        <div class="teacher-group-head">
+          <p>${esc(title)}</p>
+          <h2>${esc(note || title)} <span>(${items.length} orang)</span></h2>
+        </div>
+        ${mode === "principal"
+          ? items.map((item) => teacherPrincipalSpotlight(item)).join("")
+          : mode === "spotlight-grid"
+          ? teacherSpotlightGrid(items, title, note)
+          : mode === "spotlight"
+          ? items.map((item) => teacherSpotlight(item, title, note)).join("")
+          : `<div class="majors-grid teacher-grid">${items.map(teacherCard).join("")}</div>`}
+      </div>
+    </section>`;
+  return [
+    section("Kepala Sekolah", grouped.kepala, "principal", "Sosok utama pemimpin sekolah."),
+    section("Wakil KS", grouped.wakil, "spotlight-grid", "Mendukung arah kebijakan dan operasional sekolah."),
+    section("Ketua Konsentrasi Keahlian (K3)", grouped.ketua, "spotlight", "Penggerak konsentrasi keahlian dan koordinasi jurusan."),
+    section("Guru-guru", grouped.guru, "grid", "Tim pengajar dan tenaga pendidik aktif.")
+  ].join("");
+}
+
+function teachersTabbedSections(teachers = []) {
+  const grouped = {
+    kepala: teachers.filter((item) => teacherCategory(item) === "Kepala Sekolah"),
+    wakil: teachers.filter((item) => teacherCategory(item) === "Wakil Kepala Sekolah"),
+    ketua: teachers.filter((item) => teacherCategory(item) === "Ketua Konsentrasi Keahlian"),
+    guru: teachers.filter((item) => teacherCategory(item) === "Guru-guru")
+  };
+  const head = grouped.kepala[0];
+  const wakilCards = grouped.wakil.map((item) => teacherSpotlight(item, "Wakil KS", "Mendukung arah kebijakan dan operasional sekolah.")).join("");
+  const ketuaCards = grouped.ketua.map((item) => teacherSpotlight(item, "Ketua K3", "Penggerak konsentrasi keahlian dan koordinasi jurusan.")).join("");
+  const guruCards = grouped.guru.map((item) => teacherCard(item)).join("");
+  return `
+    <section class="teacher-tabs-section">
+      <div class="container">
+        <div class="teacher-tabs-shell">
+          <input class="teacher-tab-input" type="radio" name="teacher-tab" id="teacher-tab-head" checked>
+          <input class="teacher-tab-input" type="radio" name="teacher-tab" id="teacher-tab-waka">
+          <input class="teacher-tab-input" type="radio" name="teacher-tab" id="teacher-tab-k3">
+          <input class="teacher-tab-input" type="radio" name="teacher-tab" id="teacher-tab-guru">
+
+          <div class="teacher-tabs-nav" role="tablist" aria-label="Kategori guru dan tendik">
+            <label class="teacher-tab-button teacher-tab-head" for="teacher-tab-head" role="tab" aria-controls="teacher-panel-head">
+              <span class="teacher-tab-copy">
+                <span>Kepala Sekolah</span>
+                <small>1 orang</small>
+              </span>
+              <b>${grouped.kepala.length}</b>
+            </label>
+            <label class="teacher-tab-button teacher-tab-waka" for="teacher-tab-waka" role="tab" aria-controls="teacher-panel-waka">
+              <span class="teacher-tab-copy">
+                <span>Waka</span>
+                <small>${grouped.wakil.length} orang</small>
+              </span>
+              <b>${grouped.wakil.length}</b>
+            </label>
+            <label class="teacher-tab-button teacher-tab-k3" for="teacher-tab-k3" role="tab" aria-controls="teacher-panel-k3">
+              <span class="teacher-tab-copy">
+                <span>K3</span>
+                <small>${grouped.ketua.length} orang</small>
+              </span>
+              <b>${grouped.ketua.length}</b>
+            </label>
+            <label class="teacher-tab-button teacher-tab-guru" for="teacher-tab-guru" role="tab" aria-controls="teacher-panel-guru">
+              <span class="teacher-tab-copy">
+                <span>Guru-guru</span>
+                <small>${grouped.guru.length} orang</small>
+              </span>
+              <b>${grouped.guru.length}</b>
+            </label>
+          </div>
+
+          <div class="teacher-tabs-panels">
+            <div class="teacher-tab-panel" id="teacher-panel-head" data-panel="head">
+              ${head ? teacherPrincipalSpotlight(head) : '<p class="empty">Belum ada data kepala sekolah.</p>'}
+            </div>
+            <div class="teacher-tab-panel" id="teacher-panel-waka" data-panel="waka">
+              ${wakilCards ? `<div class="teacher-tab-grid">${wakilCards}</div>` : '<p class="empty">Belum ada data wakil kepala sekolah.</p>'}
+            </div>
+            <div class="teacher-tab-panel" id="teacher-panel-k3" data-panel="k3">
+              ${ketuaCards ? `<div class="teacher-tab-grid">${ketuaCards}</div>` : '<p class="empty">Belum ada data ketua konsentrasi keahlian.</p>'}
+            </div>
+            <div class="teacher-tab-panel" id="teacher-panel-guru" data-panel="guru">
+              ${guruCards ? `<div class="majors-grid teacher-grid">${guruCards}</div>` : '<p class="empty">Belum ada data guru-guru.</p>'}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>`;
+}
+
 function teachersShowcase(data, withMoreButton = false) {
   const items = (data.teachers || []).slice(0, withMoreButton ? 12 : 4);
   return `<section class="majors-showcase teachers-showcase">
@@ -774,8 +933,16 @@ function pageHero(title, text) {
   return `<section class="page-hero"><div class="container"><h1>${title}</h1><p>${text}</p></div></section>`;
 }
 
+function splitLines(value) {
+  return String(value ?? "")
+    .split(/\n+/)
+    .map((line) => line.replace(/^\s*\d+[\).\:-]?\s*/, "").trim())
+    .filter(Boolean);
+}
+
 async function profilePage() {
   const data = await loadProfile();
+  const missionItems = splitLines(data.profile.mission);
   const identityRows = [
     ["Nama Sekolah", "SMK Negeri Pasirian."],
     ["NSS", data.profile.identity?.NSS || "32 1 05 21 05 009"],
@@ -799,7 +966,15 @@ async function profilePage() {
         <div>
           <h2>Sejarah</h2><p class="prose">${esc(data.profile.history)}</p>
           <h2>Visi</h2><p class="prose">${esc(data.profile.vision)}</p>
-          <h2>Misi</h2><p class="prose">${esc(data.profile.mission)}</p>
+          <h2>Misi</h2>
+          <ol class="mission-list">
+            ${missionItems.map((item, index) => `
+              <li>
+                <span class="mission-number">${index + 1}</span>
+                <span class="mission-text">${esc(item)}</span>
+              </li>
+            `).join("")}
+          </ol>
         </div>
         <div class="card">
           <h3>Identitas Sekolah</h3>
@@ -833,7 +1008,7 @@ async function majorsPage() {
 async function teachersPage() {
   const data = await loadHome();
   data.teachers = await api("/api/teachers");
-  return layout(`<main>${pageHero("Guru & Tendik", "Profil guru dan tenaga kependidikan aktif.")}${teachersShowcase(data, true)}</main>`, data);
+  return layout(`<main>${pageHero("Guru & Tendik", "Disusun dalam tab Kepala Sekolah, Waka, dan K3 agar lebih rapi.")}${teachersTabbedSections(data.teachers || [])}</main>`, data);
 }
 
 async function majorDetailPage(slug) {

@@ -74,7 +74,7 @@ export async function seed() {
     await db.insert(schoolProfile).values({
       history: "SMK Negeri Pas berdiri sebagai satuan pendidikan vokasi yang menyiapkan lulusan kompeten, berkarakter, dan relevan dengan kebutuhan industri.",
       vision: "Menjadi sekolah vokasi unggulan yang menghasilkan lulusan profesional, berakhlak, dan berdaya saing global.",
-      mission: "Menyelenggarakan pembelajaran berbasis industri.\nMenguatkan karakter, literasi, dan budaya kerja.\nMengembangkan kemitraan dengan dunia usaha dan dunia industri.",
+      mission: "Melaksanakan ajaran agama yang dianut dengan sungguh-sungguh\nMembekali peserta didik dengan pengetahuan, keterampilan sesuai kompetensi yang selaras dengan DUDIKA.\nMemfasilitasi potensi peserta didik di bidang akademik dan non akademik.\nBerbudaya lingkungan, bersih dan sehat dalam kehidupan sehari hari.\nMenanamkan karakter profil pelajar Pancasila.",
       principalName: "Dermawan Triwahyono, S.T., M.M.",
       principalGreeting: "Selamat datang di portal resmi SMK Negeri Pasirian. Tempat pengetahuan, kreativitas, dan potensi bertemu untuk membentuk masa depan yang gemilang. Kami adalah sebuah lembaga pendidikan yang berkomitmen untuk mempersiapkan generasi muda yang unggul, disiplin, dan siap bersaing.",
       principalPhotoUrl: "https://i.ibb.co.com/Xr553J1B/Dermawan.png",
@@ -110,7 +110,7 @@ export async function seed() {
       footerText: "SMK Negeri Pasirian. Seluruh hak cipta dilindungi."
     }).where(eq(schoolSettings.id, settings!.id));
     await db.update(schoolProfile).set({
-      mission: "Menyelenggarakan pembelajaran berbasis industri.\nMenguatkan karakter, literasi, dan budaya kerja.\nMengembangkan kemitraan dengan dunia usaha dan dunia industri.",
+      mission: "Melaksanakan ajaran agama yang dianut dengan sungguh-sungguh\nMembekali peserta didik dengan pengetahuan, keterampilan sesuai kompetensi yang selaras dengan DUDIKA.\nMemfasilitasi potensi peserta didik di bidang akademik dan non akademik.\nBerbudaya lingkungan, bersih dan sehat dalam kehidupan sehari hari.\nMenanamkan karakter profil pelajar Pancasila.",
       principalName: "Dermawan Triwahyono, S.T., M.M.",
       principalGreeting: "Selamat datang di portal resmi SMK Negeri Pasirian. Tempat pengetahuan, kreativitas, dan potensi bertemu untuk membentuk masa depan yang gemilang. Kami adalah sebuah lembaga pendidikan yang berkomitmen untuk mempersiapkan generasi muda yang unggul, disiplin, dan siap bersaing.",
       principalPhotoUrl: "https://i.ibb.co.com/Xr553J1B/Dermawan.png",
@@ -167,10 +167,52 @@ export async function seed() {
 
   if ((await db.select().from(teachers)).length === 0) {
     await db.insert(teachers).values([
-      { name: "Budi Santoso", position: "Kepala Sekolah", subject: "Manajemen Sekolah", expertise: "Kepemimpinan Pendidikan", status: "active" },
-      { name: "Siti Aminah", position: "Guru Produktif", subject: "Pemrograman Web", expertise: "Full Stack Development", status: "active" },
-      { name: "Ahmad Fauzi", position: "Guru Produktif", subject: "Administrasi Jaringan", expertise: "Network Infrastructure", status: "active" }
+      { name: "Dermawan Triwahyono", position: "Kepala Sekolah", subject: "Manajemen Sekolah", expertise: "Kepemimpinan Pendidikan", status: "active" },
+      { name: "Sri Wahyuni", position: "Wakil Kepala Sekolah", subject: "Kesiswaan", expertise: "Manajemen Kesiswaan", status: "active" },
+      { name: "Maya Sari", position: "Wakil Kepala Sekolah", subject: "Kurikulum", expertise: "Perencanaan Pembelajaran", status: "active" },
+      { name: "Hendra Saputra", position: "Wakil Kepala Sekolah", subject: "Sarana Prasarana", expertise: "Manajemen Sarpras", status: "active" },
+      { name: "Rina Kurniasih", position: "Wakil Kepala Sekolah", subject: "Humas", expertise: "Kemitraan dan Publikasi", status: "active" },
+      { name: "Ahmad Fauzi", position: "Ketua Konsentrasi Keahlian", subject: "Teknik Komputer dan Jaringan", expertise: "Koordinasi Konsentrasi Keahlian", status: "active" },
+      { name: "Dewi Lestari", position: "Ketua Konsentrasi Keahlian", subject: "Rekayasa Perangkat Lunak", expertise: "Koordinasi Konsentrasi Keahlian", status: "active" },
+      { name: "Fajar Pratama", position: "Ketua Konsentrasi Keahlian", subject: "Akuntansi", expertise: "Koordinasi Konsentrasi Keahlian", status: "active" },
+      { name: "Nia Permata", position: "Ketua Konsentrasi Keahlian", subject: "Pemasaran", expertise: "Koordinasi Konsentrasi Keahlian", status: "active" },
+      { name: "Agus Salim", position: "Ketua Konsentrasi Keahlian", subject: "Manajemen Perkantoran", expertise: "Koordinasi Konsentrasi Keahlian", status: "active" },
+      { name: "Riko Mahendra", position: "Ketua Konsentrasi Keahlian", subject: "Desain Komunikasi Visual", expertise: "Koordinasi Konsentrasi Keahlian", status: "active" },
+      { name: "Siti Aminah", position: "Ketua Konsentrasi Keahlian", subject: "Animasi", expertise: "Koordinasi Konsentrasi Keahlian", status: "active" },
+      { name: "Budi Santoso", position: "Ketua Konsentrasi Keahlian", subject: "Kuliner", expertise: "Koordinasi Konsentrasi Keahlian", status: "active" },
+      { name: "Lina Wulandari", position: "Ketua Konsentrasi Keahlian", subject: "Tata Boga", expertise: "Koordinasi Konsentrasi Keahlian", status: "active" },
+      { name: "Yoga Saputra", position: "Ketua Konsentrasi Keahlian", subject: "Teknik Mesin", expertise: "Koordinasi Konsentrasi Keahlian", status: "active" }
     ]);
+  }
+  const teacherFixtures = [
+    { name: "Dermawan Triwahyono", position: "Kepala Sekolah", subject: "Manajemen Sekolah", expertise: "Kepemimpinan Pendidikan", status: "active" },
+    { name: "Sri Wahyuni", position: "Wakil Kepala Sekolah", subject: "Kesiswaan", expertise: "Manajemen Kesiswaan", status: "active" },
+    { name: "Maya Sari", position: "Wakil Kepala Sekolah", subject: "Kurikulum", expertise: "Perencanaan Pembelajaran", status: "active" },
+    { name: "Hendra Saputra", position: "Wakil Kepala Sekolah", subject: "Sarana Prasarana", expertise: "Manajemen Sarpras", status: "active" },
+    { name: "Rina Kurniasih", position: "Wakil Kepala Sekolah", subject: "Humas", expertise: "Kemitraan dan Publikasi", status: "active" },
+    { name: "Ahmad Fauzi", position: "Ketua Konsentrasi Keahlian", subject: "Teknik Komputer dan Jaringan", expertise: "Koordinasi Konsentrasi Keahlian", status: "active" },
+    { name: "Dewi Lestari", position: "Ketua Konsentrasi Keahlian", subject: "Rekayasa Perangkat Lunak", expertise: "Koordinasi Konsentrasi Keahlian", status: "active" },
+    { name: "Fajar Pratama", position: "Ketua Konsentrasi Keahlian", subject: "Akuntansi", expertise: "Koordinasi Konsentrasi Keahlian", status: "active" },
+    { name: "Nia Permata", position: "Ketua Konsentrasi Keahlian", subject: "Pemasaran", expertise: "Koordinasi Konsentrasi Keahlian", status: "active" },
+    { name: "Agus Salim", position: "Ketua Konsentrasi Keahlian", subject: "Manajemen Perkantoran", expertise: "Koordinasi Konsentrasi Keahlian", status: "active" },
+    { name: "Riko Mahendra", position: "Ketua Konsentrasi Keahlian", subject: "Desain Komunikasi Visual", expertise: "Koordinasi Konsentrasi Keahlian", status: "active" },
+    { name: "Siti Aminah", position: "Ketua Konsentrasi Keahlian", subject: "Animasi", expertise: "Koordinasi Konsentrasi Keahlian", status: "active" },
+    { name: "Budi Santoso", position: "Ketua Konsentrasi Keahlian", subject: "Kuliner", expertise: "Koordinasi Konsentrasi Keahlian", status: "active" },
+    { name: "Lina Wulandari", position: "Ketua Konsentrasi Keahlian", subject: "Tata Boga", expertise: "Koordinasi Konsentrasi Keahlian", status: "active" },
+    { name: "Yoga Saputra", position: "Ketua Konsentrasi Keahlian", subject: "Teknik Mesin", expertise: "Koordinasi Konsentrasi Keahlian", status: "active" }
+  ];
+  for (const fixture of teacherFixtures) {
+    const existingTeacher = await db.select().from(teachers).where(eq(teachers.name, fixture.name)).get();
+    if (existingTeacher) {
+      await db.update(teachers).set({
+        position: fixture.position,
+        subject: fixture.subject,
+        expertise: fixture.expertise,
+        status: fixture.status
+      }).where(eq(teachers.id, existingTeacher.id));
+    } else {
+      await db.insert(teachers).values(fixture);
+    }
   }
 
   if ((await db.select().from(facilities)).length === 0) {

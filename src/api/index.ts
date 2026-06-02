@@ -241,7 +241,10 @@ export function apiRoutes() {
     if (!settings?.wordpressUrl) return c.json(ok([]));
     try {
       const base = settings.wordpressUrl.replace(/\/$/, "");
-      const response = await fetch(`${base}/wp-json/wp/v2/posts?_embed=1&per_page=3`);
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 2500);
+      const response = await fetch(`${base}/wp-json/wp/v2/posts?_embed=1&per_page=3`, { signal: controller.signal });
+      clearTimeout(timeout);
       if (!response.ok) return c.json(ok([]));
       const posts = await response.json();
       return c.json(ok(posts.map((post: any) => ({
