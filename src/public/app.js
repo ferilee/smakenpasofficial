@@ -220,15 +220,15 @@ function majorCard(item) {
   </article>`;
 }
 
-function majorsShowcase(data, withMoreButton = false) {
+function majorsShowcase(data, withMoreButton = false, showHeader = true) {
   const items = (data.majors || []).slice(0, withMoreButton ? 8 : 4);
   return `<section class="majors-showcase">
     <div class="container">
-      <div class="majors-head">
+      ${showHeader ? `<div class="majors-head">
         <p>PROGRAM KEAHLIAN</p>
         <h2>Jurusan</h2>
         <span>Sub Jurusan</span>
-      </div>
+      </div>` : ""}
       <div class="majors-grid">${items.map(majorCard).join("")}</div>
       ${withMoreButton ? '<div class="majors-more-wrap"><a class="majors-more" href="/program-keahlian">LIHAT PROGRAM KEAHLIAN LAINNYA &#8594;</a></div>' : ""}
     </div>
@@ -569,7 +569,6 @@ function teacherSpotlight(item, title, note = "") {
       ${note ? `<p class="teacher-note">${esc(note)}</p>` : ""}
       <div class="teacher-detail-grid">
         ${item.subject ? `<div><strong>Mapel</strong><span>${esc(item.subject)}</span></div>` : ""}
-        ${item.expertise ? `<div><strong>Bidang</strong><span>${esc(item.expertise)}</span></div>` : ""}
         ${item.status ? `<div><strong>Status</strong><span>${esc(item.status)}</span></div>` : ""}
       </div>
       <a class="major-btn" href="${detailUrl}">LIHAT DETAIL GURU &#8594;</a>
@@ -592,7 +591,6 @@ function teacherPrincipalSpotlight(item) {
       <div class="teacher-detail-grid">
         ${item.subject ? `<div><strong>Mapel</strong><span>${esc(item.subject)}</span></div>` : ""}
         ${item.status ? `<div><strong>Status</strong><span>${esc(item.status)}</span></div>` : ""}
-        ${item.expertise ? `<div><strong>Bidang</strong><span>${esc(item.expertise)}</span></div>` : ""}
       </div>
       <a class="major-btn" href="${detailUrl}">LIHAT DETAIL GURU &#8594;</a>
     </div>
@@ -1164,7 +1162,7 @@ async function collectionPage(apiPath, title, subtitle, renderer) {
 async function majorsPage() {
   const data = await loadHome();
   data.majors = await api("/api/majors");
-  return layout(`<main>${pageHero("Program Keahlian", "Pilihan jurusan dan kompetensi yang disiapkan untuk masa depan siswa.")}${majorsShowcase(data, true)}</main>`, data);
+  return layout(`<main>${pageHero("Program Keahlian", "Pilihan jurusan dan kompetensi yang disiapkan untuk masa depan siswa.")}${majorsShowcase(data, false, false)}</main>`, data);
 }
 
 async function teachersPage() {

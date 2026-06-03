@@ -564,7 +564,7 @@ section { padding: 58px 0; }
 }
 .teacher-detail-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 12px;
   margin-top: 6px;
 }
@@ -584,6 +584,8 @@ section { padding: 58px 0; }
 .teacher-detail-grid span {
   color: var(--ink);
   font-weight: 700;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 .teacher-grid {
   margin-top: 0;

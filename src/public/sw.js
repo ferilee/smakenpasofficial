@@ -1,8 +1,8 @@
-const CACHE_NAME = "websmakenpas-v31";
+const CACHE_NAME = "websmakenpas-v35";
 const SHELL_ASSETS = [
   "/",
-  "/assets/app.css?v=36",
-  "/assets/app.js?v=36",
+  "/assets/app.css?v=40",
+  "/assets/app.js?v=40",
   "/manifest.webmanifest",
   "/favicon.svg"
 ];

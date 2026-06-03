@@ -18,11 +18,11 @@ export function appShell(title = "Website Sekolah") {
       document.documentElement.dataset.theme = theme;
     })();
   </script>
-  <link rel="stylesheet" href="/assets/app.css?v=36">
+  <link rel="stylesheet" href="/assets/app.css?v=40">
 </head>
 <body>
   <div id="app"></div>
-  <script src="/assets/app.js?v=36"></script>
+  <script src="/assets/app.js?v=40"></script>
 </body>
 </html>`;
 }
@@ -46,11 +46,11 @@ export function adminShell(title = "Dashboard Admin") {
       document.documentElement.dataset.theme = theme;
     })();
   </script>
-  <link rel="stylesheet" href="/assets/app.css?v=36">
+  <link rel="stylesheet" href="/assets/app.css?v=40">
 </head>
 <body class="admin-body">
   <div id="admin"></div>
-  <script src="/assets/admin.js?v=36"></script>
+  <script src="/assets/admin.js?v=40"></script>
 </body>
 </html>`;
 }
