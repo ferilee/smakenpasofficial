@@ -1,10 +1,10 @@
-const CACHE_NAME = "websmakenpas-v35";
+const CACHE_NAME = "websmakenpas-v36";
 const SHELL_ASSETS = [
   "/",
-  "/assets/app.css?v=40",
-  "/assets/app.js?v=40",
+  "/assets/app.css?v=41",
+  "/assets/app.js?v=41",
   "/manifest.webmanifest",
-  "/favicon.svg"
+  "/Logo_SMKNPasirian.png"
 ];
 
 self.addEventListener("install", (event) => {

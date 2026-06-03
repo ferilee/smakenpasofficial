@@ -1,14 +1,30 @@
 export function appShell(title = "Website Sekolah") {
+  const siteUrl = "https://www.smkpasirian-lmj.sch.id";
+  const description = "Website resmi SMK Negeri Pasirian sebagai pusat informasi sekolah.";
+  const logoPath = "/Logo_SMKNPasirian.png";
+  const ogImage = `${siteUrl}${logoPath}`;
   return `<!doctype html>
 <html lang="id">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${title}</title>
-  <meta name="description" content="Website profil sekolah dan pusat informasi resmi.">
+  <meta name="description" content="${description}">
   <meta name="theme-color" content="#3f3d99">
-  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-  <link rel="apple-touch-icon" href="/favicon.svg">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="SMK Negeri Pasirian">
+  <meta property="og:title" content="${title}">
+  <meta property="og:description" content="${description}">
+  <meta property="og:url" content="${siteUrl}">
+  <meta property="og:image" content="${ogImage}">
+  <meta property="og:image:type" content="image/png">
+  <meta property="og:image:alt" content="Logo SMK Negeri Pasirian">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="${title}">
+  <meta name="twitter:description" content="${description}">
+  <meta name="twitter:image" content="${ogImage}">
+  <link rel="icon" type="image/png" href="${logoPath}">
+  <link rel="apple-touch-icon" href="${logoPath}">
   <link rel="manifest" href="/manifest.webmanifest">
   <script>
     (() => {
@@ -18,16 +34,17 @@ export function appShell(title = "Website Sekolah") {
       document.documentElement.dataset.theme = theme;
     })();
   </script>
-  <link rel="stylesheet" href="/assets/app.css?v=40">
+  <link rel="stylesheet" href="/assets/app.css?v=41">
 </head>
 <body>
   <div id="app"></div>
-  <script src="/assets/app.js?v=40"></script>
+  <script src="/assets/app.js?v=41"></script>
 </body>
 </html>`;
 }
 
 export function adminShell(title = "Dashboard Admin") {
+  const logoPath = "/Logo_SMKNPasirian.png";
   return `<!doctype html>
 <html lang="id">
 <head>
@@ -35,8 +52,8 @@ export function adminShell(title = "Dashboard Admin") {
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${title}</title>
   <meta name="theme-color" content="#3f3d99">
-  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-  <link rel="apple-touch-icon" href="/favicon.svg">
+  <link rel="icon" type="image/png" href="${logoPath}">
+  <link rel="apple-touch-icon" href="${logoPath}">
   <link rel="manifest" href="/manifest.webmanifest">
   <script>
     (() => {
@@ -46,11 +63,11 @@ export function adminShell(title = "Dashboard Admin") {
       document.documentElement.dataset.theme = theme;
     })();
   </script>
-  <link rel="stylesheet" href="/assets/app.css?v=40">
+  <link rel="stylesheet" href="/assets/app.css?v=41">
 </head>
 <body class="admin-body">
   <div id="admin"></div>
-  <script src="/assets/admin.js?v=40"></script>
+  <script src="/assets/admin.js?v=41"></script>
 </body>
 </html>`;
 }

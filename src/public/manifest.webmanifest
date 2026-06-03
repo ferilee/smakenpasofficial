@@ -1,7 +1,7 @@
 {
-  "name": "Website Profil Sekolah",
-  "short_name": "Profil Sekolah",
-  "description": "Website resmi sekolah untuk profil, agenda, pengumuman, dan layanan informasi.",
+  "name": "SMK Negeri Pasirian",
+  "short_name": "SMK Pasirian",
+  "description": "Website resmi SMK Negeri Pasirian sebagai pusat informasi sekolah.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -9,9 +9,9 @@
   "theme_color": "#3f3d99",
   "icons": [
     {
-      "src": "/favicon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
+      "src": "/Logo_SMKNPasirian.png",
+      "sizes": "512x512",
+      "type": "image/png",
       "purpose": "any maskable"
     }
   ]
