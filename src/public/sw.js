@@ -1,8 +1,8 @@
-const CACHE_NAME = "websmakenpas-v36";
+const CACHE_NAME = "websmakenpas-v39";
 const SHELL_ASSETS = [
   "/",
-  "/assets/app.css?v=41",
-  "/assets/app.js?v=41",
+  "/assets/app.css?v=44",
+  "/assets/app.js?v=44",
   "/manifest.webmanifest",
   "/Logo_SMKNPasirian.png"
 ];

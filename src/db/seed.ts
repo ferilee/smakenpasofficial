@@ -101,14 +101,17 @@ export async function seed() {
       schoolName: "SMK Negeri Pasirian.",
       tagline: "Unggul, Adaptif, Berkarakter, dan Siap Kerja",
       address: "Jalan Raya Condro – Pasirian/ 67372",
-      email: "info@smkpasirian.sch.id",
+      email: "info@smkpasirian-lmj.sch.id",
       phone: "(0334) 574253",
       whatsapp: "6281220052005",
       wordpressUrl: "https://domainsekolah.sch.id/blog",
       ppdbUrl: "https://domainsekolah.sch.id/ppdb",
       metaDescription: "Website resmi SMK Negeri Pasirian sebagai pusat informasi sekolah.",
       footerText: "SMK Negeri Pasirian. Seluruh hak cipta dilindungi.",
-      socialLinks: { instagram: "https://instagram.com/smknegeripas", youtube: "https://youtube.com" }
+      socialLinks: {
+        instagram: "https://www.instagram.com/smknpasofficial/",
+        youtube: "https://www.youtube.com/@SMKNPasirianOfficial"
+      }
     });
   }
 
@@ -148,7 +151,7 @@ export async function seed() {
     await db.update(schoolSettings).set({
       schoolName: "SMK Negeri Pasirian.",
       address: "Jalan Raya Condro – Pasirian/ 67372",
-      email: "info@smkpasirian.sch.id",
+      email: "info@smkpasirian-lmj.sch.id",
       phone: "(0334) 574253",
       metaDescription: "Website resmi SMK Negeri Pasirian sebagai pusat informasi sekolah.",
       footerText: "SMK Negeri Pasirian. Seluruh hak cipta dilindungi."

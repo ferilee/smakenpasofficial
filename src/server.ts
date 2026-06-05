@@ -8,6 +8,15 @@ import { adminShell, appShell } from "./ui/pages";
 const port = Number(process.env.PORT ?? 2005);
 const app = new Hono();
 
+function publicRequestUrl(c: any) {
+  const url = new URL(c.req.url);
+  const forwardedHost = c.req.header("x-forwarded-host");
+  const forwardedProto = c.req.header("x-forwarded-proto");
+  if (forwardedHost) url.host = forwardedHost;
+  if (forwardedProto) url.protocol = `${forwardedProto}:`;
+  return url.toString();
+}
+
 migrate();
 await seed();
 
@@ -21,11 +30,14 @@ app.get("/assets/app.js", () => new Response(Bun.file("./src/public/app.js"), {
 app.get("/assets/admin.js", () => new Response(Bun.file("./src/public/admin.js"), {
   headers: { "content-type": "application/javascript; charset=utf-8" }
 }));
-app.get("/favicon.svg", () => new Response(Bun.file("./src/public/favicon.svg"), {
-  headers: { "content-type": "image/svg+xml; charset=utf-8" }
+app.get("/favicon.svg", () => new Response(Bun.file("./src/public/Logo_SMKNPasirian.png"), {
+  headers: { "content-type": "image/png" }
 }));
-app.get("/favicon.ico", () => new Response(Bun.file("./src/public/favicon.svg"), {
-  headers: { "content-type": "image/svg+xml; charset=utf-8" }
+app.get("/favicon.ico", () => new Response(Bun.file("./src/public/Logo_SMKNPasirian.png"), {
+  headers: { "content-type": "image/png" }
+}));
+app.get("/Logo_SMKNPasirian.png", () => new Response(Bun.file("./src/public/Logo_SMKNPasirian.png"), {
+  headers: { "content-type": "image/png" }
 }));
 app.get("/manifest.webmanifest", () => new Response(Bun.file("./src/public/manifest.webmanifest"), {
   headers: { "content-type": "application/manifest+json; charset=utf-8" }
@@ -42,7 +54,7 @@ app.get("/berita", async (c) => {
 app.get("/admin/login", (c) => c.html(adminShell("Login Admin")));
 app.get("/admin", (c) => c.html(adminShell("Dashboard Admin")));
 
-app.get("*", (c) => c.html(appShell("Website Profil Sekolah")));
+app.get("*", (c) => c.html(appShell("Website Profil Sekolah", publicRequestUrl(c))));
 
 export default {
   port,

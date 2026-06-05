@@ -1,8 +1,26 @@
-export function appShell(title = "Website Sekolah") {
-  const siteUrl = "https://www.smkpasirian-lmj.sch.id";
+function requestOrigin(requestUrl?: string) {
+  try {
+    return new URL(requestUrl || "https://www.smkpasirian-lmj.sch.id").origin;
+  } catch {
+    return "https://www.smkpasirian-lmj.sch.id";
+  }
+}
+
+function requestPath(requestUrl?: string) {
+  try {
+    const url = new URL(requestUrl || "https://www.smkpasirian-lmj.sch.id/");
+    return `${url.pathname}${url.search}`;
+  } catch {
+    return "/";
+  }
+}
+
+export function appShell(title = "Website Sekolah", requestUrl?: string) {
+  const origin = requestOrigin(requestUrl);
   const description = "Website resmi SMK Negeri Pasirian sebagai pusat informasi sekolah.";
   const logoPath = "/Logo_SMKNPasirian.png";
-  const ogImage = `${siteUrl}${logoPath}`;
+  const pageUrl = `${origin}${requestPath(requestUrl)}`;
+  const ogImage = `${origin}${logoPath}`;
   return `<!doctype html>
 <html lang="id">
 <head>
@@ -15,7 +33,7 @@ export function appShell(title = "Website Sekolah") {
   <meta property="og:site_name" content="SMK Negeri Pasirian">
   <meta property="og:title" content="${title}">
   <meta property="og:description" content="${description}">
-  <meta property="og:url" content="${siteUrl}">
+  <meta property="og:url" content="${pageUrl}">
   <meta property="og:image" content="${ogImage}">
   <meta property="og:image:type" content="image/png">
   <meta property="og:image:alt" content="Logo SMK Negeri Pasirian">
@@ -34,11 +52,11 @@ export function appShell(title = "Website Sekolah") {
       document.documentElement.dataset.theme = theme;
     })();
   </script>
-  <link rel="stylesheet" href="/assets/app.css?v=41">
+  <link rel="stylesheet" href="/assets/app.css?v=44">
 </head>
 <body>
   <div id="app"></div>
-  <script src="/assets/app.js?v=41"></script>
+  <script src="/assets/app.js?v=44"></script>
 </body>
 </html>`;
 }
@@ -63,11 +81,11 @@ export function adminShell(title = "Dashboard Admin") {
       document.documentElement.dataset.theme = theme;
     })();
   </script>
-  <link rel="stylesheet" href="/assets/app.css?v=41">
+  <link rel="stylesheet" href="/assets/app.css?v=44">
 </head>
 <body class="admin-body">
   <div id="admin"></div>
-  <script src="/assets/admin.js?v=41"></script>
+  <script src="/assets/admin.js?v=44"></script>
 </body>
 </html>`;
 }

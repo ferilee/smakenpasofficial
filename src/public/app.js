@@ -81,6 +81,15 @@ function navIcon(name) {
   return `<svg viewBox="0 0 24 24" aria-hidden="true">${icons[name] || icons.more}</svg>`;
 }
 
+function footerSocialIcon(name) {
+  const icons = {
+    youtube: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.6 7.2a3 3 0 0 0-2.1-2.1C17.6 4.6 12 4.6 12 4.6s-5.6 0-7.5.5a3 3 0 0 0-2.1 2.1A31 31 0 0 0 2 12a31 31 0 0 0 .4 4.8 3 3 0 0 0 2.1 2.1c1.9.5 7.5.5 7.5.5s5.6 0 7.5-.5a3 3 0 0 0 2.1-2.1A31 31 0 0 0 22 12a31 31 0 0 0-.4-4.8ZM10 15.5v-7l6 3.5-6 3.5Z"/></svg>`,
+    instagram: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="5"/><circle cx="12" cy="12" r="3.5"/><circle cx="17" cy="7" r="1"/></svg>`,
+    email: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m4 7 8 6 8-6"/></svg>`
+  };
+  return icons[name] || "";
+}
+
 function isNavActive(url) {
   if (url === "/") return location.pathname === "/";
   return location.pathname === url || location.pathname.startsWith(`${url}/`);
@@ -148,6 +157,17 @@ function dateKey(value) {
 
 function layout(content, data = state.home) {
   const school = data?.settings?.schoolName || "Website Sekolah";
+  const footerLinks = [
+    ["Profil", "/profil"],
+    ["Jurusan", "/program-keahlian"],
+    ["Agenda", "/agenda"],
+    ["Kontak", "/kontak"]
+  ];
+  const footerSocials = [
+    ["YouTube", "https://www.youtube.com/@SMKNPasirianOfficial", "youtube"],
+    ["Instagram", "https://www.instagram.com/smknpasofficial/", "instagram"]
+  ];
+  const support = "info@smkpasirian-lmj.sch.id";
   return `
     <header class="topbar">
       <div class="container nav">
@@ -160,10 +180,25 @@ function layout(content, data = state.home) {
     </header>
     ${content}
     <footer class="footer">
-      <div class="container footer-compact">
-        <strong>${esc(school)}</strong>
-        <p>${esc(data?.settings?.tagline || "Pusat informasi resmi sekolah.")}</p>
-        <span>${esc(data?.settings?.footerText || "Informasi resmi sekolah.")}</span>
+      <div class="container">
+        <div class="footer-panel">
+          <div class="footer-brand">
+            <strong>${esc(school)}</strong>
+          </div>
+          <div class="footer-main">
+            <nav class="footer-links" aria-label="Link footer">
+              ${footerLinks.map(([label, url]) => `<a href="${url}">${esc(label)}</a>`).join("")}
+            </nav>
+            <p>${esc(data?.settings?.footerText || "SMK Negeri Pasirian. Seluruh hak cipta dilindungi.")}</p>
+          </div>
+          <div class="footer-contact">
+            <div class="footer-socials">
+              ${footerSocials.map(([name, url, icon]) => `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer" aria-label="${esc(name)}">${footerSocialIcon(icon)}</a>`).join("")}
+              <a href="mailto:${esc(support)}" aria-label="Email">${footerSocialIcon("email")}</a>
+            </div>
+            <p>Email: <a href="mailto:${esc(support)}">${esc(support)}</a></p>
+          </div>
+        </div>
       </div>
     </footer>
     ${bottomNavigation()}`;
