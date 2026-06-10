@@ -9,7 +9,8 @@ Aplikasi ini adalah website profil sekolah + dashboard konten resmi sesuai ringk
 - Drizzle ORM
 - SQLite
 - CSS responsif dengan gaya komponen dashboard
-- Upload file ke folder `uploads` sebagai storage lokal pengembangan
+- RustFS/S3-compatible object storage untuk produksi
+- Fallback upload lokal ke folder `uploads` untuk pengembangan
 
 ## Menjalankan Aplikasi
 
@@ -254,21 +255,24 @@ Endpoint ini mencoba membaca 3 posting terbaru dari WordPress REST API:
 
 ## Upload dan RustFS
 
-Untuk pengembangan lokal, aplikasi menyimpan file ke folder:
+Endpoint upload:
 
 ```txt
-uploads
+POST /api/upload
 ```
+
+Perilaku upload:
+
+- jika env `S3_*` lengkap, file diupload ke RustFS
+- jika env `S3_*` tidak lengkap, file disimpan ke folder lokal `uploads`
 
 File yang diupload dicatat ke tabel `files` dan dapat digunakan sebagai URL pada banner, guru, jurusan, galeri, lampiran pengumuman, atau unduhan.
 
-`docker-compose.yml` menyertakan service `rustfs` dengan profile `storage` sebagai fondasi deployment object storage. Jalankan RustFS bersama aplikasi:
+Panduan setup lengkap ada di:
 
-```bash
-docker compose --profile storage up --build
+```txt
+RUSTFS_SETUP.md
 ```
-
-Implementasi upload aplikasi saat ini memakai folder lokal agar sederhana dan langsung berjalan. Untuk produksi yang wajib direct S3/RustFS API, tambahkan adapter S3-compatible pada endpoint `/api/upload`.
 
 ## Docker
 
@@ -319,7 +323,8 @@ Compose ini disiapkan untuk deployment seperti Arcane:
 - container: `smakenpasofficial`
 - port: `2005`
 - network eksternal: `ferileenet`
-- volume: `sqlite_data` untuk SQLite dan `upload_data` untuk file upload lokal
+- volume: `sqlite_data` untuk SQLite
+- RustFS dapat dipasang lewat env `S3_*`
 
 Jalankan:
 
@@ -336,16 +341,34 @@ UPLOAD_DIR=./uploads
 TOKEN_SECRET=ganti-secret-produksi
 ```
 
+Untuk produksi dengan RustFS:
+
+```txt
+PORT=2005
+DATABASE_URL=/app/data/app.db
+TOKEN_SECRET=ganti-secret-produksi
+S3_ENDPOINT=http://global-storage:9000
+S3_PUBLIC_BASE_URL=https://s3.domain-anda.tld
+S3_ACCESS_KEY=isi_dengan_RUSTFS_ACCESS_KEY
+S3_SECRET_KEY=isi_dengan_RUSTFS_SECRET_KEY
+S3_BUCKET=smakenpasofficial-assets
+S3_REGION=us-east-1
+S3_FORCE_PATH_STYLE=true
+```
+
 Untuk `docker-compose.ghcr.yml`, simpan secret di file `.env`:
 
 ```txt
 TOKEN_SECRET=ganti-secret-produksi-yang-kuat
+S3_ACCESS_KEY=isi_dengan_RUSTFS_ACCESS_KEY
+S3_SECRET_KEY=isi_dengan_RUSTFS_SECRET_KEY
 ```
 
 ## Catatan Produksi
 
 - Ganti password admin bawaan.
 - Set `TOKEN_SECRET` yang kuat.
-- Backup folder `data` dan `uploads`.
+- Backup volume SQLite dan object storage RustFS.
 - Pasang reverse proxy HTTPS.
 - Pastikan URL WordPress dan PPDB sudah benar di menu Pengaturan Website.
+- Jika memakai endpoint internal RustFS, set `S3_PUBLIC_BASE_URL` ke domain publik file.

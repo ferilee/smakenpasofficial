@@ -793,6 +793,15 @@ async function homePage() {
             <div class="hero-nav">
               <button class="hero-arrow" id="hero-prev" aria-label="Sebelumnya">&#8592;</button>
               <button class="hero-arrow" id="hero-next" aria-label="Berikutnya">&#8594;</button>
+              <div class="hero-progress" aria-hidden="true">
+                <div class="hero-progress-track">
+                  <span class="hero-progress-bar" id="hero-progress-bar"></span>
+                </div>
+                <div class="hero-progress-meta">
+                  <strong id="hero-progress-current">01</strong>
+                  <span id="hero-progress-total">${String(banners.length).padStart(2, "0")}</span>
+                </div>
+              </div>
             </div>
           </div>
         </section>
@@ -860,7 +869,18 @@ function setupHeroCarousel() {
   const cta = document.querySelector("#hero-cta");
   const prev = document.querySelector("#hero-prev");
   const next = document.querySelector("#hero-next");
+  const progressBar = document.querySelector("#hero-progress-bar");
+  const progressCurrent = document.querySelector("#hero-progress-current");
+  const autoplayDelay = 6000;
   let index = 0;
+
+  const restartProgress = () => {
+    if (!progressBar) return;
+    progressBar.classList.remove("run");
+    void progressBar.offsetWidth;
+    progressBar.style.setProperty("--hero-progress-duration", `${autoplayDelay}ms`);
+    progressBar.classList.add("run");
+  };
 
   const applySlide = () => {
     const item = banners[index];
@@ -872,9 +892,11 @@ function setupHeroCarousel() {
       cta.textContent = item.ctaLabel || "Lihat Profil";
       cta.href = item.ctaUrl || "/profil";
     }
+    if (progressCurrent) progressCurrent.textContent = String(index + 1).padStart(2, "0");
     carousel.classList.remove("hero-animate");
     void carousel.offsetWidth;
     carousel.classList.add("hero-animate");
+    restartProgress();
   };
 
   prev?.addEventListener("click", () => {
@@ -890,7 +912,9 @@ function setupHeroCarousel() {
   heroTimer = setInterval(() => {
     index = (index + 1) % banners.length;
     applySlide();
-  }, 6000);
+  }, autoplayDelay);
+
+  restartProgress();
 }
 
 function setupMobileNavigation() {

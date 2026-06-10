@@ -1,5 +1,3 @@
-import { mkdir, writeFile } from "node:fs/promises";
-import { extname, join } from "node:path";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { and, asc, desc, eq, or } from "drizzle-orm";
 import { Hono } from "hono";
@@ -23,12 +21,12 @@ import {
   testimonials,
   users
 } from "../db/schema";
+import { storageMode, storeUploadedFile } from "../lib/storage";
 import { fail, hashPassword, normalizeTeacherImportRow, ok, parseCsv, pick, resolveGoogleSheetCsvUrl, slugify, socialProfileUrl, verifyPassword } from "../lib/utils";
 
 type AnyTable = any;
 
 const tokenSecret = process.env.TOKEN_SECRET ?? "ubah-secret-ini-di-env";
-const uploadDir = process.env.UPLOAD_DIR ?? "./uploads";
 
 const tableFields = {
   majors: ["name", "slug", "description", "competencies", "careerProspects", "practiceFacilities", "productiveTeachers", "achievements", "imageUrl", "isFeatured"],
@@ -401,19 +399,9 @@ export function apiRoutes() {
     const body = await c.req.parseBody();
     const input = body.file;
     if (!(input instanceof File)) return c.json(fail("Field file wajib diisi."), 400);
-    await mkdir(uploadDir, { recursive: true });
-    const safeName = input.name.replace(/[^a-zA-Z0-9._-]/g, "-");
-    const storageKey = `${Date.now()}-${crypto.randomUUID()}${extname(safeName)}`;
-    const path = join(uploadDir, storageKey);
-    await writeFile(path, Buffer.from(await input.arrayBuffer()));
-    const url = `/uploads/${storageKey}`;
+    const stored = await storeUploadedFile(input);
     const [row] = await db.insert(files).values({
-      name: safeName,
-      originalName: input.name,
-      mimeType: input.type || "application/octet-stream",
-      size: input.size,
-      storageKey,
-      url
+      ...stored
     }).returning();
     return c.json(ok(row), 201);
   });
@@ -433,7 +421,8 @@ export function apiRoutes() {
       testimonials: count("testimonials"),
       newMessages: countWhere("messages", "status", "new"),
       pendingTestimonials: countWhere("testimonials", "status", "pending"),
-      users: count("users")
+      users: count("users"),
+      storageMode: storageMode()
     }));
   });
 
