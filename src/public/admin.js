@@ -64,6 +64,7 @@ const adminMenuGroups = [
 let active = "majors";
 let rows = [];
 let complaintStatusFilter = "all";
+let teacherSearchQuery = "";
 
 const statsLabels = {
   majors: "Program Keahlian",
@@ -208,15 +209,72 @@ function notify(message, type = "success") {
   }
   const toast = document.createElement("div");
   toast.className = `toast ${type}`;
-  toast.setAttribute("role", "status");
+  toast.setAttribute("role", type === "error" ? "alert" : "status");
+  toast.setAttribute("aria-live", type === "error" ? "assertive" : "polite");
   toast.style.setProperty("--toast-duration", "5000ms");
-  toast.innerHTML = `<span class="toast-content">${esc(message)}</span><span class="toast-bar" aria-hidden="true"></span>`;
+  const icons = {
+    success: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>',
+    error: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8v5M12 17h.01"/><circle cx="12" cy="12" r="9"/></svg>',
+    warning: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 9v4M12 17h.01"/><path d="M10.3 4.6 3.1 17a2 2 0 0 0 1.7 3h14.4a2 2 0 0 0 1.7-3L13.7 4.6a2 2 0 0 0-3.4 0Z"/></svg>'
+  };
+  toast.innerHTML = `
+    <span class="toast-icon">${icons[type] || icons.success}</span>
+    <span class="toast-content">${esc(message)}</span>
+    <button class="toast-close" type="button" aria-label="Tutup notifikasi">&times;</button>
+    <span class="toast-bar" aria-hidden="true"></span>`;
   stack.appendChild(toast);
-  requestAnimationFrame(() => toast.classList.add("show"));
-  setTimeout(() => {
+  let removeTimer;
+  const dismiss = () => {
+    clearTimeout(removeTimer);
     toast.classList.remove("show");
     setTimeout(() => toast.remove(), 240);
-  }, 5000);
+  };
+  toast.querySelector(".toast-close")?.addEventListener("click", dismiss);
+  requestAnimationFrame(() => toast.classList.add("show"));
+  removeTimer = setTimeout(dismiss, 5000);
+}
+
+function confirmAction({ title = "Konfirmasi", message, confirmLabel = "Lanjutkan", danger = false }) {
+  return new Promise((resolve) => {
+    const dialog = document.createElement("div");
+    dialog.className = "confirm-dialog";
+    dialog.innerHTML = `
+      <div class="confirm-dialog-backdrop" data-confirm-cancel></div>
+      <section class="confirm-dialog-box" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-message">
+        <span class="confirm-dialog-icon ${danger ? "danger" : ""}" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M12 8v5M12 17h.01"/><circle cx="12" cy="12" r="9"/></svg>
+        </span>
+        <div>
+          <h3 id="confirm-title">${esc(title)}</h3>
+          <p id="confirm-message">${esc(message)}</p>
+        </div>
+        <div class="confirm-dialog-actions">
+          <button class="btn ghost" type="button" data-confirm-cancel>Batal</button>
+          <button class="btn ${danger ? "danger" : ""}" type="button" data-confirm-accept>${esc(confirmLabel)}</button>
+        </div>
+      </section>`;
+    document.body.appendChild(dialog);
+
+    let settled = false;
+    const finish = (value) => {
+      if (settled) return;
+      settled = true;
+      document.removeEventListener("keydown", onKeydown);
+      dialog.classList.remove("open");
+      setTimeout(() => dialog.remove(), 220);
+      resolve(value);
+    };
+    const onKeydown = (event) => {
+      if (event.key === "Escape") finish(false);
+    };
+    dialog.querySelectorAll("[data-confirm-cancel]").forEach((button) => button.addEventListener("click", () => finish(false)));
+    dialog.querySelector("[data-confirm-accept]")?.addEventListener("click", () => finish(true));
+    document.addEventListener("keydown", onKeydown);
+    requestAnimationFrame(() => {
+      dialog.classList.add("open");
+      dialog.querySelector("[data-confirm-accept]")?.focus();
+    });
+  });
 }
 
 async function api(path, options = {}) {
@@ -673,11 +731,19 @@ async function resourcePage(key) {
         <button class="btn" id="add">Tambah</button>
       </div>
     </div>
+    ${key === "teachers" ? `
+      <div class="admin-search-panel">
+        <label class="admin-search" for="teacher-search">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+          <input id="teacher-search" type="search" value="${esc(teacherSearchQuery)}" placeholder="Cari nama, jabatan, mata pelajaran, bidang, atau status..." autocomplete="off">
+        </label>
+        <span id="teacher-search-count">${filteredRows.length} data</span>
+      </div>` : ""}
     <div class="table-wrap">
       <table>
         <thead><tr><th>ID</th><th>Judul/Nama</th><th>Info</th><th>Aksi</th></tr></thead>
         <tbody>${filteredRows.map((row) => `
-          <tr>
+          <tr data-resource-row data-search="${esc([row.name, row.position, row.subject, row.expertise, row.status].filter(Boolean).join(" ").toLowerCase())}">
             <td>${row.id}</td>
             <td>${esc(row.name || row.title || row.username || row.subject || "-")}</td>
             <td>${esc(row.description || row.content || row.position || row.category || row.email || row.status || "").slice(0, 120)}</td>
@@ -688,12 +754,30 @@ async function resourcePage(key) {
               <button class="btn ghost" data-edit="${row.id}">Edit</button>
               <button class="btn danger" data-delete="${row.id}">Hapus</button>
             </td>
-          </tr>`).join("") || '<tr><td colspan="4" class="empty">Belum ada data.</td></tr>'}</tbody>
+          </tr>`).join("")}${filteredRows.length
+            ? key === "teachers" ? '<tr data-search-empty hidden><td colspan="4" class="empty">Data Guru & Tendik tidak ditemukan.</td></tr>' : ""
+            : '<tr><td colspan="4" class="empty">Belum ada data.</td></tr>'}</tbody>
       </table>
     </div>`;
   if (key === "teachers") {
     document.querySelector("#open-template-sheet").addEventListener("click", () => openTeacherTemplate());
     document.querySelector("#import-sheet").addEventListener("click", () => openTeacherImport());
+    const searchInput = document.querySelector("#teacher-search");
+    const searchCount = document.querySelector("#teacher-search-count");
+    const applyTeacherSearch = () => {
+      teacherSearchQuery = String(searchInput?.value || "").trim().toLowerCase();
+      let visible = 0;
+      document.querySelectorAll("[data-resource-row]").forEach((row) => {
+        const matches = !teacherSearchQuery || String(row.dataset.search || "").includes(teacherSearchQuery);
+        row.hidden = !matches;
+        if (matches) visible += 1;
+      });
+      const emptyRow = document.querySelector("[data-search-empty]");
+      if (emptyRow) emptyRow.hidden = visible !== 0;
+      if (searchCount) searchCount.textContent = `${visible} dari ${rows.length} data`;
+    };
+    searchInput?.addEventListener("input", applyTeacherSearch);
+    applyTeacherSearch();
   }
   if (key === "complaints") {
     document.querySelector("#complaint-status-filter")?.addEventListener("change", (event) => {
@@ -729,10 +813,28 @@ async function resourcePage(key) {
     }
   }));
   document.querySelectorAll("[data-delete]").forEach((button) => button.addEventListener("click", async () => {
-    if (!confirm("Hapus data ini?")) return;
-    await api(`${config.path}/${button.dataset.delete}`, { method: "DELETE" });
-    await resourcePage(key);
-    await updateMenuBadges();
+    const item = rows.find((row) => row.id === Number(button.dataset.delete));
+    const itemName = item?.name || item?.title || item?.username || item?.subject || `ID ${button.dataset.delete}`;
+    const confirmed = await confirmAction({
+      title: `Hapus ${config.title}`,
+      message: `Data "${itemName}" akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.`,
+      confirmLabel: "Hapus",
+      danger: true
+    });
+    if (!confirmed) return;
+    button.disabled = true;
+    const originalText = button.textContent;
+    button.textContent = "Menghapus...";
+    try {
+      await api(`${config.path}/${button.dataset.delete}`, { method: "DELETE" });
+      await resourcePage(key);
+      await updateMenuBadges();
+      notify(`${config.title} berhasil dihapus.`);
+    } catch (error) {
+      button.disabled = false;
+      button.textContent = originalText;
+      notify(error.message || `${config.title} gagal dihapus.`, "error");
+    }
   }));
   await updateMenuBadges();
 }

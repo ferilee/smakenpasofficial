@@ -235,6 +235,30 @@ describe("admin CRUD endpoints", () => {
     expect(Array.isArray(body.data)).toBe(true);
   });
 
+  test("teachers can be deleted and missing IDs return 404", async () => {
+    const create = await adminRequest("/teachers", jsonInit("POST", {
+      name: "Guru Hapus Test",
+      position: "Guru",
+      subject: "Pengujian",
+      expertise: "Quality Assurance",
+      status: "active"
+    }));
+    const created = await json(create);
+    expect(create.status).toBe(201);
+
+    const remove = await adminRequest(`/teachers/${created.data.id}`, { method: "DELETE" });
+    const removed = await json(remove);
+    expect(remove.status).toBe(200);
+    expect(removed.data.deleted).toBe(true);
+    expect(removed.data.id).toBe(created.data.id);
+
+    const missing = await adminRequest(`/teachers/${created.data.id}`, { method: "DELETE" });
+    const missingBody = await json(missing);
+    expect(missing.status).toBe(404);
+    expect(missingBody.ok).toBe(false);
+    expect(missingBody.error.message).toBe("Data tidak ditemukan.");
+  });
+
   test("teachers import template can be downloaded by admin", async () => {
     const res = await adminRequest("/teachers/import/template.csv");
     const body = await res.text();

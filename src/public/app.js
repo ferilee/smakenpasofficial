@@ -139,15 +139,29 @@ function notify(message, type = "success") {
   }
   const toast = document.createElement("div");
   toast.className = `toast ${type}`;
-  toast.setAttribute("role", "status");
+  toast.setAttribute("role", type === "error" ? "alert" : "status");
+  toast.setAttribute("aria-live", type === "error" ? "assertive" : "polite");
   toast.style.setProperty("--toast-duration", "5000ms");
-  toast.innerHTML = `<span class="toast-content">${esc(message)}</span><span class="toast-bar" aria-hidden="true"></span>`;
+  const icons = {
+    success: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>',
+    error: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8v5M12 17h.01"/><circle cx="12" cy="12" r="9"/></svg>',
+    warning: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 9v4M12 17h.01"/><path d="M10.3 4.6 3.1 17a2 2 0 0 0 1.7 3h14.4a2 2 0 0 0 1.7-3L13.7 4.6a2 2 0 0 0-3.4 0Z"/></svg>'
+  };
+  toast.innerHTML = `
+    <span class="toast-icon">${icons[type] || icons.success}</span>
+    <span class="toast-content">${esc(message)}</span>
+    <button class="toast-close" type="button" aria-label="Tutup notifikasi">&times;</button>
+    <span class="toast-bar" aria-hidden="true"></span>`;
   stack.appendChild(toast);
-  requestAnimationFrame(() => toast.classList.add("show"));
-  setTimeout(() => {
+  let removeTimer;
+  const dismiss = () => {
+    clearTimeout(removeTimer);
     toast.classList.remove("show");
     setTimeout(() => toast.remove(), 240);
-  }, 5000);
+  };
+  toast.querySelector(".toast-close")?.addEventListener("click", dismiss);
+  requestAnimationFrame(() => toast.classList.add("show"));
+  removeTimer = setTimeout(dismiss, 5000);
 }
 
 function dateKey(value) {

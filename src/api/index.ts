@@ -166,8 +166,9 @@ function crud(app: Hono, path: string, table: AnyTable, resource: keyof typeof t
   });
 
   app.delete(`${path}/:id`, guard, async (c) => {
-    await db.delete(table).where(eq((table as any).id, Number(c.req.param("id"))));
-    return c.json(ok({ deleted: true }));
+    const deleted = ((await db.delete(table).where(eq((table as any).id, Number(c.req.param("id")))).returning({ id: (table as any).id })) as unknown as Array<{ id: number }>)[0];
+    if (!deleted) return c.json(fail("Data tidak ditemukan.", 404), 404);
+    return c.json(ok({ deleted: true, id: deleted.id }));
   });
 }
 
