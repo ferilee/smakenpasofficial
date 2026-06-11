@@ -24,15 +24,21 @@ export function formatDate(value: string) {
   return new Intl.DateTimeFormat("id-ID", { dateStyle: "medium" }).format(new Date(value));
 }
 
-export function socialProfileUrl(platform: "instagram" | "tiktok" | "facebook", value: string) {
+export function socialProfileUrl(platform: "whatsapp" | "telegram" | "instagram" | "tiktok" | "facebook" | "youtube", value: string) {
   const input = String(value ?? "").trim();
   if (!input) return "";
   if (/^https?:\/\//i.test(input)) return input;
   const handle = input.replace(/^@+/, "");
   if (!handle) return "";
+  if (platform === "whatsapp") {
+    const phone = input.replace(/\D/g, "").replace(/^0/, "62");
+    return phone ? `https://wa.me/${phone}` : "";
+  }
+  if (platform === "telegram") return `https://t.me/${handle}`;
   if (platform === "instagram") return `https://instagram.com/${handle}`;
   if (platform === "tiktok") return `https://www.tiktok.com/@${handle}`;
-  return `https://facebook.com/${handle}`;
+  if (platform === "facebook") return `https://facebook.com/${handle}`;
+  return `https://www.youtube.com/@${handle}`;
 }
 
 export function parseCsv(text: string) {

@@ -533,9 +533,12 @@ function testimonialsSection(testimonials = []) {
     }
   ];
   const socialIcon = (platform) => ({
+    whatsapp: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11.5a8 8 0 0 1-11.8 7L4 20l1.5-4.1A8 8 0 1 1 20 11.5Z"/><path d="M8.5 8.2c.4 2.7 2.6 4.9 5.3 5.3"/></svg>`,
+    telegram: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21 4-3 16-6-4-3 3v-5l9-7-11 6-4-2 18-7Z"/></svg>`,
     instagram: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4.2"/><circle cx="17.5" cy="6.5" r="1.2"/></svg>`,
     tiktok: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4v9.2a3.8 3.8 0 1 1-3.8-3.8"/><path d="M14 4c1 2.1 2.8 3.3 5 3.5"/></svg>`,
-    facebook: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 9h3V5h-3c-2.8 0-5 2.2-5 5v3H7v4h2v4h4v-4h3.2l.8-4H13v-3c0-.6.4-1 1-1Z"/></svg>`
+    facebook: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 9h3V5h-3c-2.8 0-5 2.2-5 5v3H7v4h2v4h4v-4h3.2l.8-4H13v-3c0-.6.4-1 1-1Z"/></svg>`,
+    youtube: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="4"/><path d="m10 9 5 3-5 3V9Z"/></svg>`
   })[platform];
   return `<section class="testimonials-section">
     <div class="container">
@@ -556,9 +559,12 @@ function testimonialsSection(testimonials = []) {
             <div class="testimonial-quote">“</div>
             <p>${esc(item.message || "-")}</p>
             <div class="testimonial-socials">
+              ${item.whatsapp ? `<a href="${esc(item.whatsapp)}" target="_blank" rel="noopener noreferrer" aria-label="WhatsApp">${socialIcon("whatsapp")}</a>` : ""}
+              ${item.telegram ? `<a href="${esc(item.telegram)}" target="_blank" rel="noopener noreferrer" aria-label="Telegram">${socialIcon("telegram")}</a>` : ""}
               ${item.instagram ? `<a href="${esc(item.instagram)}" target="_blank" rel="noopener noreferrer" aria-label="Instagram">${socialIcon("instagram")}</a>` : ""}
               ${item.tiktok ? `<a href="${esc(item.tiktok)}" target="_blank" rel="noopener noreferrer" aria-label="TikTok">${socialIcon("tiktok")}</a>` : ""}
               ${item.facebook ? `<a href="${esc(item.facebook)}" target="_blank" rel="noopener noreferrer" aria-label="Facebook">${socialIcon("facebook")}</a>` : ""}
+              ${item.youtube ? `<a href="${esc(item.youtube)}" target="_blank" rel="noopener noreferrer" aria-label="YouTube">${socialIcon("youtube")}</a>` : ""}
             </div>
             <div class="testimonial-author">
               ${item.photoUrl ? `<img src="${esc(item.photoUrl)}" alt="${esc(item.name)}">` : `<span>${esc(initials(item.name))}</span>`}
@@ -582,10 +588,18 @@ function testimonialsSection(testimonials = []) {
           <div class="field"><label>Nama</label><input name="name" required></div>
           <div class="field"><label>Tahun Lulus</label><input name="graduationYear" placeholder="Contoh: 2022"></div>
           <div class="field"><label>Pekerjaan / Aktivitas Saat Ini</label><input name="occupation" placeholder="Contoh: Web Developer"></div>
-          <div class="field"><label>URL Foto</label><input name="photoUrl" placeholder="Opsional"></div>
+          <div class="field testimonial-photo-field">
+            <label>Foto Alumni</label>
+            <input name="photo" type="file" accept="image/*" data-testimonial-photo>
+            <small>Format gambar, maksimal 5 MB. Foto akan diunggah ke RustFS.</small>
+            <div class="testimonial-photo-preview" data-testimonial-photo-preview hidden><img alt="Preview foto alumni"></div>
+          </div>
+          <div class="field"><label>WhatsApp</label><input name="whatsapp" inputmode="tel" placeholder="Contoh: 081234567890"></div>
+          <div class="field"><label>Telegram</label><input name="telegram" placeholder="username telegram atau URL"></div>
           <div class="field"><label>Instagram</label><input name="instagram" placeholder="username instagram atau URL"></div>
           <div class="field"><label>TikTok</label><input name="tiktok" placeholder="username tiktok atau URL"></div>
           <div class="field"><label>Facebook</label><input name="facebook" placeholder="username facebook atau URL"></div>
+          <div class="field"><label>YouTube</label><input name="youtube" placeholder="handle youtube atau URL"></div>
           <div class="field"><label>Testimoni</label><textarea name="message" required></textarea></div>
           <button class="btn">Kirim Testimoni</button>
           <p class="testimonial-note" data-testimonial-note></p>
@@ -1052,16 +1066,55 @@ function setupTestimonialForm() {
 
   open.addEventListener("click", openModal);
   modal.querySelectorAll("[data-testimonial-close]").forEach((button) => button.addEventListener("click", closeModal));
+  const photoInput = form.querySelector("[data-testimonial-photo]");
+  const photoPreview = form.querySelector("[data-testimonial-photo-preview]");
+  const previewImage = photoPreview?.querySelector("img");
+  let previewUrl = "";
+  photoInput?.addEventListener("change", () => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    const file = photoInput.files?.[0];
+    if (!file || !previewImage || !photoPreview) {
+      photoPreview?.setAttribute("hidden", "");
+      return;
+    }
+    if (!file.type.startsWith("image/")) {
+      photoInput.value = "";
+      notify("Foto harus berupa file gambar.", "error");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      photoInput.value = "";
+      notify("Ukuran foto maksimal 5 MB.", "error");
+      return;
+    }
+    previewUrl = URL.createObjectURL(file);
+    previewImage.src = previewUrl;
+    photoPreview.removeAttribute("hidden");
+  });
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     note.textContent = "Mengirim testimoni...";
+    const submitButton = form.querySelector('button[type="submit"]');
+    if (submitButton) {
+      submitButton.disabled = true;
+      submitButton.textContent = "Mengirim...";
+    }
     try {
-      const body = Object.fromEntries(new FormData(form));
-      await api("/api/public/testimonials", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      await api("/api/public/testimonials", { method: "POST", body: new FormData(form) });
       form.reset();
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      previewUrl = "";
+      photoPreview?.setAttribute("hidden", "");
       note.textContent = "Terima kasih. Testimoni akan tampil setelah disetujui admin.";
+      notify("Testimoni berhasil dikirim dan menunggu persetujuan admin.");
     } catch (error) {
       note.textContent = error.message;
+      notify(error.message || "Testimoni gagal dikirim.", "error");
+    } finally {
+      if (submitButton) {
+        submitButton.disabled = false;
+        submitButton.textContent = "Kirim Testimoni";
+      }
     }
   });
   document.addEventListener("keydown", (event) => {

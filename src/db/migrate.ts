@@ -15,7 +15,7 @@ const statements = [
   `CREATE TABLE IF NOT EXISTS banners (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, subtitle TEXT NOT NULL DEFAULT '', image_url TEXT NOT NULL DEFAULT '', cta_label TEXT NOT NULL DEFAULT '', cta_url TEXT NOT NULL DEFAULT '', sort_order INTEGER NOT NULL DEFAULT 0, is_active INTEGER NOT NULL DEFAULT 1)`,
   `CREATE TABLE IF NOT EXISTS messages (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, email TEXT NOT NULL, phone TEXT NOT NULL DEFAULT '', subject TEXT NOT NULL DEFAULT '', message TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'new', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`,
   `CREATE TABLE IF NOT EXISTS complaints (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, reporter_role TEXT NOT NULL DEFAULT '', class_or_unit TEXT NOT NULL DEFAULT '', phone TEXT NOT NULL DEFAULT '', email TEXT NOT NULL DEFAULT '', category TEXT NOT NULL DEFAULT '', title TEXT NOT NULL, complaint TEXT NOT NULL, attachment_url TEXT NOT NULL DEFAULT '', expectation TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'new', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`,
-  `CREATE TABLE IF NOT EXISTS testimonials (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, graduation_year TEXT NOT NULL DEFAULT '', occupation TEXT NOT NULL DEFAULT '', photo_url TEXT NOT NULL DEFAULT '', instagram TEXT NOT NULL DEFAULT '', tiktok TEXT NOT NULL DEFAULT '', facebook TEXT NOT NULL DEFAULT '', message TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`,
+  `CREATE TABLE IF NOT EXISTS testimonials (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, graduation_year TEXT NOT NULL DEFAULT '', occupation TEXT NOT NULL DEFAULT '', photo_url TEXT NOT NULL DEFAULT '', whatsapp TEXT NOT NULL DEFAULT '', telegram TEXT NOT NULL DEFAULT '', instagram TEXT NOT NULL DEFAULT '', tiktok TEXT NOT NULL DEFAULT '', facebook TEXT NOT NULL DEFAULT '', youtube TEXT NOT NULL DEFAULT '', message TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`,
   `CREATE TABLE IF NOT EXISTS files (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, original_name TEXT NOT NULL, mime_type TEXT NOT NULL, size INTEGER NOT NULL DEFAULT 0, storage_key TEXT NOT NULL, url TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`
 ];
 
@@ -52,6 +52,12 @@ export function migrate() {
     }
 
     const testimonialColumns = sqlite.prepare("PRAGMA table_info(testimonials)").all() as { name: string }[];
+    if (!testimonialColumns.some((column) => column.name === "whatsapp")) {
+      sqlite.run("ALTER TABLE testimonials ADD COLUMN whatsapp TEXT NOT NULL DEFAULT ''");
+    }
+    if (!testimonialColumns.some((column) => column.name === "telegram")) {
+      sqlite.run("ALTER TABLE testimonials ADD COLUMN telegram TEXT NOT NULL DEFAULT ''");
+    }
     if (!testimonialColumns.some((column) => column.name === "instagram")) {
       sqlite.run("ALTER TABLE testimonials ADD COLUMN instagram TEXT NOT NULL DEFAULT ''");
     }
@@ -60,6 +66,9 @@ export function migrate() {
     }
     if (!testimonialColumns.some((column) => column.name === "facebook")) {
       sqlite.run("ALTER TABLE testimonials ADD COLUMN facebook TEXT NOT NULL DEFAULT ''");
+    }
+    if (!testimonialColumns.some((column) => column.name === "youtube")) {
+      sqlite.run("ALTER TABLE testimonials ADD COLUMN youtube TEXT NOT NULL DEFAULT ''");
     }
 
     const complaintColumns = sqlite.prepare("PRAGMA table_info(complaints)").all() as { name: string }[];

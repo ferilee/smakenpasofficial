@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { storageMode, storageSetup } from "../src/lib/storage";
-import { resolveGoogleSheetCsvUrl } from "../src/lib/utils";
+import { resolveGoogleSheetCsvUrl, socialProfileUrl } from "../src/lib/utils";
 
 const originalEnv = {
   S3_ENDPOINT: process.env.S3_ENDPOINT,
@@ -67,5 +67,17 @@ describe("google sheets url resolution", () => {
   test("accepts bare sheet id", () => {
     expect(resolveGoogleSheetCsvUrl("16RiJE6X-KpSZYGUBnRcS9L_y_wTXijnkAp_nwQK7EE"))
       .toBe("https://docs.google.com/spreadsheets/d/16RiJE6X-KpSZYGUBnRcS9L_y_wTXijnkAp_nwQK7EE/export?format=csv&gid=0");
+  });
+});
+
+describe("social profile URL normalization", () => {
+  test("normalizes messaging and video accounts", () => {
+    expect(socialProfileUrl("whatsapp", "0812-3456-7890")).toBe("https://wa.me/6281234567890");
+    expect(socialProfileUrl("telegram", "@alumni.test")).toBe("https://t.me/alumni.test");
+    expect(socialProfileUrl("youtube", "@alumni.test")).toBe("https://www.youtube.com/@alumni.test");
+  });
+
+  test("keeps complete social URLs unchanged", () => {
+    expect(socialProfileUrl("youtube", "https://youtube.com/channel/example")).toBe("https://youtube.com/channel/example");
   });
 });

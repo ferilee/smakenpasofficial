@@ -124,22 +124,41 @@ describe("public endpoints", () => {
   });
 
   test("public testimonial submission creates pending item", async () => {
-    const res = await request("/public/testimonials", jsonInit("POST", {
-      name: "Alumni Test",
-      graduationYear: "2024",
-      occupation: "QA",
-      instagram: "alumni.test",
-      tiktok: "alumni.test",
-      facebook: "alumni.test",
-      message: "Pengalaman sekolah sangat membantu."
-    }));
+    const form = new FormData();
+    form.append("name", "Alumni Test");
+    form.append("graduationYear", "2024");
+    form.append("occupation", "QA");
+    form.append("whatsapp", "081234567890");
+    form.append("telegram", "alumni.test");
+    form.append("instagram", "alumni.test");
+    form.append("tiktok", "alumni.test");
+    form.append("facebook", "alumni.test");
+    form.append("youtube", "alumni.test");
+    form.append("message", "Pengalaman sekolah sangat membantu.");
+    form.append("photo", new File(["test-image"], "alumni.jpg", { type: "image/jpeg" }));
+    const res = await request("/public/testimonials", { method: "POST", body: form });
     const body = await json(res);
     expect(res.status).toBe(201);
     expect(body.data.status).toBe("pending");
+    expect(body.data.photoUrl).toStartWith("/uploads/");
+    expect(body.data.whatsapp).toBe("https://wa.me/6281234567890");
+    expect(body.data.telegram).toBe("https://t.me/alumni.test");
     expect(body.data.instagram).toBe("https://instagram.com/alumni.test");
     expect(body.data.tiktok).toBe("https://www.tiktok.com/@alumni.test");
     expect(body.data.facebook).toBe("https://facebook.com/alumni.test");
+    expect(body.data.youtube).toBe("https://www.youtube.com/@alumni.test");
     createdTestimonialId = body.data.id;
+  });
+
+  test("public testimonial rejects non-image photo", async () => {
+    const form = new FormData();
+    form.append("name", "Alumni Invalid Photo");
+    form.append("message", "Testimoni dengan lampiran tidak valid.");
+    form.append("photo", new File(["not-an-image"], "document.txt", { type: "text/plain" }));
+    const res = await request("/public/testimonials", { method: "POST", body: form });
+    const body = await json(res);
+    expect(res.status).toBe(400);
+    expect(body.error.message).toContain("file gambar");
   });
 
   test("public testimonial validation requires name and message", async () => {
@@ -391,16 +410,22 @@ describe("admin CRUD endpoints", () => {
       name: "Alumni Test",
       graduationYear: "2024",
       occupation: "QA",
+      whatsapp: "081234567890",
+      telegram: "alumni.test",
       instagram: "alumni.test",
       tiktok: "alumni.test",
       facebook: "alumni.test",
+      youtube: "alumni.test",
       message: "Pengalaman sekolah sangat membantu.",
       status: "approved"
     }));
     const body = await json(res);
     expect(res.status).toBe(200);
     expect(body.data.status).toBe("approved");
+    expect(body.data.whatsapp).toBe("https://wa.me/6281234567890");
+    expect(body.data.telegram).toBe("https://t.me/alumni.test");
     expect(body.data.instagram).toBe("https://instagram.com/alumni.test");
+    expect(body.data.youtube).toBe("https://www.youtube.com/@alumni.test");
   });
 });
 

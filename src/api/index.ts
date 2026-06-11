@@ -41,7 +41,7 @@ const tableFields = {
   banners: ["title", "subtitle", "imageUrl", "ctaLabel", "ctaUrl", "sortOrder", "isActive"],
   messages: ["name", "email", "phone", "subject", "message", "status"],
   complaints: ["name", "reporterRole", "classOrUnit", "phone", "email", "category", "title", "complaint", "attachmentUrl", "expectation", "status"],
-  testimonials: ["name", "graduationYear", "occupation", "photoUrl", "instagram", "tiktok", "facebook", "message", "status"]
+  testimonials: ["name", "graduationYear", "occupation", "photoUrl", "whatsapp", "telegram", "instagram", "tiktok", "facebook", "youtube", "message", "status"]
 } as const;
 
 function sign(value: string) {
@@ -68,9 +68,12 @@ function normalizeBody(resource: keyof typeof tableFields, body: Record<string, 
   if ("name" in data && !("slug" in data) && (resource === "majors")) data.slug = slugify(String(data.name));
   if ("title" in data && !("slug" in data) && resource === "galleries") data.slug = slugify(String(data.title));
   if (resource === "testimonials") {
+    data.whatsapp = socialProfileUrl("whatsapp", String(data.whatsapp || ""));
+    data.telegram = socialProfileUrl("telegram", String(data.telegram || ""));
     data.instagram = socialProfileUrl("instagram", String(data.instagram || ""));
     data.tiktok = socialProfileUrl("tiktok", String(data.tiktok || ""));
     data.facebook = socialProfileUrl("facebook", String(data.facebook || ""));
+    data.youtube = socialProfileUrl("youtube", String(data.youtube || ""));
   }
   return data;
 }
@@ -393,7 +396,23 @@ export function apiRoutes() {
   crud(app, "/testimonials", testimonials as never, "testimonials", true);
 
   app.post("/public/testimonials", async (c) => {
-    const body = await c.req.json<Record<string, unknown>>();
+    const contentType = String(c.req.header("content-type") || "");
+    let body: Record<string, unknown>;
+    let photoUrl = "";
+    if (contentType.includes("multipart/form-data") || contentType.includes("application/x-www-form-urlencoded")) {
+      const form = await c.req.parseBody();
+      body = form as Record<string, unknown>;
+      const photo = form.photo;
+      if (photo instanceof File && photo.size > 0) {
+        if (!photo.type.startsWith("image/")) return c.json(fail("Foto harus berupa file gambar."), 400);
+        if (photo.size > 5 * 1024 * 1024) return c.json(fail("Ukuran foto maksimal 5 MB."), 400);
+        const stored = await storeUploadedFile(photo, "testimonials");
+        photoUrl = stored.url;
+      }
+    } else {
+      body = await c.req.json<Record<string, unknown>>();
+      photoUrl = String(body.photoUrl || "").trim();
+    }
     const name = String(body.name || "").trim();
     const message = String(body.message || "").trim();
     if (!name || !message) return c.json(fail("Nama dan testimoni wajib diisi."), 400);
@@ -401,10 +420,13 @@ export function apiRoutes() {
       name,
       graduationYear: String(body.graduationYear || "").trim(),
       occupation: String(body.occupation || "").trim(),
-      photoUrl: String(body.photoUrl || "").trim(),
+      photoUrl,
+      whatsapp: socialProfileUrl("whatsapp", String(body.whatsapp || "")),
+      telegram: socialProfileUrl("telegram", String(body.telegram || "")),
       instagram: socialProfileUrl("instagram", String(body.instagram || "")),
       tiktok: socialProfileUrl("tiktok", String(body.tiktok || "")),
       facebook: socialProfileUrl("facebook", String(body.facebook || "")),
+      youtube: socialProfileUrl("youtube", String(body.youtube || "")),
       message,
       status: "pending"
     }).returning();

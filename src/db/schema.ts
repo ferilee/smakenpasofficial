@@ -180,9 +180,12 @@ export const testimonials = sqliteTable("testimonials", {
   graduationYear: text("graduation_year").notNull().default(""),
   occupation: text("occupation").notNull().default(""),
   photoUrl: text("photo_url").notNull().default(""),
+  whatsapp: text("whatsapp").notNull().default(""),
+  telegram: text("telegram").notNull().default(""),
   instagram: text("instagram").notNull().default(""),
   tiktok: text("tiktok").notNull().default(""),
   facebook: text("facebook").notNull().default(""),
+  youtube: text("youtube").notNull().default(""),
   message: text("message").notNull(),
   status: text("status").notNull().default("pending"),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`)

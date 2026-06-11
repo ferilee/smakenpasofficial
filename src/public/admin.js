@@ -11,7 +11,7 @@ const resources = {
   banners: { title: "Banner", path: "/api/banners", fields: ["title", "subtitle", "imageUrl", "ctaLabel", "ctaUrl", "sortOrder", "isActive"] },
   messages: { title: "Pesan Masuk", path: "/api/messages", fields: ["name", "email", "phone", "subject", "message", "status"] },
   complaints: { title: "Pengaduan", path: "/api/complaints", fields: ["name", "reporterRole", "classOrUnit", "phone", "email", "category", "title", "complaint", "attachmentUrl", "expectation", "status"] },
-  testimonials: { title: "Testimoni Alumni", path: "/api/testimonials", fields: ["name", "graduationYear", "occupation", "photoUrl", "instagram", "tiktok", "facebook", "message", "status"] },
+  testimonials: { title: "Testimoni Alumni", path: "/api/testimonials", fields: ["name", "graduationYear", "occupation", "photoUrl", "whatsapp", "telegram", "instagram", "tiktok", "facebook", "youtube", "message", "status"] },
   users: { title: "User Admin", path: "/api/users", fields: ["name", "username", "email", "password", "role"] }
 };
 
@@ -307,12 +307,16 @@ function formFields(config, item = {}) {
       return `<div class="field"><label><input type="checkbox" name="${field}" ${item[field] ? "checked" : ""}> ${fieldLabel(field)}</label></div>`;
     }
     const value = esc(item[field] ?? "");
-    if (field === "instagram" || field === "tiktok" || field === "facebook") {
-      const placeholder = field === "instagram"
-        ? "username instagram atau URL"
-        : field === "tiktok"
-          ? "username tiktok atau URL"
-          : "username facebook atau URL";
+    if (["whatsapp", "telegram", "instagram", "tiktok", "facebook", "youtube"].includes(field)) {
+      const placeholders = {
+        whatsapp: "nomor WhatsApp atau URL",
+        telegram: "username Telegram atau URL",
+        instagram: "username Instagram atau URL",
+        tiktok: "username TikTok atau URL",
+        facebook: "username Facebook atau URL",
+        youtube: "handle YouTube atau URL"
+      };
+      const placeholder = placeholders[field];
       return `<div class="field"><label>${fieldLabel(field)}</label><input name="${field}" value="${value}" placeholder="${placeholder}"></div>`;
     }
     if (["description", "content", "competencies", "careerProspects", "practiceFacilities", "achievements", "message", "subtitle", "complaint", "expectation"].includes(field)) {
@@ -908,9 +912,12 @@ function openDetail(key, item = {}) {
   const box = document.querySelector("#modal-box");
   if (key !== "testimonials" || !item.id) return;
   const socialLinks = [
+    item.whatsapp ? { label: "WhatsApp", href: item.whatsapp } : null,
+    item.telegram ? { label: "Telegram", href: item.telegram } : null,
     item.instagram ? { label: "Instagram", href: item.instagram } : null,
     item.tiktok ? { label: "TikTok", href: item.tiktok } : null,
-    item.facebook ? { label: "Facebook", href: item.facebook } : null
+    item.facebook ? { label: "Facebook", href: item.facebook } : null,
+    item.youtube ? { label: "YouTube", href: item.youtube } : null
   ].filter(Boolean);
 
   box.innerHTML = `
@@ -927,9 +934,12 @@ function openDetail(key, item = {}) {
       <div class="detail-grid">
         <div><strong>Tahun Lulus</strong><p>${esc(item.graduationYear || "-")}</p></div>
         <div><strong>Pekerjaan</strong><p>${esc(item.occupation || "-")}</p></div>
+        <div><strong>WhatsApp</strong><p>${item.whatsapp ? `<a href="${esc(item.whatsapp)}" target="_blank" rel="noopener noreferrer">${esc(item.whatsapp)}</a>` : "-"}</p></div>
+        <div><strong>Telegram</strong><p>${item.telegram ? `<a href="${esc(item.telegram)}" target="_blank" rel="noopener noreferrer">${esc(item.telegram)}</a>` : "-"}</p></div>
         <div><strong>Instagram</strong><p>${item.instagram ? `<a href="${esc(item.instagram)}" target="_blank" rel="noopener noreferrer">${esc(item.instagram)}</a>` : "-"}</p></div>
         <div><strong>TikTok</strong><p>${item.tiktok ? `<a href="${esc(item.tiktok)}" target="_blank" rel="noopener noreferrer">${esc(item.tiktok)}</a>` : "-"}</p></div>
         <div><strong>Facebook</strong><p>${item.facebook ? `<a href="${esc(item.facebook)}" target="_blank" rel="noopener noreferrer">${esc(item.facebook)}</a>` : "-"}</p></div>
+        <div><strong>YouTube</strong><p>${item.youtube ? `<a href="${esc(item.youtube)}" target="_blank" rel="noopener noreferrer">${esc(item.youtube)}</a>` : "-"}</p></div>
         <div><strong>Dibuat</strong><p>${esc(item.createdAt || "-")}</p></div>
       </div>
       <div class="detail-message">
