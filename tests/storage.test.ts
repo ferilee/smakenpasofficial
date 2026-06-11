@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { storageMode, storageSetup } from "../src/lib/storage";
+import { resolveGoogleSheetCsvUrl } from "../src/lib/utils";
 
 const originalEnv = {
   S3_ENDPOINT: process.env.S3_ENDPOINT,
@@ -54,5 +55,17 @@ describe("storage setup", () => {
       region: "us-east-1",
       forcePathStyle: true
     });
+  });
+});
+
+describe("google sheets url resolution", () => {
+  test("accepts partial google sheets path", () => {
+    expect(resolveGoogleSheetCsvUrl("d/16RiJE6X-KpSZYGUBnRcS9L_y_wTXijnkAp_nwQK7EE/edit?gid=1125815999#gid=1125815999"))
+      .toBe("https://docs.google.com/spreadsheets/d/16RiJE6X-KpSZYGUBnRcS9L_y_wTXijnkAp_nwQK7EE/export?format=csv&gid=1125815999");
+  });
+
+  test("accepts bare sheet id", () => {
+    expect(resolveGoogleSheetCsvUrl("16RiJE6X-KpSZYGUBnRcS9L_y_wTXijnkAp_nwQK7EE"))
+      .toBe("https://docs.google.com/spreadsheets/d/16RiJE6X-KpSZYGUBnRcS9L_y_wTXijnkAp_nwQK7EE/export?format=csv&gid=0");
   });
 });

@@ -92,6 +92,20 @@ export function resolveGoogleSheetCsvUrl(raw: string) {
   if (!input) return "";
   if (/(\.csv|output=csv|format=csv)/i.test(input)) return input;
 
+  const partialPath = input.match(/^d\/([^/]+)(\/.*)?$/i);
+  if (partialPath) {
+    return resolveGoogleSheetCsvUrl(`https://docs.google.com/spreadsheets/${input.startsWith("d/") ? input : `d/${input}`}`);
+  }
+
+  const directId = input.match(/^[a-zA-Z0-9-_]{20,}$/);
+  if (directId) {
+    return `https://docs.google.com/spreadsheets/d/${input}/export?format=csv&gid=0`;
+  }
+
+  if (input.includes("/spreadsheets/d/") && !/^https?:\/\//i.test(input)) {
+    return resolveGoogleSheetCsvUrl(`https://docs.google.com${input.startsWith("/") ? "" : "/"}${input}`);
+  }
+
   try {
     const url = new URL(input);
     const match = url.pathname.match(/\/spreadsheets\/d(?:\/e)?\/([^/]+)/i);
