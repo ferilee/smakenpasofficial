@@ -29,6 +29,7 @@ const mobileMoreNav = [
   ["Guru & Tendik", "/guru-tendik", "users"],
   ["Agenda", "/agenda", "calendar"],
   ["Unduhan", "/unduhan", "download"],
+  ["Pengaduan", "/pengaduan", "report"],
   ["Kontak", "/kontak", "phone"],
   ["Login Admin", "/admin", "login"]
 ];
@@ -164,6 +165,7 @@ function layout(content, data = state.home) {
     ["Profil", "/profil"],
     ["Jurusan", "/program-keahlian"],
     ["Agenda", "/agenda"],
+    ["Pengaduan", "/pengaduan"],
     ["Kontak", "/kontak"]
   ];
   const footerSocials = [
@@ -1296,10 +1298,20 @@ async function teacherDetailPage(id) {
         <div class="container split">
           <div>
             <h2>Profil</h2>
-            <p class="prose"><strong>Jabatan:</strong> ${esc(teacher.position || "-")}</p>
-            <p class="prose"><strong>Mata Pelajaran:</strong> ${esc(teacher.subject || "-")}</p>
-            <p class="prose"><strong>Bidang Keahlian:</strong> ${esc(teacher.expertise || "-")}</p>
-            <p class="prose"><strong>Status:</strong> ${esc(teacher.status || "-")}</p>
+            <div class="identity-list teacher-profile-list">
+              ${[
+                ["Jabatan", teacher.position || "-"],
+                ["Mata Pelajaran", teacher.subject || "-"],
+                ["Bidang Keahlian", teacher.expertise || "-"],
+                ["Status", teacher.status || "-"]
+              ].map(([label, value]) => `
+                <div class="identity-row teacher-profile-row">
+                  <span class="identity-label">${esc(label)}</span>
+                  <span class="identity-separator">:</span>
+                  <span class="identity-value">${esc(value)}</span>
+                </div>
+              `).join("")}
+            </div>
             <div class="actions">
               <a class="btn" href="/guru-tendik">Kembali ke Guru & Tendik</a>
               <a class="btn secondary" href="/kontak">Hubungi Sekolah</a>
@@ -1325,6 +1337,9 @@ async function contactPage() {
           <p>${esc(data.settings.email)}</p>
           <p>${esc(data.settings.phone)}</p>
           <p>WhatsApp: ${esc(data.settings.whatsapp)}</p>
+          <div class="actions">
+            <a class="btn" href="/pengaduan">Buka Form Pengaduan</a>
+          </div>
         </div>
         <form class="card form" id="contact-form">
           <div class="field"><label>Nama</label><input name="name" required></div>
@@ -1333,6 +1348,46 @@ async function contactPage() {
           <div class="field"><label>Subjek</label><input name="subject"></div>
           <div class="field"><label>Pesan</label><textarea name="message" required></textarea></div>
           <button class="btn">Kirim Pesan</button>
+        </form>
+      </div></section>
+    </main>`, data);
+}
+
+async function complaintPage() {
+  const data = await loadHome();
+  return layout(`
+    <main>
+      ${pageHero("Form Pengaduan", "Saluran resmi untuk menyampaikan pengaduan, kendala layanan, atau masukan yang memerlukan tindak lanjut sekolah.")}
+      <section><div class="container split">
+        <div class="card">
+          <h3>Informasi Pengaduan</h3>
+          <p class="prose">Gunakan formulir ini untuk menyampaikan keluhan atau laporan yang perlu ditindaklanjuti pihak sekolah. Sampaikan data dengan jelas agar proses verifikasi dan tindak lanjut berjalan lebih cepat.</p>
+          <div class="identity-list teacher-profile-list">
+            ${[
+              ["Cocok Untuk", "Keluhan layanan, administrasi, pembelajaran, sarana prasarana, atau perilaku yang perlu ditindaklanjuti."],
+              ["Respon Awal", "Pengaduan masuk ke dashboard admin untuk diverifikasi oleh sekolah."],
+              ["Saran Penempatan", "Paling tepat ditempatkan sebagai halaman khusus /pengaduan dengan CTA dari halaman Kontak dan footer."]
+            ].map(([label, value]) => `
+              <div class="identity-row teacher-profile-row">
+                <span class="identity-label">${esc(label)}</span>
+                <span class="identity-separator">:</span>
+                <span class="identity-value">${esc(value)}</span>
+              </div>
+            `).join("")}
+          </div>
+        </div>
+        <form class="card form" id="complaint-form">
+          <div class="field"><label>Nama</label><input name="name" required></div>
+          <div class="field"><label>Peran Pelapor</label><select name="reporterRole"><option value="Siswa">Siswa</option><option value="Orang Tua / Wali">Orang Tua / Wali</option><option value="Alumni">Alumni</option><option value="Guru / Tendik">Guru / Tendik</option><option value="Masyarakat">Masyarakat</option><option value="Lainnya">Lainnya</option></select></div>
+          <div class="field"><label>Kelas / Unit / Hubungan</label><input name="classOrUnit" placeholder="Contoh: XII RPL 1 / Orang Tua Kelas X"></div>
+          <div class="field"><label>Telepon / WhatsApp</label><input name="phone"></div>
+          <div class="field"><label>Email</label><input name="email" type="email"></div>
+          <div class="field"><label>Kategori Pengaduan</label><select name="category"><option value="Layanan Sekolah">Layanan Sekolah</option><option value="Pembelajaran">Pembelajaran</option><option value="Administrasi">Administrasi</option><option value="Sarana Prasarana">Sarana Prasarana</option><option value="Kedisiplinan">Kedisiplinan</option><option value="Perundungan / Keamanan">Perundungan / Keamanan</option><option value="Lainnya">Lainnya</option></select></div>
+          <div class="field"><label>Judul Pengaduan</label><input name="title" required></div>
+          <div class="field"><label>Isi Pengaduan</label><textarea name="complaint" required></textarea></div>
+          <div class="field"><label>Lampiran Bukti</label><input name="attachment" type="file" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"></div>
+          <div class="field"><label>Harapan / Tindak Lanjut</label><textarea name="expectation" placeholder="Opsional"></textarea></div>
+          <button class="btn">Kirim Pengaduan</button>
         </form>
       </div></section>
     </main>`, data);
@@ -1352,6 +1407,7 @@ async function render() {
     else if (path === "/pengumuman") app.innerHTML = await collectionPage("/api/announcements", "Pengumuman", "Informasi administratif dan pengumuman penting.", (item) => card(item.title, item.content, item.isPriority ? '<span class="badge">Prioritas</span>' : ""));
     else if (path === "/unduhan") app.innerHTML = await collectionPage("/api/downloads", "Unduhan", "Dokumen resmi sekolah yang dapat diunduh.", (item) => `<article class="card"><span class="badge">${esc(item.category)}</span><h3>${esc(item.title)}</h3><p>${esc(item.description)}</p><p>${esc(item.fileType)} - ${esc(item.fileSize)}</p><a class="btn ghost" href="${esc(item.fileUrl)}">Download</a></article>`);
     else if (path === "/kontak") app.innerHTML = await contactPage();
+    else if (path === "/pengaduan") app.innerHTML = await complaintPage();
     else app.innerHTML = await homePage();
 
     const form = document.querySelector("#contact-form");
@@ -1362,6 +1418,22 @@ async function render() {
         await api("/api/messages", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
         form.reset();
         notify("Pesan berhasil dikirim.");
+      });
+    }
+    const complaintForm = document.querySelector("#complaint-form");
+    if (complaintForm) {
+      complaintForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        try {
+          const body = new FormData(complaintForm);
+          const res = await fetch("/api/public/complaints", { method: "POST", body });
+          const json = await res.json();
+          if (!json.ok) throw new Error(json.error?.message || "Pengaduan gagal dikirim.");
+          complaintForm.reset();
+          notify("Pengaduan berhasil dikirim.");
+        } catch (error) {
+          notify(error.message || "Pengaduan gagal dikirim.", "error");
+        }
       });
     }
     setupHeroCarousel();

@@ -18,6 +18,7 @@ let adminCookie = "";
 let createdMajorId = 0;
 let createdGalleryId = 0;
 let createdMessageId = 0;
+let createdComplaintId = 0;
 let createdTestimonialId = 0;
 let createdUserId = 0;
 
@@ -144,6 +145,26 @@ describe("public endpoints", () => {
   test("public testimonial validation requires name and message", async () => {
     const res = await request("/public/testimonials", jsonInit("POST", { name: "" }));
     expect(res.status).toBe(400);
+  });
+
+  test("public complaint submission creates new complaint", async () => {
+    const form = new FormData();
+    form.append("name", "Pelapor Test");
+    form.append("reporterRole", "Siswa");
+    form.append("classOrUnit", "XII RPL 1");
+    form.append("phone", "08123");
+    form.append("email", "pelapor@test.local");
+    form.append("category", "Layanan Sekolah");
+    form.append("title", "Keluhan layanan");
+    form.append("complaint", "Ada kendala pada layanan sekolah.");
+    form.append("expectation", "Mohon ditindaklanjuti.");
+    form.append("attachment", new File(["bukti"], "bukti.txt", { type: "text/plain" }));
+    const res = await request("/public/complaints", { method: "POST", body: form });
+    const body = await json(res);
+    expect(res.status).toBe(201);
+    expect(body.data.status).toBe("new");
+    expect(body.data.attachmentUrl).toContain("/uploads/");
+    createdComplaintId = body.data.id;
   });
 });
 
@@ -323,6 +344,22 @@ describe("admin CRUD endpoints", () => {
   test("banners list endpoint returns array", async () => {
     const body = await json(await request("/banners"));
     expect(Array.isArray(body.data)).toBe(true);
+  });
+
+  test("complaints can be listed and updated by admin", async () => {
+    const list = await json(await adminRequest("/complaints"));
+    expect(Array.isArray(list.data)).toBe(true);
+    expect(list.data.some((item: any) => item.id === createdComplaintId)).toBe(true);
+
+    const res = await adminRequest(`/complaints/${createdComplaintId}`, jsonInit("PUT", {
+      status: "reviewed",
+      category: "Layanan Sekolah",
+      title: "Keluhan layanan",
+      complaint: "Ada kendala pada layanan sekolah."
+    }));
+    const body = await json(res);
+    expect(res.status).toBe(200);
+    expect(body.data.status).toBe("reviewed");
   });
 
   test("testimonials can be approved by admin", async () => {

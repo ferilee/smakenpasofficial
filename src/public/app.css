@@ -718,6 +718,14 @@ section { padding: 58px 0; }
 .identity-value {
   white-space: pre-line;
 }
+.teacher-profile-list {
+  margin-top: 18px;
+  gap: 16px;
+}
+.teacher-profile-row {
+  grid-template-columns: minmax(170px, 210px) 12px minmax(0, 1fr);
+  font-size: 16px;
+}
 .soft { background: var(--soft); }
 .split { display: grid; grid-template-columns: 1.05fr .95fr; gap: 32px; align-items: start; }
 .photo-panel {
@@ -1822,6 +1830,15 @@ section { padding: 58px 0; }
 }
 .quick-link-card {
   gap: 10px;
+}
+.admin-filter {
+  min-width: 180px;
+  height: 42px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  padding: 0 12px;
 }
 
 .admin-body { background: var(--soft); }

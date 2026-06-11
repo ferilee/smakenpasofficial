@@ -8,6 +8,7 @@ import {
   agendas,
   announcements,
   banners,
+  complaints,
   downloads,
   facilities,
   files,
@@ -39,6 +40,7 @@ const tableFields = {
   downloads: ["title", "category", "description", "fileUrl", "fileType", "fileSize"],
   banners: ["title", "subtitle", "imageUrl", "ctaLabel", "ctaUrl", "sortOrder", "isActive"],
   messages: ["name", "email", "phone", "subject", "message", "status"],
+  complaints: ["name", "reporterRole", "classOrUnit", "phone", "email", "category", "title", "complaint", "attachmentUrl", "expectation", "status"],
   testimonials: ["name", "graduationYear", "occupation", "photoUrl", "instagram", "tiktok", "facebook", "message", "status"]
 } as const;
 
@@ -386,6 +388,7 @@ export function apiRoutes() {
   crud(app, "/announcements", announcements as never, "announcements", true);
   crud(app, "/downloads", downloads as never, "downloads", true);
   crud(app, "/banners", banners as never, "banners", true);
+  crud(app, "/complaints", complaints as never, "complaints", true);
   crud(app, "/testimonials", testimonials as never, "testimonials", true);
 
   app.post("/public/testimonials", async (c) => {
@@ -411,6 +414,28 @@ export function apiRoutes() {
     const body = await c.req.json<Record<string, unknown>>();
     const data = pick(body, ["name", "email", "phone", "subject", "message"]);
     const [row] = await db.insert(messages).values(data as never).returning();
+    return c.json(ok(row), 201);
+  });
+
+  app.post("/public/complaints", async (c) => {
+    let data: Record<string, unknown> = {};
+    const contentType = String(c.req.header("content-type") || "");
+    if (contentType.includes("multipart/form-data") || contentType.includes("application/x-www-form-urlencoded")) {
+      const body = await c.req.parseBody();
+      data = pick(body as Record<string, unknown>, ["name", "reporterRole", "classOrUnit", "phone", "email", "category", "title", "complaint", "expectation"]);
+      const input = body.attachment;
+      if (input instanceof File && input.size > 0) {
+        const stored = await storeUploadedFile(input, "complaints");
+        data.attachmentUrl = stored.url;
+      }
+    } else {
+      const body = await c.req.json<Record<string, unknown>>();
+      data = pick(body, ["name", "reporterRole", "classOrUnit", "phone", "email", "category", "title", "complaint", "attachmentUrl", "expectation"]);
+    }
+    if (!String(data.name || "").trim()) return c.json(fail("Nama wajib diisi."), 400);
+    if (!String(data.title || "").trim()) return c.json(fail("Judul pengaduan wajib diisi."), 400);
+    if (!String(data.complaint || "").trim()) return c.json(fail("Isi pengaduan wajib diisi."), 400);
+    const [row] = await db.insert(complaints).values(data as never).returning();
     return c.json(ok(row), 201);
   });
 
@@ -455,8 +480,10 @@ export function apiRoutes() {
       announcements: count("announcements"),
       downloads: count("downloads"),
       messages: count("messages"),
+      complaints: count("complaints"),
       testimonials: count("testimonials"),
       newMessages: countWhere("messages", "status", "new"),
+      newComplaints: countWhere("complaints", "status", "new"),
       pendingTestimonials: countWhere("testimonials", "status", "pending"),
       users: count("users"),
       storageMode: storageMode()

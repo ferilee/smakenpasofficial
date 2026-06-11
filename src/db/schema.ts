@@ -158,6 +158,22 @@ export const messages = sqliteTable("messages", {
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`)
 });
 
+export const complaints = sqliteTable("complaints", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(),
+  reporterRole: text("reporter_role").notNull().default(""),
+  classOrUnit: text("class_or_unit").notNull().default(""),
+  phone: text("phone").notNull().default(""),
+  email: text("email").notNull().default(""),
+  category: text("category").notNull().default(""),
+  title: text("title").notNull(),
+  complaint: text("complaint").notNull(),
+  attachmentUrl: text("attachment_url").notNull().default(""),
+  expectation: text("expectation").notNull().default(""),
+  status: text("status").notNull().default("new"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`)
+});
+
 export const testimonials = sqliteTable("testimonials", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   name: text("name").notNull(),

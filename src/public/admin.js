@@ -10,6 +10,7 @@ const resources = {
   downloads: { title: "File Unduhan", path: "/api/downloads", fields: ["title", "category", "description", "fileUrl", "fileType", "fileSize"] },
   banners: { title: "Banner", path: "/api/banners", fields: ["title", "subtitle", "imageUrl", "ctaLabel", "ctaUrl", "sortOrder", "isActive"] },
   messages: { title: "Pesan Masuk", path: "/api/messages", fields: ["name", "email", "phone", "subject", "message", "status"] },
+  complaints: { title: "Pengaduan", path: "/api/complaints", fields: ["name", "reporterRole", "classOrUnit", "phone", "email", "category", "title", "complaint", "attachmentUrl", "expectation", "status"] },
   testimonials: { title: "Testimoni Alumni", path: "/api/testimonials", fields: ["name", "graduationYear", "occupation", "photoUrl", "instagram", "tiktok", "facebook", "message", "status"] },
   users: { title: "User Admin", path: "/api/users", fields: ["name", "username", "email", "password", "role"] }
 };
@@ -47,6 +48,7 @@ const adminMenuGroups = [
     title: "Administrasi",
     items: [
       ["messages", resources.messages.title],
+      ["complaints", resources.complaints.title],
       ["users", resources.users.title]
     ]
   },
@@ -61,6 +63,7 @@ const adminMenuGroups = [
 
 let active = "majors";
 let rows = [];
+let complaintStatusFilter = "all";
 
 const statsLabels = {
   majors: "Program Keahlian",
@@ -70,8 +73,10 @@ const statsLabels = {
   announcements: "Pengumuman",
   downloads: "File Unduhan",
   messages: "Pesan Masuk",
+  complaints: "Pengaduan",
   testimonials: "Testimoni Alumni",
   newMessages: "Pesan Baru",
+  newComplaints: "Pengaduan Baru",
   pendingTestimonials: "Testimoni Baru",
   users: "User Admin"
 };
@@ -252,7 +257,7 @@ function formFields(config, item = {}) {
           : "username facebook atau URL";
       return `<div class="field"><label>${fieldLabel(field)}</label><input name="${field}" value="${value}" placeholder="${placeholder}"></div>`;
     }
-    if (["description", "content", "competencies", "careerProspects", "practiceFacilities", "achievements", "message", "subtitle"].includes(field)) {
+    if (["description", "content", "competencies", "careerProspects", "practiceFacilities", "achievements", "message", "subtitle", "complaint", "expectation"].includes(field)) {
       return `<div class="field"><label>${fieldLabel(field)}</label><textarea name="${field}">${value}</textarea></div>`;
     }
     const type = field === "password" ? "password" : field.toLowerCase().includes("date") || field === "publishedAt" ? "date" : "text";
@@ -450,7 +455,7 @@ function adminMenu() {
       <p class="menu-group-title">${esc(group.title)}</p>
       ${group.items.map(([page, label, type]) => {
         const attr = type === "theme" ? "data-theme-toggle" : `data-page="${page}"`;
-        const badge = page === "messages" || page === "testimonials" ? `<span class="menu-badge" data-menu-badge="${page}" hidden><i></i><b>0</b></span>` : "";
+        const badge = page === "messages" || page === "testimonials" || page === "complaints" ? `<span class="menu-badge" data-menu-badge="${page}" hidden><i></i><b>0</b></span>` : "";
         return `<button ${attr} type="button"><span>${esc(label)}</span>${badge}</button>`;
       }).join("")}
     </div>`).join("");
@@ -461,6 +466,7 @@ async function updateMenuBadges() {
     const stats = await api("/api/stats");
     const badges = {
       messages: Number(stats.newMessages || 0),
+      complaints: Number(stats.newComplaints || 0),
       testimonials: Number(stats.pendingTestimonials || 0)
     };
     Object.entries(badges).forEach(([key, value]) => {
@@ -655,22 +661,26 @@ async function profileAdminPage() {
 async function resourcePage(key) {
   const config = resources[key];
   rows = await api(config.path);
+  const filteredRows = key === "complaints"
+    ? rows.filter((row) => complaintStatusFilter === "all" ? true : String(row.status || "") === complaintStatusFilter)
+    : rows;
   document.querySelector("#main").innerHTML = `
     <div class="toolbar">
       <div><h1>${config.title}</h1><p>Kelola data ${config.title.toLowerCase()}.</p></div>
       <div class="toolbar-actions">
         ${key === "teachers" ? '<button class="btn ghost" id="open-template-sheet">Template Google Sheets</button><button class="btn secondary" id="import-sheet">Import Google Sheets</button>' : ""}
+        ${key === "complaints" ? `<select id="complaint-status-filter" class="admin-filter"><option value="all" ${complaintStatusFilter === "all" ? "selected" : ""}>Semua Status</option><option value="new" ${complaintStatusFilter === "new" ? "selected" : ""}>Baru</option><option value="reviewed" ${complaintStatusFilter === "reviewed" ? "selected" : ""}>Ditinjau</option><option value="resolved" ${complaintStatusFilter === "resolved" ? "selected" : ""}>Selesai</option></select>` : ""}
         <button class="btn" id="add">Tambah</button>
       </div>
     </div>
     <div class="table-wrap">
       <table>
         <thead><tr><th>ID</th><th>Judul/Nama</th><th>Info</th><th>Aksi</th></tr></thead>
-        <tbody>${rows.map((row) => `
+        <tbody>${filteredRows.map((row) => `
           <tr>
             <td>${row.id}</td>
             <td>${esc(row.name || row.title || row.username || row.subject || "-")}</td>
-            <td>${esc(row.description || row.content || row.position || row.email || row.status || "").slice(0, 120)}</td>
+            <td>${esc(row.description || row.content || row.position || row.category || row.email || row.status || "").slice(0, 120)}</td>
             <td>
               ${key === "testimonials" ? `<button class="btn ghost" data-view="${row.id}">View</button>` : ""}
               ${key === "testimonials" && row.status !== "approved" ? `<button class="btn" data-approve="${row.id}">Approve</button>` : ""}
@@ -684,6 +694,12 @@ async function resourcePage(key) {
   if (key === "teachers") {
     document.querySelector("#open-template-sheet").addEventListener("click", () => openTeacherTemplate());
     document.querySelector("#import-sheet").addEventListener("click", () => openTeacherImport());
+  }
+  if (key === "complaints") {
+    document.querySelector("#complaint-status-filter")?.addEventListener("change", (event) => {
+      complaintStatusFilter = String(event.target.value || "all");
+      resourcePage("complaints");
+    });
   }
   document.querySelector("#add").addEventListener("click", () => openForm(key));
   document.querySelectorAll("[data-edit]").forEach((button) => button.addEventListener("click", () => openForm(key, rows.find((row) => row.id === Number(button.dataset.edit)))));
