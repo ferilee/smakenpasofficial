@@ -80,6 +80,43 @@ const settingsFields = ["schoolName", "tagline", "logoUrl", "faviconUrl", "theme
 const profileFields = ["history", "vision", "mission", "principalName", "principalGreeting", "principalPhotoUrl", "profileSummaryImageUrl", "principalCtaLabel", "principalCtaUrl", "organization", "accreditation", "location"];
 const quickLinkIconOptions = ["report", "briefcase", "shield", "graduation", "globe", "book", "download", "link"];
 const quickLinkToneOptions = ["aqua", "violet", "gold"];
+const imageUploadFieldConfig = {
+  imageUrl: {
+    title: "Upload gambar",
+    description: "Unggah gambar ke storage aplikasi/RustFS lalu URL diisi otomatis.",
+    successText: "Gambar berhasil diupload."
+  },
+  photoUrl: {
+    title: "Upload foto",
+    description: "Unggah foto ke storage aplikasi/RustFS lalu URL diisi otomatis.",
+    successText: "Foto berhasil diupload."
+  },
+  coverUrl: {
+    title: "Upload cover",
+    description: "Unggah gambar cover ke storage aplikasi/RustFS lalu URL diisi otomatis.",
+    successText: "Cover berhasil diupload."
+  },
+  logoUrl: {
+    title: "Upload logo sekolah",
+    description: "Unggah logo sekolah ke storage aplikasi/RustFS lalu URL diisi otomatis.",
+    successText: "Logo sekolah berhasil diupload."
+  },
+  faviconUrl: {
+    title: "Upload favicon",
+    description: "Unggah favicon ke storage aplikasi/RustFS lalu URL diisi otomatis.",
+    successText: "Favicon berhasil diupload."
+  },
+  principalPhotoUrl: {
+    title: "Upload foto kepala sekolah",
+    description: "Unggah foto kepala sekolah ke storage aplikasi/RustFS lalu URL diisi otomatis.",
+    successText: "Foto kepala sekolah berhasil diupload."
+  },
+  profileSummaryImageUrl: {
+    title: "Upload gambar profil singkat sekolah",
+    description: "Unggah gambar untuk panel Profil Singkat Sekolah di beranda lalu URL diisi otomatis.",
+    successText: "Gambar profil singkat sekolah berhasil diupload."
+  }
+};
 const managementEditorBlueprint = [
   {
     key: "kurikulum",
@@ -579,6 +616,7 @@ async function settingsAdminPage() {
     </form>`;
   const form = document.querySelector("#single-form");
   bindQuickLinkEditor(form);
+  wireKnownImageUploadFields(form, data || {});
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const body = formPayload(event.target, settingsFields);
@@ -598,22 +636,7 @@ async function profileAdminPage() {
       <button class="btn">Simpan</button>
     </form>`;
   const form = document.querySelector("#single-form");
-  wireImageUploadField({
-    input: form.querySelector('input[name="principalPhotoUrl"]'),
-    initialValue: String(data?.principalPhotoUrl || ""),
-    title: "Upload foto kepala sekolah",
-    description: "Unggah foto kepala sekolah ke storage aplikasi/RustFS lalu URL diisi otomatis.",
-    successText: "Foto kepala sekolah berhasil diupload.",
-    emptyText: "Belum ada file yang dipilih."
-  });
-  wireImageUploadField({
-    input: form.querySelector('input[name="profileSummaryImageUrl"]'),
-    initialValue: String(data?.profileSummaryImageUrl || ""),
-    title: "Upload gambar profil singkat sekolah",
-    description: "Unggah gambar untuk panel Profil Singkat Sekolah di beranda lalu URL diisi otomatis.",
-    successText: "Gambar profil singkat sekolah berhasil diupload.",
-    emptyText: "Belum ada file yang dipilih."
-  });
+  wireKnownImageUploadFields(form, data || {});
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const body = formPayload(event.target, profileFields);
@@ -831,18 +854,18 @@ function wireImageUploadField({ input, initialValue = "", title, description, su
   uploadButton?.addEventListener("click", async () => {
     const file = fileInput?.files?.[0];
     if (!file) {
-      notify("Pilih file gambar banner terlebih dahulu.", "warning");
+      notify("Pilih file gambar terlebih dahulu.", "warning");
       return;
     }
     const payload = new FormData();
     payload.append("file", file);
     uploadButton.disabled = true;
     uploadButton.textContent = "Mengunggah...";
-    if (status) status.textContent = "Sedang mengunggah gambar banner...";
+    if (status) status.textContent = "Sedang mengunggah gambar...";
     try {
       const res = await fetch("/api/upload", { method: "POST", body: payload });
       const json = await res.json();
-      if (!json.ok) throw new Error(json.error?.message || "Upload gambar banner gagal.");
+      if (!json.ok) throw new Error(json.error?.message || "Upload gambar gagal.");
       input.value = json.data.url || "";
       if (preview && previewWrap) {
         preview.src = json.data.url || "";
@@ -851,8 +874,8 @@ function wireImageUploadField({ input, initialValue = "", title, description, su
       if (status) status.textContent = "Upload selesai. URL gambar terisi otomatis.";
       notify(successText);
     } catch (error) {
-      if (status) status.textContent = error.message || "Upload gambar banner gagal.";
-      notify(error.message || "Upload gambar banner gagal.", "error");
+      if (status) status.textContent = error.message || "Upload gambar gagal.";
+      notify(error.message || "Upload gambar gagal.", "error");
     } finally {
       uploadButton.disabled = false;
       uploadButton.textContent = "Upload Gambar";
@@ -860,15 +883,17 @@ function wireImageUploadField({ input, initialValue = "", title, description, su
   });
 }
 
-function wireBannerImageUpload(form, item = {}) {
-  const imageField = form.querySelector('input[name="imageUrl"]');
-  if (!imageField) return;
-  wireImageUploadField({
-    input: imageField,
-    initialValue: String(item.imageUrl || imageField.value || "").trim(),
-    title: "Upload gambar banner",
-    description: "File akan diunggah ke storage aplikasi/RustFS lalu URL diisi otomatis.",
-    successText: "Gambar banner berhasil diupload."
+function wireKnownImageUploadFields(form, data = {}) {
+  Object.entries(imageUploadFieldConfig).forEach(([fieldName, config]) => {
+    const input = form.querySelector(`input[name="${fieldName}"]`);
+    if (!input) return;
+    wireImageUploadField({
+      input,
+      initialValue: String(data?.[fieldName] || input.value || "").trim(),
+      title: config.title,
+      description: config.description,
+      successText: config.successText
+    });
   });
 }
 
@@ -882,7 +907,7 @@ function openForm(key, item = {}) {
   modal.classList.add("open");
   document.querySelector("#close").addEventListener("click", () => modal.classList.remove("open"));
   const form = document.querySelector("#resource-form");
-  if (key === "banners") wireBannerImageUpload(form, item);
+  wireKnownImageUploadFields(form, item);
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const method = item.id ? "PUT" : "POST";
