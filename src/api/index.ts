@@ -94,6 +94,17 @@ async function readGoogleSheetTeachers(sheetUrl: string) {
   }));
 }
 
+function teacherImportTemplateCsv() {
+  const rows = [
+    ["Nama", "Jabatan", "Mapel", "Bidang Keahlian", "Status", "Photo URL"],
+    ["Dermawan Triwahyono, S.T., M.M.", "Kepala Sekolah", "Manajemen Sekolah", "Kepemimpinan Pendidikan", "active", "https://example.com/kepala-sekolah.jpg"],
+    ["Sri Wahyuni, S.Pd.", "Wakil Kepala Sekolah", "Kesiswaan", "Manajemen Kesiswaan", "active", "https://example.com/waka-kesiswaan.jpg"],
+    ["Ahmad Fauzi, S.Kom.", "Ketua Konsentrasi Keahlian", "Rekayasa Perangkat Lunak", "Rekayasa Perangkat Lunak", "active", "https://example.com/kaprodi-rpl.jpg"],
+    ["Siti Aminah, S.Pd.", "Guru", "Matematika", "Matematika", "active", "https://example.com/guru-matematika.jpg"]
+  ];
+  return `${rows.map((row) => row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(",")).join("\n")}\n`;
+}
+
 async function requireAdmin(c: any, next: any) {
   const header = c.req.header("authorization") ?? "";
   const token = header.startsWith("Bearer ") ? header.slice(7) : getCookie(c, "session");
@@ -302,6 +313,16 @@ export function apiRoutes() {
 
   crud(app, "/majors", majors, "majors", true);
   crud(app, "/teachers", teachers, "teachers", true);
+
+  app.get("/teachers/import/template.csv", requireAdmin, (c) => {
+    return new Response(teacherImportTemplateCsv(), {
+      headers: {
+        "content-type": "text/csv; charset=utf-8",
+        "content-disposition": 'attachment; filename="template-guru-tendik.csv"',
+        "cache-control": "no-store"
+      }
+    });
+  });
 
   app.post("/teachers/import/google-sheets", requireAdmin, async (c) => {
     const body = await c.req.json<Record<string, unknown>>();

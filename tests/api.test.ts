@@ -214,6 +214,16 @@ describe("admin CRUD endpoints", () => {
     expect(Array.isArray(body.data)).toBe(true);
   });
 
+  test("teachers import template can be downloaded by admin", async () => {
+    const res = await adminRequest("/teachers/import/template.csv");
+    const body = await res.text();
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toContain("text/csv");
+    expect(body).toContain("Nama");
+    expect(body).toContain("Jabatan");
+    expect(body).toContain("Photo URL");
+  });
+
   test("teachers can be imported from google sheets", async () => {
     const originalFetch = globalThis.fetch;
     globalThis.fetch = async (input: RequestInfo | URL) => {

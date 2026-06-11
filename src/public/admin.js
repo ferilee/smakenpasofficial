@@ -630,7 +630,7 @@ async function resourcePage(key) {
     <div class="toolbar">
       <div><h1>${config.title}</h1><p>Kelola data ${config.title.toLowerCase()}.</p></div>
       <div class="toolbar-actions">
-        ${key === "teachers" ? '<button class="btn secondary" id="import-sheet">Import Google Sheets</button>' : ""}
+        ${key === "teachers" ? '<button class="btn ghost" id="open-template-sheet">Template Google Sheets</button><button class="btn secondary" id="import-sheet">Import Google Sheets</button>' : ""}
         <button class="btn" id="add">Tambah</button>
       </div>
     </div>
@@ -653,6 +653,7 @@ async function resourcePage(key) {
       </table>
     </div>`;
   if (key === "teachers") {
+    document.querySelector("#open-template-sheet").addEventListener("click", () => openTeacherTemplate());
     document.querySelector("#import-sheet").addEventListener("click", () => openTeacherImport());
   }
   document.querySelector("#add").addEventListener("click", () => openForm(key));
@@ -726,6 +727,32 @@ function openTeacherImport() {
       notify(error.message || "Import Google Sheets gagal.", "error");
     }
   });
+}
+
+function openTeacherTemplate() {
+  const modal = document.querySelector("#modal");
+  const box = document.querySelector("#modal-box");
+  box.innerHTML = `
+    <div class="toolbar"><h2>Template Google Sheets Guru & Tendik</h2><button class="btn ghost" id="close">Tutup</button></div>
+    <article class="detail-view">
+      <p class="prose">Gunakan template ini agar format kolom sesuai dengan importer. Download CSV, upload ke Google Sheets, isi data, lalu gunakan URL sheet tersebut saat import.</p>
+      <div class="detail-grid">
+        <div><strong>Kolom Wajib</strong><p>Nama, Jabatan</p></div>
+        <div><strong>Kolom Didukung</strong><p>Mapel, Bidang Keahlian, Status, Photo URL</p></div>
+        <div><strong>Status Valid</strong><p>active, inactive, nonaktif, pensiun</p></div>
+        <div><strong>Photo URL</strong><p>Opsional. Isi URL foto guru jika tersedia.</p></div>
+      </div>
+      <div class="detail-message">
+        <strong>Header Template</strong>
+        <p>Nama | Jabatan | Mapel | Bidang Keahlian | Status | Photo URL</p>
+      </div>
+      <div class="detail-socials">
+        <a class="btn" href="/api/teachers/import/template.csv" target="_blank" rel="noopener noreferrer">Download CSV Template</a>
+        <a class="btn ghost" href="https://docs.google.com/spreadsheets/u/0/create" target="_blank" rel="noopener noreferrer">Buka Google Sheets</a>
+      </div>
+    </article>`;
+  modal.classList.add("open");
+  document.querySelector("#close").addEventListener("click", () => modal.classList.remove("open"));
 }
 
 function openDetail(key, item = {}) {
