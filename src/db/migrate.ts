@@ -2,8 +2,8 @@ import { sqlite } from "./client";
 
 const statements = [
   `CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, username TEXT NOT NULL UNIQUE, email TEXT NOT NULL UNIQUE, password TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'admin', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`,
-  `CREATE TABLE IF NOT EXISTS school_profile (id INTEGER PRIMARY KEY AUTOINCREMENT, history TEXT NOT NULL DEFAULT '', vision TEXT NOT NULL DEFAULT '', mission TEXT NOT NULL DEFAULT '', principal_name TEXT NOT NULL DEFAULT '', principal_greeting TEXT NOT NULL DEFAULT '', principal_photo_url TEXT NOT NULL DEFAULT '', principal_cta_label TEXT NOT NULL DEFAULT 'Selengkapnya', principal_cta_url TEXT NOT NULL DEFAULT '/profil', identity TEXT NOT NULL DEFAULT '{}', management TEXT NOT NULL DEFAULT '{}', organization TEXT NOT NULL DEFAULT '', accreditation TEXT NOT NULL DEFAULT '', location TEXT NOT NULL DEFAULT '')`,
-  `CREATE TABLE IF NOT EXISTS school_settings (id INTEGER PRIMARY KEY AUTOINCREMENT, school_name TEXT NOT NULL, tagline TEXT NOT NULL DEFAULT '', logo_url TEXT NOT NULL DEFAULT '', favicon_url TEXT NOT NULL DEFAULT '', theme_color TEXT NOT NULL DEFAULT '#0f766e', address TEXT NOT NULL DEFAULT '', email TEXT NOT NULL DEFAULT '', phone TEXT NOT NULL DEFAULT '', whatsapp TEXT NOT NULL DEFAULT '', social_links TEXT NOT NULL DEFAULT '{}', map_embed TEXT NOT NULL DEFAULT '', wordpress_url TEXT NOT NULL DEFAULT '', ppdb_url TEXT NOT NULL DEFAULT '', meta_description TEXT NOT NULL DEFAULT '', footer_text TEXT NOT NULL DEFAULT '')`,
+  `CREATE TABLE IF NOT EXISTS school_profile (id INTEGER PRIMARY KEY AUTOINCREMENT, history TEXT NOT NULL DEFAULT '', vision TEXT NOT NULL DEFAULT '', mission TEXT NOT NULL DEFAULT '', principal_name TEXT NOT NULL DEFAULT '', principal_greeting TEXT NOT NULL DEFAULT '', principal_photo_url TEXT NOT NULL DEFAULT '', profile_summary_image_url TEXT NOT NULL DEFAULT '', principal_cta_label TEXT NOT NULL DEFAULT 'Selengkapnya', principal_cta_url TEXT NOT NULL DEFAULT '/profil', identity TEXT NOT NULL DEFAULT '{}', management TEXT NOT NULL DEFAULT '{}', organization TEXT NOT NULL DEFAULT '', accreditation TEXT NOT NULL DEFAULT '', location TEXT NOT NULL DEFAULT '')`,
+  `CREATE TABLE IF NOT EXISTS school_settings (id INTEGER PRIMARY KEY AUTOINCREMENT, school_name TEXT NOT NULL, tagline TEXT NOT NULL DEFAULT '', logo_url TEXT NOT NULL DEFAULT '', favicon_url TEXT NOT NULL DEFAULT '', theme_color TEXT NOT NULL DEFAULT '#0f766e', address TEXT NOT NULL DEFAULT '', email TEXT NOT NULL DEFAULT '', phone TEXT NOT NULL DEFAULT '', whatsapp TEXT NOT NULL DEFAULT '', social_links TEXT NOT NULL DEFAULT '{}', quick_links TEXT NOT NULL DEFAULT '[]', map_embed TEXT NOT NULL DEFAULT '', wordpress_url TEXT NOT NULL DEFAULT '', ppdb_url TEXT NOT NULL DEFAULT '', meta_description TEXT NOT NULL DEFAULT '', footer_text TEXT NOT NULL DEFAULT '')`,
   `CREATE TABLE IF NOT EXISTS majors (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, slug TEXT NOT NULL UNIQUE, description TEXT NOT NULL DEFAULT '', competencies TEXT NOT NULL DEFAULT '', career_prospects TEXT NOT NULL DEFAULT '', practice_facilities TEXT NOT NULL DEFAULT '', productive_teachers TEXT NOT NULL DEFAULT '', achievements TEXT NOT NULL DEFAULT '', image_url TEXT NOT NULL DEFAULT '', is_featured INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`,
   `CREATE TABLE IF NOT EXISTS teachers (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, photo_url TEXT NOT NULL DEFAULT '', position TEXT NOT NULL DEFAULT '', subject TEXT NOT NULL DEFAULT '', expertise TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'active', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`,
   `CREATE TABLE IF NOT EXISTS facilities (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, description TEXT NOT NULL DEFAULT '', image_url TEXT NOT NULL DEFAULT '', is_featured INTEGER NOT NULL DEFAULT 0)`,
@@ -35,11 +35,19 @@ export function migrate() {
     if (!profileColumns.some((column) => column.name === "principal_cta_label")) {
       sqlite.run("ALTER TABLE school_profile ADD COLUMN principal_cta_label TEXT NOT NULL DEFAULT 'Selengkapnya'");
     }
+    if (!profileColumns.some((column) => column.name === "profile_summary_image_url")) {
+      sqlite.run("ALTER TABLE school_profile ADD COLUMN profile_summary_image_url TEXT NOT NULL DEFAULT ''");
+    }
     if (!profileColumns.some((column) => column.name === "principal_cta_url")) {
       sqlite.run("ALTER TABLE school_profile ADD COLUMN principal_cta_url TEXT NOT NULL DEFAULT '/profil'");
     }
     if (!profileColumns.some((column) => column.name === "management")) {
       sqlite.run("ALTER TABLE school_profile ADD COLUMN management TEXT NOT NULL DEFAULT '{}'");
+    }
+
+    const settingsColumns = sqlite.prepare("PRAGMA table_info(school_settings)").all() as { name: string }[];
+    if (!settingsColumns.some((column) => column.name === "quick_links")) {
+      sqlite.run("ALTER TABLE school_settings ADD COLUMN quick_links TEXT NOT NULL DEFAULT '[]'");
     }
 
     const testimonialColumns = sqlite.prepare("PRAGMA table_info(testimonials)").all() as { name: string }[];

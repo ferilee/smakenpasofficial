@@ -282,7 +282,7 @@ export function apiRoutes() {
   app.put("/settings", requireAdmin, async (c) => {
     const body = await c.req.json<Record<string, unknown>>();
     const current = await db.select().from(schoolSettings).get();
-    const data = pick(body, ["schoolName", "tagline", "logoUrl", "faviconUrl", "themeColor", "address", "email", "phone", "whatsapp", "socialLinks", "mapEmbed", "wordpressUrl", "ppdbUrl", "metaDescription", "footerText"]);
+    const data = pick(body, ["schoolName", "tagline", "logoUrl", "faviconUrl", "themeColor", "address", "email", "phone", "whatsapp", "socialLinks", "quickLinks", "mapEmbed", "wordpressUrl", "ppdbUrl", "metaDescription", "footerText"]);
     const [row] = current
       ? await db.update(schoolSettings).set(data as never).where(eq(schoolSettings.id, current.id)).returning()
       : await db.insert(schoolSettings).values(data as never).returning();
@@ -293,7 +293,7 @@ export function apiRoutes() {
   app.put("/profile", requireAdmin, async (c) => {
     const body = await c.req.json<Record<string, unknown>>();
     const current = await db.select().from(schoolProfile).get();
-    const data = pick(body, ["history", "vision", "mission", "principalName", "principalGreeting", "principalPhotoUrl", "principalCtaLabel", "principalCtaUrl", "identity", "management", "organization", "accreditation", "location"]);
+    const data = pick(body, ["history", "vision", "mission", "principalName", "principalGreeting", "principalPhotoUrl", "profileSummaryImageUrl", "principalCtaLabel", "principalCtaUrl", "identity", "management", "organization", "accreditation", "location"]);
     const [row] = current
       ? await db.update(schoolProfile).set(data as never).where(eq(schoolProfile.id, current.id)).returning()
       : await db.insert(schoolProfile).values(data as never).returning();

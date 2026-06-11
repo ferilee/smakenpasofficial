@@ -76,7 +76,10 @@ const statsLabels = {
   users: "User Admin"
 };
 
-const profileFields = ["history", "vision", "mission", "principalName", "principalGreeting", "principalPhotoUrl", "principalCtaLabel", "principalCtaUrl", "organization", "accreditation", "location"];
+const settingsFields = ["schoolName", "tagline", "logoUrl", "faviconUrl", "themeColor", "address", "email", "phone", "whatsapp", "wordpressUrl", "ppdbUrl", "metaDescription", "footerText"];
+const profileFields = ["history", "vision", "mission", "principalName", "principalGreeting", "principalPhotoUrl", "profileSummaryImageUrl", "principalCtaLabel", "principalCtaUrl", "organization", "accreditation", "location"];
+const quickLinkIconOptions = ["report", "briefcase", "shield", "graduation", "globe", "book", "download", "link"];
+const quickLinkToneOptions = ["aqua", "violet", "gold"];
 const managementEditorBlueprint = [
   {
     key: "kurikulum",
@@ -285,6 +288,97 @@ function buildManagementPayload(form) {
   }));
 }
 
+function quickLinksEditor(data = {}) {
+  const links = Array.isArray(data.quickLinks) && data.quickLinks.length
+    ? data.quickLinks
+    : [
+        { label: "E-raport", url: "#", icon: "report", tone: "aqua" },
+        { label: "Bursa Kerja Khusus (BKK)", url: "#", icon: "briefcase", tone: "violet" },
+        { label: "SAKA", url: "#", icon: "shield", tone: "gold" }
+      ];
+  return `
+    <section class="management-admin">
+      <div class="toolbar">
+        <div>
+          <h2>Layanan Sekolah</h2>
+          <p>Kelola kartu akses cepat yang tampil di beranda.</p>
+        </div>
+        <button class="btn secondary" type="button" id="add-quick-link">Tambah Layanan</button>
+      </div>
+      <div class="management-admin-grid" id="quick-links-list">
+        ${links.map((item, index) => quickLinkCard(item, index)).join("")}
+      </div>
+      <p class="hint">Setiap layanan berisi judul, tautan, ikon, dan warna kartu.</p>
+    </section>`;
+}
+
+function quickLinkCard(item = {}, index = 0) {
+  const icon = quickLinkIconOptions.includes(String(item.icon || "").trim()) ? String(item.icon).trim() : "link";
+  const tone = quickLinkToneOptions.includes(String(item.tone || "").trim()) ? String(item.tone).trim() : "aqua";
+  return `
+    <article class="management-admin-card quick-link-card" data-quick-link-item>
+      <div class="toolbar compact-toolbar">
+        <h3>Layanan ${index + 1}</h3>
+        <button class="btn danger" type="button" data-remove-quick-link>Hapus</button>
+      </div>
+      <div class="field">
+        <label>Judul</label>
+        <input name="quickLink_label" value="${esc(item.label || "")}" placeholder="Contoh: E-raport">
+      </div>
+      <div class="field">
+        <label>Tautan</label>
+        <input name="quickLink_url" value="${esc(item.url || "")}" placeholder="https://... atau /halaman-internal">
+      </div>
+      <div class="field">
+        <label>Ikon</label>
+        <select name="quickLink_icon">
+          ${quickLinkIconOptions.map((option) => `<option value="${option}" ${icon === option ? "selected" : ""}>${fieldLabel(option)}</option>`).join("")}
+        </select>
+      </div>
+      <div class="field">
+        <label>Warna Kartu</label>
+        <select name="quickLink_tone">
+          ${quickLinkToneOptions.map((option) => `<option value="${option}" ${tone === option ? "selected" : ""}>${fieldLabel(option)}</option>`).join("")}
+        </select>
+      </div>
+    </article>`;
+}
+
+function collectQuickLinks(form) {
+  return [...form.querySelectorAll("[data-quick-link-item]")].map((card) => ({
+    label: String(card.querySelector('[name="quickLink_label"]')?.value || "").trim(),
+    url: String(card.querySelector('[name="quickLink_url"]')?.value || "").trim(),
+    icon: String(card.querySelector('[name="quickLink_icon"]')?.value || "link").trim(),
+    tone: String(card.querySelector('[name="quickLink_tone"]')?.value || "aqua").trim()
+  })).filter((item) => item.label && item.url);
+}
+
+function bindQuickLinkEditor(container) {
+  const list = container.querySelector("#quick-links-list");
+  const addButton = container.querySelector("#add-quick-link");
+  if (!list || !addButton) return;
+
+  const bindRemoveButtons = () => {
+    list.querySelectorAll("[data-remove-quick-link]").forEach((button) => {
+      button.onclick = () => {
+        const cards = list.querySelectorAll("[data-quick-link-item]");
+        if (cards.length <= 1) {
+          notify("Minimal sisakan satu layanan sekolah.", "warning");
+          return;
+        }
+        button.closest("[data-quick-link-item]")?.remove();
+      };
+    });
+  };
+
+  addButton.addEventListener("click", () => {
+    list.insertAdjacentHTML("beforeend", quickLinkCard({}, list.querySelectorAll("[data-quick-link-item]").length));
+    bindRemoveButtons();
+  });
+
+  bindRemoveButtons();
+}
+
 function loginView() {
   root.innerHTML = `
     <main class="login-screen">
@@ -443,7 +537,7 @@ async function renderPage(page) {
   setActive(page);
   if (page === "overview") return overview();
   if (page === "profile") return profileAdminPage();
-  if (page === "settings") return singleton("Pengaturan Website", "/api/settings", ["schoolName", "tagline", "logoUrl", "faviconUrl", "themeColor", "address", "email", "phone", "whatsapp", "wordpressUrl", "ppdbUrl", "metaDescription", "footerText"]);
+  if (page === "settings") return settingsAdminPage();
   if (page === "upload") return uploadPage();
   return resourcePage(page);
 }
@@ -474,6 +568,26 @@ async function singleton(title, path, fields) {
   });
 }
 
+async function settingsAdminPage() {
+  const data = await api("/api/settings");
+  document.querySelector("#main").innerHTML = `
+    <div class="toolbar"><div><h1>Pengaturan Website</h1><p>Perbarui data utama website dan akses cepat beranda.</p></div></div>
+    <form class="card form" id="single-form">
+      ${formFields({ fields: settingsFields }, data || {})}
+      ${quickLinksEditor(data || {})}
+      <button class="btn">Simpan</button>
+    </form>`;
+  const form = document.querySelector("#single-form");
+  bindQuickLinkEditor(form);
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const body = formPayload(event.target, settingsFields);
+    body.quickLinks = collectQuickLinks(event.target);
+    await api("/api/settings", { method: "PUT", body: JSON.stringify(body) });
+    notify("Data tersimpan.");
+  });
+}
+
 async function profileAdminPage() {
   const data = await api("/api/profile");
   document.querySelector("#main").innerHTML = `
@@ -483,7 +597,24 @@ async function profileAdminPage() {
       ${managementEditor(data || {})}
       <button class="btn">Simpan</button>
     </form>`;
-  document.querySelector("#single-form").addEventListener("submit", async (event) => {
+  const form = document.querySelector("#single-form");
+  wireImageUploadField({
+    input: form.querySelector('input[name="principalPhotoUrl"]'),
+    initialValue: String(data?.principalPhotoUrl || ""),
+    title: "Upload foto kepala sekolah",
+    description: "Unggah foto kepala sekolah ke storage aplikasi/RustFS lalu URL diisi otomatis.",
+    successText: "Foto kepala sekolah berhasil diupload.",
+    emptyText: "Belum ada file yang dipilih."
+  });
+  wireImageUploadField({
+    input: form.querySelector('input[name="profileSummaryImageUrl"]'),
+    initialValue: String(data?.profileSummaryImageUrl || ""),
+    title: "Upload gambar profil singkat sekolah",
+    description: "Unggah gambar untuk panel Profil Singkat Sekolah di beranda lalu URL diisi otomatis.",
+    successText: "Gambar profil singkat sekolah berhasil diupload.",
+    emptyText: "Belum ada file yang dipilih."
+  });
+  form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const body = formPayload(event.target, profileFields);
     body.management = buildManagementPayload(event.target);
@@ -645,6 +776,75 @@ function formPayload(form, fields) {
   return data;
 }
 
+function wireImageUploadField({ input, initialValue = "", title, description, successText, emptyText = "Belum ada file yang dipilih." }) {
+  const field = input?.closest(".field");
+  if (!field || field.querySelector("[data-inline-upload]")) return;
+  field.insertAdjacentHTML("beforeend", `
+    <div class="inline-upload" data-inline-upload>
+      <div class="inline-upload-head">
+        <strong>${esc(title)}</strong>
+        <span>${esc(description)}</span>
+      </div>
+      <div class="inline-upload-row">
+        <input type="file" accept="image/*" data-banner-file>
+        <button class="btn secondary" type="button" data-banner-upload>Upload Gambar</button>
+      </div>
+      <p class="inline-upload-status" data-banner-status>${initialValue ? "Gambar sudah terpasang." : esc(emptyText)}</p>
+      <div class="inline-upload-preview${initialValue ? "" : " hidden"}" data-banner-preview-wrap>
+        <img src="${esc(initialValue)}" alt="Preview banner" data-banner-preview>
+      </div>
+    </div>`);
+
+  const uploadButton = field.querySelector("[data-banner-upload]");
+  const fileInput = field.querySelector("[data-banner-file]");
+  const status = field.querySelector("[data-banner-status]");
+  const previewWrap = field.querySelector("[data-banner-preview-wrap]");
+  const preview = field.querySelector("[data-banner-preview]");
+
+  uploadButton?.addEventListener("click", async () => {
+    const file = fileInput?.files?.[0];
+    if (!file) {
+      notify("Pilih file gambar banner terlebih dahulu.", "warning");
+      return;
+    }
+    const payload = new FormData();
+    payload.append("file", file);
+    uploadButton.disabled = true;
+    uploadButton.textContent = "Mengunggah...";
+    if (status) status.textContent = "Sedang mengunggah gambar banner...";
+    try {
+      const res = await fetch("/api/upload", { method: "POST", body: payload });
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.error?.message || "Upload gambar banner gagal.");
+      input.value = json.data.url || "";
+      if (preview && previewWrap) {
+        preview.src = json.data.url || "";
+        previewWrap.classList.remove("hidden");
+      }
+      if (status) status.textContent = "Upload selesai. URL gambar terisi otomatis.";
+      notify(successText);
+    } catch (error) {
+      if (status) status.textContent = error.message || "Upload gambar banner gagal.";
+      notify(error.message || "Upload gambar banner gagal.", "error");
+    } finally {
+      uploadButton.disabled = false;
+      uploadButton.textContent = "Upload Gambar";
+    }
+  });
+}
+
+function wireBannerImageUpload(form, item = {}) {
+  const imageField = form.querySelector('input[name="imageUrl"]');
+  if (!imageField) return;
+  wireImageUploadField({
+    input: imageField,
+    initialValue: String(item.imageUrl || imageField.value || "").trim(),
+    title: "Upload gambar banner",
+    description: "File akan diunggah ke storage aplikasi/RustFS lalu URL diisi otomatis.",
+    successText: "Gambar banner berhasil diupload."
+  });
+}
+
 function openForm(key, item = {}) {
   const config = resources[key];
   const modal = document.querySelector("#modal");
@@ -654,7 +854,9 @@ function openForm(key, item = {}) {
     <form class="form" id="resource-form">${formFields(config, item)}<button class="btn">Simpan</button></form>`;
   modal.classList.add("open");
   document.querySelector("#close").addEventListener("click", () => modal.classList.remove("open"));
-  document.querySelector("#resource-form").addEventListener("submit", async (event) => {
+  const form = document.querySelector("#resource-form");
+  if (key === "banners") wireBannerImageUpload(form, item);
+  form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const method = item.id ? "PUT" : "POST";
     const path = item.id ? `${config.path}/${item.id}` : config.path;

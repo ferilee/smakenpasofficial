@@ -76,6 +76,9 @@ function navIcon(name) {
     users: `<path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>`,
     calendar: `<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/>`,
     download: `<path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/>`,
+    globe: `<circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a15 15 0 0 1 0 18"/><path d="M12 3a15 15 0 0 0 0 18"/>`,
+    book: `<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/>`,
+    link: `<path d="M10 13a5 5 0 0 0 7.07 0l1.41-1.41a5 5 0 0 0-7.07-7.07L10 5"/><path d="M14 11a5 5 0 0 0-7.07 0L5.5 12.41a5 5 0 1 0 7.07 7.07L14 19"/>`,
     phone: `<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.33 1.77.63 2.6a2 2 0 0 1-.45 2.11L8 9.7a16 16 0 0 0 6.3 6.3l1.27-1.27a2 2 0 0 1 2.11-.45c.83.3 1.7.51 2.6.63A2 2 0 0 1 22 16.92Z"/>`
   };
   return `<svg viewBox="0 0 24 24" aria-hidden="true">${icons[name] || icons.more}</svg>`;
@@ -270,12 +273,21 @@ function majorsShowcase(data, withMoreButton = false, showHeader = true) {
   </section>`;
 }
 
-function quickAccessSection() {
-  const items = [
-    ["E-raport", "#", "report", "aqua"],
-    ["Bursa Kerja Khusus (BKK)", "#", "briefcase", "violet"],
-    ["SAKA", "#", "shield", "gold"]
+function quickAccessSection(settings = {}) {
+  const fallback = [
+    { label: "E-raport", url: "#", icon: "report", tone: "aqua" },
+    { label: "Bursa Kerja Khusus (BKK)", url: "#", icon: "briefcase", tone: "violet" },
+    { label: "SAKA", url: "#", icon: "shield", tone: "gold" }
   ];
+  const items = Array.isArray(settings.quickLinks) && settings.quickLinks.length ? settings.quickLinks : fallback;
+  const normalized = items
+    .map((item, index) => ({
+      label: String(item?.label || "").trim(),
+      url: String(item?.url || "#").trim() || "#",
+      icon: ["report", "briefcase", "shield", "graduation", "globe", "link", "book", "download"].includes(String(item?.icon || "").trim()) ? String(item.icon).trim() : fallback[index % fallback.length].icon,
+      tone: ["aqua", "violet", "gold"].includes(String(item?.tone || "").trim()) ? String(item.tone).trim() : fallback[index % fallback.length].tone
+    }))
+    .filter((item) => item.label);
   return `<section class="quick-access">
     <div class="container">
       <div class="quick-palette" aria-hidden="true">
@@ -287,9 +299,9 @@ function quickAccessSection() {
         <span>Pintasan informasi dan layanan utama</span>
       </div>
       <div class="quick-grid">
-        ${items.map(([label, url, icon, tone]) => `<a class="quick-card ${tone}" href="${url}" aria-label="${label}">
-          <span class="quick-icon">${navIcon(icon)}</span>
-          <strong>${esc(label)}</strong>
+        ${normalized.map((item) => `<a class="quick-card ${item.tone}" href="${esc(item.url)}" ${/^https?:\/\//i.test(item.url) ? 'target="_blank" rel="noopener noreferrer"' : ""} aria-label="${esc(item.label)}">
+          <span class="quick-icon">${navIcon(item.icon)}</span>
+          <strong>${esc(item.label)}</strong>
         </a>`).join("")}
       </div>
     </div>
@@ -511,7 +523,7 @@ function testimonialsSection(testimonials = []) {
   })[platform];
   return `<section class="testimonials-section">
     <div class="container">
-      ${sectionHead("Testimoni Alumni", "Cerita lulusan tentang pengalaman belajar dan dampaknya setelah menempuh pendidikan.", '<button class="btn" type="button" data-testimonial-open>Beri Testimoni</button>')}
+      ${sectionHead("Testimoni Alumni", "Cerita lulusan tentang pengalaman belajar dan dampaknya setelah menempuh pendidikan.", '<button class="btn btn-with-icon" type="button" data-testimonial-open><span aria-hidden="true">+</span><span>Testimoni Baru</span></button>')}
       <div class="testimonial-toolbar">
         <div class="field testimonial-search">
           <label>Cari Tahun Lulus</label>
@@ -838,12 +850,12 @@ async function homePage() {
             <h3>${esc(data.settings.schoolName)}</h3>
             <p class="prose">${esc(data.profile.history)}</p>
           </div>
-          <div class="photo-panel"></div>
+          <div class="photo-panel" style="background-image:url(&quot;${esc(data.profile.profileSummaryImageUrl || "https://images.unsplash.com/photo-1523580494863-6f3031224c94?auto=format&fit=crop&w=1200&q=80")}&quot;)"></div>
           </div>
           ${managementSchoolSection(data.profile.management || {})}
         </div>
       </section>
-      ${quickAccessSection()}
+      ${quickAccessSection(data.settings || {})}
       ${agendaCalendarSection(data.agendas || [])}
       <section class="soft">
         <div class="container">

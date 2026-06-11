@@ -152,11 +152,17 @@ describe("settings and profile endpoints", () => {
     const before = await json(await request("/settings"));
     const res = await adminRequest("/settings", jsonInit("PUT", {
       ...before.data,
-      tagline: "Tagline Test"
+      tagline: "Tagline Test",
+      quickLinks: [
+        { label: "E-raport", url: "https://eraport.example.test", icon: "report", tone: "aqua" },
+        { label: "BKK", url: "/bkk", icon: "briefcase", tone: "violet" }
+      ]
     }));
     const body = await json(res);
     expect(res.status).toBe(200);
     expect(body.data.tagline).toBe("Tagline Test");
+    expect(body.data.quickLinks.length).toBe(2);
+    expect(body.data.quickLinks[0].url).toBe("https://eraport.example.test");
   });
 
   test("profile can be read and updated by admin", async () => {

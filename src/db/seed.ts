@@ -111,7 +111,12 @@ export async function seed() {
       socialLinks: {
         instagram: "https://www.instagram.com/smknpasofficial/",
         youtube: "https://www.youtube.com/@SMKNPasirianOfficial"
-      }
+      },
+      quickLinks: [
+        { label: "E-raport", url: "#", icon: "report", tone: "aqua" },
+        { label: "Bursa Kerja Khusus (BKK)", url: "#", icon: "briefcase", tone: "violet" },
+        { label: "SAKA", url: "#", icon: "shield", tone: "gold" }
+      ]
     });
   }
 
@@ -124,6 +129,7 @@ export async function seed() {
       principalName: "Dermawan Triwahyono, S.T., M.M.",
       principalGreeting: "Selamat datang di portal resmi SMK Negeri Pasirian. Tempat pengetahuan, kreativitas, dan potensi bertemu untuk membentuk masa depan yang gemilang. Kami adalah sebuah lembaga pendidikan yang berkomitmen untuk mempersiapkan generasi muda yang unggul, disiplin, dan siap bersaing.",
       principalPhotoUrl: "https://i.ibb.co.com/Xr553J1B/Dermawan.png",
+      profileSummaryImageUrl: "https://images.unsplash.com/photo-1523580494863-6f3031224c94?auto=format&fit=crop&w=1200&q=80",
       principalCtaLabel: "Selengkapnya",
       principalCtaUrl: "/profil",
       management: managementContent,
@@ -154,13 +160,21 @@ export async function seed() {
       email: "info@smkpasirian-lmj.sch.id",
       phone: "(0334) 574253",
       metaDescription: "Website resmi SMK Negeri Pasirian sebagai pusat informasi sekolah.",
-      footerText: "SMK Negeri Pasirian. Seluruh hak cipta dilindungi."
+      footerText: "SMK Negeri Pasirian. Seluruh hak cipta dilindungi.",
+      quickLinks: settings?.quickLinks?.length
+        ? settings.quickLinks
+        : [
+            { label: "E-raport", url: "#", icon: "report", tone: "aqua" },
+            { label: "Bursa Kerja Khusus (BKK)", url: "#", icon: "briefcase", tone: "violet" },
+            { label: "SAKA", url: "#", icon: "shield", tone: "gold" }
+          ]
     }).where(eq(schoolSettings.id, settings!.id));
     await db.update(schoolProfile).set({
       mission: "Melaksanakan ajaran agama yang dianut dengan sungguh-sungguh\nMembekali peserta didik dengan pengetahuan, keterampilan sesuai kompetensi yang selaras dengan DUDIKA.\nMemfasilitasi potensi peserta didik di bidang akademik dan non akademik.\nBerbudaya lingkungan, bersih dan sehat dalam kehidupan sehari hari.\nMenanamkan karakter profil pelajar Pancasila.",
       principalName: "Dermawan Triwahyono, S.T., M.M.",
       principalGreeting: "Selamat datang di portal resmi SMK Negeri Pasirian. Tempat pengetahuan, kreativitas, dan potensi bertemu untuk membentuk masa depan yang gemilang. Kami adalah sebuah lembaga pendidikan yang berkomitmen untuk mempersiapkan generasi muda yang unggul, disiplin, dan siap bersaing.",
       principalPhotoUrl: "https://i.ibb.co.com/Xr553J1B/Dermawan.png",
+      profileSummaryImageUrl: profile.profileSummaryImageUrl || "https://images.unsplash.com/photo-1523580494863-6f3031224c94?auto=format&fit=crop&w=1200&q=80",
       principalCtaLabel: "Selengkapnya",
       principalCtaUrl: "/profil",
       management: managementContent,
