@@ -1,8 +1,8 @@
-const CACHE_NAME = "websmakenpas-v47";
+const CACHE_NAME = "websmakenpas-v49";
 const SHELL_ASSETS = [
   "/",
-  "/assets/app.css?v=52",
-  "/assets/app.js?v=52",
+  "/assets/app.css?v=54",
+  "/assets/app.js?v=54",
   "/manifest.webmanifest",
   "/Logo_SMKNPasirian.png"
 ];
@@ -24,6 +24,12 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   if (request.method !== "GET") return;
+  const url = new URL(request.url);
+
+  if (url.pathname.startsWith("/api/")) {
+    event.respondWith(fetch(request));
+    return;
+  }
 
   event.respondWith(
     caches.match(request).then((cached) => {

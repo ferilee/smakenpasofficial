@@ -216,8 +216,14 @@ function notify(message, type = "success") {
 
 async function api(path, options = {}) {
   const res = await fetch(path, { ...options, headers: { "Content-Type": "application/json", ...(options.headers || {}) } });
-  const json = await res.json();
-  if (!json.ok) throw new Error(json.error?.message || "Terjadi kesalahan");
+  const raw = await res.text();
+  let json;
+  try {
+    json = raw ? JSON.parse(raw) : null;
+  } catch {
+    throw new Error(raw || `Terjadi kesalahan (HTTP ${res.status})`);
+  }
+  if (!json?.ok) throw new Error(json?.error?.message || `Terjadi kesalahan (HTTP ${res.status})`);
   return json.data;
 }
 

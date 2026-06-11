@@ -261,6 +261,30 @@ describe("admin CRUD endpoints", () => {
     }
   });
 
+  test("teachers import returns json error for invalid sheet url", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("docs.google.com/spreadsheets")) {
+        return new Response("not found", { status: 404, headers: { "Content-Type": "text/plain" } });
+      }
+      return originalFetch(input);
+    };
+
+    try {
+      const res = await adminRequest("/teachers/import/google-sheets", jsonInit("POST", {
+        url: "16RiJE6X-KpSZYGUBnRcS9L_y_wTXijnkAp_nwQK7EE",
+        mode: "upsert"
+      }));
+      const body = await json(res);
+      expect(res.status).toBe(400);
+      expect(body.ok).toBe(false);
+      expect(body.error.message).toContain("tidak ditemukan");
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
   test("facilities list endpoint returns array", async () => {
     const body = await json(await request("/facilities"));
     expect(Array.isArray(body.data)).toBe(true);
