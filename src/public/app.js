@@ -441,7 +441,8 @@ function managementSchoolSection(management = {}) {
   </section>`;
 }
 
-function agendaCalendarSection(agendas = []) {
+function agendaCalendarSection(agendas = [], options = {}) {
+  const { showSectionHeading = true, showAllLink = true } = options;
   const validAgendas = agendas.filter((item) => item.startDate);
   const today = new Date();
   const upcoming = validAgendas
@@ -486,17 +487,22 @@ function agendaCalendarSection(agendas = []) {
 
   return `<section class="agenda-calendar-section">
     <div class="container">
-      ${sectionHead("Agenda Terdekat", "Kalender kegiatan sekolah bulan ini. Klik tanggal yang ditandai untuk melihat detail.")}
-      <div class="calendar-card">
+      ${showSectionHeading ? sectionHead("Agenda Terdekat", "Kalender kegiatan sekolah. Klik tanggal yang ditandai untuk melihat detail.") : ""}
+      <div class="calendar-card" data-calendar-card data-calendar-year="${year}" data-calendar-month="${month}">
         <div class="calendar-top">
           <div>
             <p>Kalender Agenda</p>
-            <h3>${new Intl.DateTimeFormat("id-ID", { month: "long", year: "numeric" }).format(base)}</h3>
+            <h3 data-calendar-title>${new Intl.DateTimeFormat("id-ID", { month: "long", year: "numeric" }).format(base)}</h3>
           </div>
-          <a class="btn ghost" href="/agenda">Lihat Semua Agenda</a>
+          <div class="calendar-actions">
+            <button class="calendar-nav-button" type="button" data-calendar-prev aria-label="Bulan sebelumnya">&#8592;</button>
+            <button class="calendar-today-button" type="button" data-calendar-today>Bulan Ini</button>
+            <button class="calendar-nav-button" type="button" data-calendar-next aria-label="Bulan berikutnya">&#8594;</button>
+            ${showAllLink ? '<a class="btn ghost" href="/agenda">Lihat Semua Agenda</a>' : ""}
+          </div>
         </div>
         <div class="calendar-weekdays">${["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"].map((day) => `<span>${day}</span>`).join("")}</div>
-        <div class="calendar-grid">${cells.join("")}</div>
+        <div class="calendar-grid" data-calendar-grid>${cells.join("")}</div>
       </div>
     </div>
     <div class="agenda-modal" data-agenda-modal hidden>
@@ -510,6 +516,18 @@ function agendaCalendarSection(agendas = []) {
     </div>
     <script type="application/json" id="agenda-calendar-data">${JSON.stringify(agendaByDate).replace(/</g, "\\u003c")}</script>
   </section>`;
+}
+
+async function agendaPage() {
+  const [home, agendas] = await Promise.all([
+    loadHome(),
+    api("/api/public/agendas")
+  ]);
+  return layout(`
+    <main>
+      ${pageHero("Agenda Sekolah", "Kalender kegiatan resmi yang dikelola melalui dashboard admin sekolah.")}
+      ${agendaCalendarSection(agendas || [], { showSectionHeading: false, showAllLink: false })}
+    </main>`, home);
 }
 
 function initials(name = "") {
@@ -1010,12 +1028,17 @@ function setupBackToTop() {
 
 function setupAgendaCalendar() {
   const payload = document.querySelector("#agenda-calendar-data");
+  const calendar = document.querySelector("[data-calendar-card]");
+  const calendarGrid = document.querySelector("[data-calendar-grid]");
+  const calendarTitle = document.querySelector("[data-calendar-title]");
   const modal = document.querySelector("[data-agenda-modal]");
   const modalDate = document.querySelector("[data-agenda-modal-date]");
   const modalList = document.querySelector("[data-agenda-modal-list]");
-  if (!payload || !modal || !modalDate || !modalList) return;
+  if (!payload || !calendar || !calendarGrid || !calendarTitle || !modal || !modalDate || !modalList) return;
 
   const agendaByDate = JSON.parse(payload.textContent || "{}");
+  let currentYear = Number(calendar.dataset.calendarYear);
+  let currentMonth = Number(calendar.dataset.calendarMonth);
   const closeModal = () => {
     modal.classList.remove("open");
     setTimeout(() => {
@@ -1037,9 +1060,53 @@ function setupAgendaCalendar() {
     requestAnimationFrame(() => modal.classList.add("open"));
   };
 
-  document.querySelectorAll("[data-agenda-date]").forEach((button) => {
-    button.addEventListener("click", () => openModal(button.dataset.agendaDate));
+  const renderMonth = () => {
+    const firstDay = new Date(currentYear, currentMonth, 1);
+    const totalDays = new Date(currentYear, currentMonth + 1, 0).getDate();
+    const leadingBlanks = (firstDay.getDay() + 6) % 7;
+    const todayKey = dateKey(new Date());
+    const cells = [];
+    for (let index = 0; index < leadingBlanks; index += 1) {
+      cells.push('<div class="calendar-cell muted" aria-hidden="true"></div>');
+    }
+    for (let day = 1; day <= totalDays; day += 1) {
+      const key = dateKey(new Date(currentYear, currentMonth, day));
+      const items = agendaByDate[key] || [];
+      cells.push(`<button class="calendar-cell ${items.length ? "has-agenda" : ""} ${key === todayKey ? "today" : ""}" type="button" data-agenda-date="${key}" ${items.length ? "" : "disabled"} aria-label="${items.length ? `${day}, ${items.length} agenda` : `Tanggal ${day}`}">
+        <span class="calendar-day">${day}</span>
+        ${items.length ? `<span class="calendar-dot">${items.length}</span>` : ""}
+      </button>`);
+    }
+    calendarTitle.textContent = new Intl.DateTimeFormat("id-ID", { month: "long", year: "numeric" }).format(firstDay);
+    calendarGrid.innerHTML = cells.join("");
+    calendarGrid.querySelectorAll("[data-agenda-date]").forEach((button) => {
+      button.addEventListener("click", () => openModal(button.dataset.agendaDate));
+    });
+  };
+
+  document.querySelector("[data-calendar-prev]")?.addEventListener("click", () => {
+    currentMonth -= 1;
+    if (currentMonth < 0) {
+      currentMonth = 11;
+      currentYear -= 1;
+    }
+    renderMonth();
   });
+  document.querySelector("[data-calendar-next]")?.addEventListener("click", () => {
+    currentMonth += 1;
+    if (currentMonth > 11) {
+      currentMonth = 0;
+      currentYear += 1;
+    }
+    renderMonth();
+  });
+  document.querySelector("[data-calendar-today]")?.addEventListener("click", () => {
+    const today = new Date();
+    currentYear = today.getFullYear();
+    currentMonth = today.getMonth();
+    renderMonth();
+  });
+  renderMonth();
   modal.querySelectorAll("[data-agenda-modal-close]").forEach((button) => button.addEventListener("click", closeModal));
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && modal.classList.contains("open")) closeModal();
@@ -1470,7 +1537,7 @@ async function render() {
     else if (path === "/guru-tendik") app.innerHTML = await teachersPage();
     else if (path.startsWith("/guru-tendik/")) app.innerHTML = await teacherDetailPage(decodeURIComponent(path.replace("/guru-tendik/", "")));
     else if (path === "/galeri") app.innerHTML = await collectionPage("/api/galleries", "Galeri", "Album dokumentasi kegiatan, fasilitas, jurusan, dan ekstrakurikuler.", (item) => card(item.title, `${item.category}\n${item.description}`));
-    else if (path === "/agenda") app.innerHTML = await collectionPage("/api/agendas", "Agenda", "Jadwal kegiatan sekolah.", (item) => `<article class="card"><span class="badge">${dateId(item.startDate)}</span><h3>${esc(item.title)}</h3><p>${esc(item.location)}</p><p>${esc(item.description)}</p></article>`);
+    else if (path === "/agenda") app.innerHTML = await agendaPage();
     else if (path === "/pengumuman") app.innerHTML = await collectionPage("/api/announcements", "Pengumuman", "Informasi administratif dan pengumuman penting.", (item) => card(item.title, item.content, item.isPriority ? '<span class="badge">Prioritas</span>' : ""));
     else if (path === "/unduhan") app.innerHTML = await collectionPage("/api/downloads", "Unduhan", "Dokumen resmi sekolah yang dapat diunduh.", (item) => `<article class="card"><span class="badge">${esc(item.category)}</span><h3>${esc(item.title)}</h3><p>${esc(item.description)}</p><p>${esc(item.fileType)} - ${esc(item.fileSize)}</p><a class="btn ghost" href="${esc(item.fileUrl)}">Download</a></article>`);
     else if (path === "/kontak") app.innerHTML = await contactPage();

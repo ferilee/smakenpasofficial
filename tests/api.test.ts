@@ -374,6 +374,37 @@ describe("admin CRUD endpoints", () => {
     expect(Array.isArray(body.data)).toBe(true);
   });
 
+  test("public agenda calendar only returns scheduled admin agendas", async () => {
+    const scheduled = await json(await adminRequest("/agendas", jsonInit("POST", {
+      title: "Agenda Kalender Publik",
+      startDate: "2026-06-15",
+      endDate: "2026-06-16",
+      location: "Aula Sekolah",
+      description: "Agenda yang tampil pada kalender publik.",
+      status: "scheduled"
+    })));
+    const draft = await json(await adminRequest("/agendas", jsonInit("POST", {
+      title: "Agenda Kalender Draft",
+      startDate: "2026-06-17",
+      location: "Ruang Rapat",
+      description: "Agenda yang belum dipublikasikan.",
+      status: "draft"
+    })));
+
+    const publicResponse = await request("/public/agendas");
+    const publicBody = await json(publicResponse);
+    expect(publicResponse.status).toBe(200);
+    expect(publicBody.data.some((item: any) => item.id === scheduled.data.id)).toBe(true);
+    expect(publicBody.data.some((item: any) => item.id === draft.data.id)).toBe(false);
+
+    const homeBody = await json(await request("/public/home"));
+    expect(homeBody.data.agendas.some((item: any) => item.id === scheduled.data.id)).toBe(true);
+    expect(homeBody.data.agendas.some((item: any) => item.id === draft.data.id)).toBe(false);
+
+    await adminRequest(`/agendas/${scheduled.data.id}`, { method: "DELETE" });
+    await adminRequest(`/agendas/${draft.data.id}`, { method: "DELETE" });
+  });
+
   test("announcements list endpoint returns array", async () => {
     const body = await json(await request("/announcements"));
     expect(Array.isArray(body.data)).toBe(true);

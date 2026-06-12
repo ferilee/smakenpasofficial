@@ -1416,6 +1416,40 @@ section { padding: 58px 0; }
   color: var(--ink);
   text-transform: capitalize;
 }
+.calendar-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.calendar-nav-button,
+.calendar-today-button {
+  min-height: 42px;
+  border: 1px solid var(--line);
+  background: var(--soft);
+  color: var(--ink);
+  cursor: pointer;
+  font-weight: 800;
+  transition: color .2s ease, background-color .2s ease, border-color .2s ease, transform .2s ease;
+}
+.calendar-nav-button {
+  width: 42px;
+  border-radius: 999px;
+  font-size: 20px;
+}
+.calendar-today-button {
+  padding: 0 14px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+.calendar-nav-button:hover,
+.calendar-today-button:hover {
+  border-color: var(--brand);
+  background: var(--brand);
+  color: white;
+  transform: translateY(-1px);
+}
 .calendar-weekdays,
 .calendar-grid {
   display: grid;
@@ -2546,6 +2580,10 @@ td { color: var(--ink); }
   .calendar-top .btn {
     width: 100%;
     justify-content: center;
+  }
+  .calendar-actions {
+    width: 100%;
+    justify-content: flex-start;
   }
   .calendar-weekdays,
   .calendar-grid {

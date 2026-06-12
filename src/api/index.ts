@@ -269,7 +269,7 @@ export function apiRoutes() {
       teachers: await db.select().from(teachers).where(eq(teachers.status, "active")).limit(999),
       majors: await db.select().from(majors).where(eq(majors.isFeatured, true)).limit(6),
       facilities: await db.select().from(facilities).where(eq(facilities.isFeatured, true)).limit(6),
-      agendas: await db.select().from(agendas).where(eq(agendas.status, "scheduled")).orderBy(asc(agendas.startDate)).limit(5),
+      agendas: await db.select().from(agendas).where(eq(agendas.status, "scheduled")).orderBy(asc(agendas.startDate)),
       announcements: await db.select().from(announcements).where(and(eq(announcements.status, "active"), eq(announcements.isPriority, true))).orderBy(desc(announcements.publishedAt)).limit(5),
       galleries: await db.select().from(galleries).where(eq(galleries.showOnHome, true)).orderBy(desc(galleries.createdAt)).limit(6),
       testimonials: await db.select().from(testimonials).where(eq(testimonials.status, "approved")).orderBy(desc(testimonials.createdAt)).limit(6)
@@ -282,6 +282,10 @@ export function apiRoutes() {
     profile: await db.select().from(schoolProfile).get(),
     facilities: await db.select().from(facilities).orderBy(asc(facilities.name))
   })));
+
+  app.get("/public/agendas", async (c) => c.json(ok(
+    await db.select().from(agendas).where(eq(agendas.status, "scheduled")).orderBy(asc(agendas.startDate))
+  )));
 
   app.get("/public/wordpress", async (c) => {
     const settings = await db.select().from(schoolSettings).get();
