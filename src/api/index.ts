@@ -23,7 +23,7 @@ import {
   users
 } from "../db/schema";
 import { storageMode, storeUploadedFile } from "../lib/storage";
-import { fail, hashPassword, normalizeTeacherImportRow, ok, parseCsv, pick, resolveGoogleSheetCsvUrl, slugify, socialProfileUrl, verifyPassword } from "../lib/utils";
+import { fail, hashPassword, normalizeBulletList, normalizeTeacherImportRow, ok, parseCsv, pick, resolveGoogleSheetCsvUrl, slugify, socialProfileUrl, verifyPassword } from "../lib/utils";
 
 type AnyTable = any;
 
@@ -326,6 +326,9 @@ export function apiRoutes() {
     const body = await c.req.json<Record<string, unknown>>();
     const current = await db.select().from(schoolProfile).get();
     const data = pick(body, ["history", "vision", "mission", "principalName", "principalGreeting", "principalPhotoUrl", "profileSummaryImageUrl", "principalCtaLabel", "principalCtaUrl", "identity", "management", "organization", "accreditation", "location"]);
+    if ("mission" in data) {
+      data.mission = normalizeBulletList(String(data.mission || ""));
+    }
     const [row] = current
       ? await db.update(schoolProfile).set(data as never).where(eq(schoolProfile.id, current.id)).returning()
       : await db.insert(schoolProfile).values(data as never).returning();

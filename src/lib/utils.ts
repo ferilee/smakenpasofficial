@@ -41,6 +41,31 @@ export function socialProfileUrl(platform: "whatsapp" | "telegram" | "instagram"
   return `https://www.youtube.com/@${handle}`;
 }
 
+export function normalizeBulletList(value: string) {
+  const input = String(value ?? "")
+    .replace(/\r\n?/g, "\n")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/&nbsp;/gi, " ")
+    .trim();
+  if (!input) return "";
+  const hasMultipleLines = /\n/.test(input);
+  const numbered = input
+    .replace(/^\s*[\-\u2022\u25E6]\s*/gm, "")
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .flatMap((line) => {
+      const chunks = line
+        .split(/(?=(?:\d+[\).:-]\s+))/g)
+        .map((chunk) => chunk.trim())
+        .filter(Boolean);
+      return chunks.length > 1 ? chunks : [line];
+    })
+    .map((line) => line.replace(/^\s*\d+[\).:-]?\s*/, "").trim())
+    .filter(Boolean);
+  return numbered.length > 1 || hasMultipleLines ? numbered.join("\n") : input;
+}
+
 export function parseCsv(text: string) {
   const input = String(text ?? "").replace(/^\uFEFF/, "");
   const rows: string[][] = [];

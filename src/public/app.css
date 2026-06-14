@@ -512,6 +512,8 @@ section { padding: 58px 0; }
 }
 .teacher-tabs-section {
   padding: 10px 0 0;
+  padding-bottom: 56px;
+  margin-bottom: 8px;
 }
 .teacher-tabs-shell {
   display: grid;
@@ -525,7 +527,7 @@ section { padding: 58px 0; }
 .teacher-tabs-nav {
   position: relative;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 10px;
   padding: 8px;
   border: 1px solid var(--line);
@@ -600,10 +602,12 @@ section { padding: 58px 0; }
 .teacher-tab-waka { --tab-accent: var(--accent); }
 .teacher-tab-k3 { --tab-accent: #22a06b; }
 .teacher-tab-guru { --tab-accent: #8b5cf6; }
+.teacher-tab-tendik { --tab-accent: #0f766e; }
 .teacher-tab-input:nth-of-type(1):checked ~ .teacher-tabs-nav label[for="teacher-tab-head"],
 .teacher-tab-input:nth-of-type(2):checked ~ .teacher-tabs-nav label[for="teacher-tab-waka"],
 .teacher-tab-input:nth-of-type(3):checked ~ .teacher-tabs-nav label[for="teacher-tab-k3"],
-.teacher-tab-input:nth-of-type(4):checked ~ .teacher-tabs-nav label[for="teacher-tab-guru"] {
+.teacher-tab-input:nth-of-type(4):checked ~ .teacher-tabs-nav label[for="teacher-tab-guru"],
+.teacher-tab-input:nth-of-type(5):checked ~ .teacher-tabs-nav label[for="teacher-tab-tendik"] {
   background: color-mix(in srgb, var(--tab-accent) 14%, var(--surface));
   color: var(--tab-accent);
   border-color: color-mix(in srgb, var(--tab-accent) 32%, var(--line));
@@ -613,7 +617,8 @@ section { padding: 58px 0; }
 .teacher-tab-input:nth-of-type(1):checked ~ .teacher-tabs-nav label[for="teacher-tab-head"]::after,
 .teacher-tab-input:nth-of-type(2):checked ~ .teacher-tabs-nav label[for="teacher-tab-waka"]::after,
 .teacher-tab-input:nth-of-type(3):checked ~ .teacher-tabs-nav label[for="teacher-tab-k3"]::after,
-.teacher-tab-input:nth-of-type(4):checked ~ .teacher-tabs-nav label[for="teacher-tab-guru"]::after {
+.teacher-tab-input:nth-of-type(4):checked ~ .teacher-tabs-nav label[for="teacher-tab-guru"]::after,
+.teacher-tab-input:nth-of-type(5):checked ~ .teacher-tabs-nav label[for="teacher-tab-tendik"]::after {
   transform: scaleX(1);
   opacity: .9;
   background: var(--tab-accent);
@@ -632,26 +637,30 @@ section { padding: 58px 0; }
 .teacher-tab-input:nth-of-type(1):checked ~ .teacher-tabs-nav label[for="teacher-tab-head"],
 .teacher-tab-input:nth-of-type(2):checked ~ .teacher-tabs-nav label[for="teacher-tab-waka"],
 .teacher-tab-input:nth-of-type(3):checked ~ .teacher-tabs-nav label[for="teacher-tab-k3"],
-.teacher-tab-input:nth-of-type(4):checked ~ .teacher-tabs-nav label[for="teacher-tab-guru"] {
+.teacher-tab-input:nth-of-type(4):checked ~ .teacher-tabs-nav label[for="teacher-tab-guru"],
+.teacher-tab-input:nth-of-type(5):checked ~ .teacher-tabs-nav label[for="teacher-tab-tendik"] {
   box-shadow: 0 12px 24px rgba(63, 61, 153, .18);
 }
 .teacher-tab-input:nth-of-type(1):checked ~ .teacher-tabs-nav label[for="teacher-tab-head"] b,
 .teacher-tab-input:nth-of-type(2):checked ~ .teacher-tabs-nav label[for="teacher-tab-waka"] b,
 .teacher-tab-input:nth-of-type(3):checked ~ .teacher-tabs-nav label[for="teacher-tab-k3"] b,
-.teacher-tab-input:nth-of-type(4):checked ~ .teacher-tabs-nav label[for="teacher-tab-guru"] b {
+.teacher-tab-input:nth-of-type(4):checked ~ .teacher-tabs-nav label[for="teacher-tab-guru"] b,
+.teacher-tab-input:nth-of-type(5):checked ~ .teacher-tabs-nav label[for="teacher-tab-tendik"] b {
   background: color-mix(in srgb, var(--tab-accent) 18%, transparent);
   color: currentColor;
 }
 .teacher-tab-input:nth-of-type(1):checked ~ .teacher-tabs-nav label[for="teacher-tab-head"] small,
 .teacher-tab-input:nth-of-type(2):checked ~ .teacher-tabs-nav label[for="teacher-tab-waka"] small,
 .teacher-tab-input:nth-of-type(3):checked ~ .teacher-tabs-nav label[for="teacher-tab-k3"] small,
-.teacher-tab-input:nth-of-type(4):checked ~ .teacher-tabs-nav label[for="teacher-tab-guru"] small {
+.teacher-tab-input:nth-of-type(4):checked ~ .teacher-tabs-nav label[for="teacher-tab-guru"] small,
+.teacher-tab-input:nth-of-type(5):checked ~ .teacher-tabs-nav label[for="teacher-tab-tendik"] small {
   color: currentColor;
 }
 .teacher-tab-input:nth-of-type(1):checked ~ .teacher-tabs-panels [data-panel="head"],
 .teacher-tab-input:nth-of-type(2):checked ~ .teacher-tabs-panels [data-panel="waka"],
 .teacher-tab-input:nth-of-type(3):checked ~ .teacher-tabs-panels [data-panel="k3"],
-.teacher-tab-input:nth-of-type(4):checked ~ .teacher-tabs-panels [data-panel="guru"] {
+.teacher-tab-input:nth-of-type(4):checked ~ .teacher-tabs-panels [data-panel="guru"],
+.teacher-tab-input:nth-of-type(5):checked ~ .teacher-tabs-panels [data-panel="tendik"] {
   display: block;
 }
 .teacher-spotlight-card {
@@ -828,6 +837,58 @@ section { padding: 58px 0; }
 .teacher-profile-row {
   grid-template-columns: minmax(170px, 210px) 12px minmax(0, 1fr);
   font-size: 16px;
+}
+.identity-reference-section {
+  padding-top: 18px;
+  padding-bottom: 18px;
+}
+.identity-reference-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+.identity-reference-card {
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: 0 18px 40px var(--shadow);
+  padding: 24px;
+}
+.identity-reference-card h3 {
+  margin: 0 0 14px;
+  font-size: 22px;
+  line-height: 1.15;
+}
+.identity-reference-list {
+  display: grid;
+  gap: 10px;
+}
+.identity-reference-row {
+  display: grid;
+  grid-template-columns: minmax(210px, 250px) 14px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.6;
+}
+.identity-reference-row.nested {
+  grid-template-columns: minmax(210px, 250px) 14px minmax(0, 1fr);
+  padding-left: 22px;
+}
+.identity-reference-label {
+  color: var(--ink);
+  font-weight: 700;
+}
+.identity-reference-separator {
+  text-align: center;
+}
+.identity-reference-value {
+  white-space: pre-line;
+}
+.identity-reference-block {
+  display: grid;
+  gap: 10px;
 }
 .soft { background: var(--soft); }
 .split { display: grid; grid-template-columns: 1.05fr .95fr; gap: 32px; align-items: start; }
@@ -1611,6 +1672,57 @@ section { padding: 58px 0; }
   margin: 6px 0;
   color: var(--muted);
 }
+.agenda-list-section {
+  padding-top: 22px;
+}
+.agenda-card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: 18px;
+}
+.agenda-card {
+  display: grid;
+  gap: 14px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface);
+  padding: 22px;
+  box-shadow: 0 18px 40px var(--shadow);
+}
+.agenda-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.agenda-status {
+  font-size: 12px;
+  font-weight: 850;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.agenda-card h3 {
+  margin: 0;
+  font-size: 22px;
+  line-height: 1.2;
+}
+.agenda-card-location {
+  margin: 0;
+  color: var(--accent);
+  font-weight: 800;
+}
+.agenda-card-description {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.65;
+}
+.agenda-card-actions {
+  display: flex;
+  justify-content: flex-start;
+}
 .testimonials-section {
   background:
     radial-gradient(circle at 12% 8%, rgba(255, 106, 19, .12), transparent 30%),
@@ -2312,6 +2424,10 @@ td { color: var(--ink); }
   .teacher-tab-grid { grid-template-columns: 1fr; }
   .teacher-detail-grid { grid-template-columns: 1fr; }
   .teacher-tabs-nav { grid-template-columns: 1fr; }
+  .teacher-tabs-section {
+    padding-bottom: 72px;
+    margin-bottom: 0;
+  }
   .toast-stack {
     right: 12px;
     bottom: 104px;
@@ -2608,6 +2724,34 @@ td { color: var(--ink); }
     min-width: 18px;
     height: 18px;
     font-size: 10px;
+  }
+  .identity-reference-card {
+    padding: 18px;
+    border-radius: 14px;
+  }
+  .identity-reference-grid {
+    grid-template-columns: 1fr;
+  }
+  .identity-reference-row,
+  .identity-row {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+  .identity-reference-row.nested {
+    padding-left: 0;
+  }
+  .identity-reference-separator,
+  .identity-separator {
+    display: none;
+  }
+  .agenda-card-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+    margin-top: 14px;
+  }
+  .agenda-card {
+    padding: 18px;
+    border-radius: 14px;
   }
   .agenda-modal {
     padding: 14px;

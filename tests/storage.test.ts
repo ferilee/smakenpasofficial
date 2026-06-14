@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { storageMode, storageSetup } from "../src/lib/storage";
-import { resolveGoogleSheetCsvUrl, socialProfileUrl } from "../src/lib/utils";
+import { normalizeBulletList, resolveGoogleSheetCsvUrl, socialProfileUrl } from "../src/lib/utils";
 
 const originalEnv = {
   S3_ENDPOINT: process.env.S3_ENDPOINT,
@@ -79,5 +79,15 @@ describe("social profile URL normalization", () => {
 
   test("keeps complete social URLs unchanged", () => {
     expect(socialProfileUrl("youtube", "https://youtube.com/channel/example")).toBe("https://youtube.com/channel/example");
+  });
+});
+
+describe("bullet list normalization", () => {
+  test("normalizes mixed list separators into one item per line", () => {
+    expect(normalizeBulletList("1. A<br>2) B\n3: C\n- D\n• E")).toBe("A\nB\nC\nD\nE");
+  });
+
+  test("keeps a single paragraph intact when it is not a list", () => {
+    expect(normalizeBulletList("Paragraf tunggal tanpa daftar")).toBe("Paragraf tunggal tanpa daftar");
   });
 });

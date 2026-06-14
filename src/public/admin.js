@@ -174,6 +174,30 @@ const managementEditorBlueprint = [
   }
 ];
 
+const identityEditorBlueprint = [
+  {
+    title: "Identitas Kepala Sekolah",
+    fields: [
+      ["principalIdentityName", "Nama Lengkap", "text", "Dermawan Triwahyono,ST,MM"],
+      ["principalIdentityBirth", "Tempat & Tanggal Lahir", "text", "Lumajang,03 Maret 1976"],
+      ["principalIdentityAddress", "Alamat", "textarea", "Dsn. Krajan RT.18/ RW.05\nDesa Yosowilangun Lor\nKec. Yosowilangun, Kab. Lumajang"],
+      ["principalIdentityPhone", "Telepon Rumah/HP", "text", "085236083132"],
+      ["principalIdentityDecreeNumber", "Nomor SK", "text", "800/9767/204/2025"],
+      ["principalIdentityDecreeDate", "Tanggal SK", "text", "09 Mei 2025"],
+      ["principalIdentityAppointingOfficial", "Pejabat yang mengangkat", "textarea", "Dra. Hj. Khofifah Indar Parawansa, M.Si\nGubernur Jawa Timur"]
+    ]
+  },
+  {
+    title: "Komite Sekolah",
+    fields: [
+      ["committeeMembers", "Jumlah Anggota", "text", "5 orang"],
+      ["committeeChair", "Ketua", "text", "Sugeng Ngabekti"],
+      ["committeeDecreeNumber", "Nomor SK pengangkatan", "text", "421.5/001/101.6.5.17/2023"],
+      ["committeeDecreeDate", "Tanggal SK pengangkatan", "text", "3 Agustus 2023"]
+    ]
+  }
+];
+
 function getPreferredTheme() {
   const saved = localStorage.getItem(themeStorageKey);
   if (saved === "dark" || saved === "light") return saved;
@@ -319,8 +343,9 @@ function formFields(config, item = {}) {
       const placeholder = placeholders[field];
       return `<div class="field"><label>${fieldLabel(field)}</label><input name="${field}" value="${value}" placeholder="${placeholder}"></div>`;
     }
-    if (["description", "content", "competencies", "careerProspects", "practiceFacilities", "achievements", "message", "subtitle", "complaint", "expectation"].includes(field)) {
-      return `<div class="field"><label>${fieldLabel(field)}</label><textarea name="${field}">${value}</textarea></div>`;
+    if (["description", "content", "competencies", "careerProspects", "practiceFacilities", "achievements", "message", "subtitle", "complaint", "expectation", "mission"].includes(field)) {
+      const hint = field === "mission" ? '<p class="hint">Satu poin per baris. Contoh: 1. ... lalu baris baru untuk poin berikutnya.</p>' : "";
+      return `<div class="field"><label>${fieldLabel(field)}</label><textarea name="${field}" placeholder="${field === "mission" ? "Tulis satu misi per baris" : ""}">${value}</textarea>${hint}</div>`;
     }
     const type = field === "password" ? "password" : field.toLowerCase().includes("date") || field === "publishedAt" ? "date" : "text";
     return `<div class="field"><label>${fieldLabel(field)}</label><input type="${type}" name="${field}" value="${value}"></div>`;
@@ -370,6 +395,36 @@ function managementEditor(data = {}) {
         }).join("")}
       </div>
     </section>`;
+}
+
+function identityEditor(data = {}) {
+  const identity = data.identity || {};
+  return `
+    <section class="management-admin">
+      <div class="toolbar">
+        <div>
+          <h2>Identitas Kepala Sekolah dan Komite</h2>
+          <p>Konten ini tampil pada halaman profil sekolah.</p>
+        </div>
+      </div>
+      <div class="management-admin-grid">
+        ${identityEditorBlueprint.map((block) => `
+          <article class="management-admin-card">
+            <h3>${esc(block.title)}</h3>
+            ${block.fields.map(([name, label, type, fallback]) => {
+              const value = esc(String(identity[name] ?? fallback ?? ""));
+              if (type === "textarea") {
+                return `<div class="field"><label>${esc(label)}</label><textarea name="${name}">${value}</textarea></div>`;
+              }
+              return `<div class="field"><label>${esc(label)}</label><input name="${name}" value="${value}"></div>`;
+            }).join("")}
+          </article>`).join("")}
+      </div>
+    </section>`;
+}
+
+function buildIdentityPayload(form) {
+  return Object.fromEntries(identityEditorBlueprint.flatMap((block) => block.fields.map(([name]) => [name, String(form.querySelector(`[name="${name}"]`)?.value || "").trim()])));
 }
 
 function splitManagementResources(value) {
@@ -707,6 +762,7 @@ async function profileAdminPage() {
     <form class="card form" id="single-form">
       ${formFields({ fields: profileFields }, data || {})}
       ${managementEditor(data || {})}
+      ${identityEditor(data || {})}
       <button class="btn">Simpan</button>
     </form>`;
   const form = document.querySelector("#single-form");
@@ -715,6 +771,7 @@ async function profileAdminPage() {
     event.preventDefault();
     const body = formPayload(event.target, profileFields);
     body.management = buildManagementPayload(event.target);
+    body.identity = buildIdentityPayload(event.target);
     await api("/api/profile", { method: "PUT", body: JSON.stringify(body) });
     notify("Data tersimpan.");
   });

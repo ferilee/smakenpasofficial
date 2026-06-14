@@ -526,8 +526,47 @@ async function agendaPage() {
   return layout(`
     <main>
       ${pageHero("Agenda Sekolah", "Kalender kegiatan resmi yang dikelola melalui dashboard admin sekolah.")}
-      ${agendaCalendarSection(agendas || [], { showSectionHeading: false, showAllLink: false })}
+      ${agendaListSection(agendas || [])}
     </main>`, home);
+}
+
+function agendaListSection(agendas = []) {
+  const items = Array.isArray(agendas) ? agendas : [];
+  const renderRange = (item) => {
+    const start = dateId(item.startDate);
+    const end = item.endDate ? dateId(item.endDate) : "";
+    return end ? `${start} - ${end}` : start;
+  };
+  return `<section class="agenda-list-section">
+    <div class="container">
+      <div class="agenda-card-grid">
+        ${items.length ? items.map((item) => `
+          <article class="agenda-card">
+            <div class="agenda-card-top">
+              <span class="badge">${esc(renderRange(item))}</span>
+              ${item.status ? `<span class="agenda-status">${esc(item.status)}</span>` : ""}
+            </div>
+            <h3>${esc(item.title || "Agenda Sekolah")}</h3>
+            <p class="agenda-card-location">${esc(item.location || "-")}</p>
+            <p class="agenda-card-description">${esc(item.description || "-")}</p>
+            <div class="agenda-card-actions">
+              <button class="btn" type="button" data-agenda-open="${item.id}">Lihat Detail</button>
+            </div>
+          </article>
+        `).join("") : '<p class="empty">Belum ada agenda.</p>'}
+      </div>
+    </div>
+    <div class="agenda-modal" data-agenda-list-modal hidden>
+      <div class="agenda-modal-backdrop" data-agenda-list-close></div>
+      <article class="agenda-modal-box" role="dialog" aria-modal="true" aria-labelledby="agenda-list-modal-title">
+        <button class="agenda-modal-close" type="button" data-agenda-list-close aria-label="Tutup">&times;</button>
+        <p class="agenda-modal-date" data-agenda-list-date></p>
+        <h3 id="agenda-list-modal-title" data-agenda-list-title>Detail Agenda</h3>
+        <div class="agenda-modal-list" data-agenda-list-content></div>
+      </article>
+    </div>
+    <script type="application/json" id="agenda-list-data">${JSON.stringify(items).replace(/</g, "\\u003c")}</script>
+  </section>`;
 }
 
 function initials(name = "") {
@@ -647,6 +686,7 @@ function teacherCategory(item) {
   if (position.includes("wakil")) return "Wakil Kepala Sekolah";
   if (position.includes("kepala sekolah") || position.includes("principal")) return "Kepala Sekolah";
   if (position.includes("ketua") || position.includes("konsentrasi") || position.includes("kaprodi") || position.includes("kompetensi keahlian")) return "Ketua Konsentrasi Keahlian";
+  if (position.includes("tendik") || position.includes("tenaga kependidikan") || position.includes("administrasi") || position.includes("staf") || position.includes("pegawai")) return "Tenaga Kependidikan";
   return "Guru-guru";
 }
 
@@ -734,12 +774,14 @@ function teachersTabbedSections(teachers = []) {
     kepala: teachers.filter((item) => teacherCategory(item) === "Kepala Sekolah"),
     wakil: teachers.filter((item) => teacherCategory(item) === "Wakil Kepala Sekolah"),
     ketua: teachers.filter((item) => teacherCategory(item) === "Ketua Konsentrasi Keahlian"),
-    guru: teachers.filter((item) => teacherCategory(item) === "Guru-guru")
+    guru: teachers.filter((item) => teacherCategory(item) === "Guru-guru"),
+    tendik: teachers.filter((item) => teacherCategory(item) === "Tenaga Kependidikan")
   };
   const head = grouped.kepala[0];
   const wakilCards = grouped.wakil.map((item) => teacherSpotlight(item, "Wakil KS", "Mendukung arah kebijakan dan operasional sekolah.")).join("");
   const ketuaCards = grouped.ketua.map((item) => teacherSpotlight(item, "Ketua K3", "Penggerak konsentrasi keahlian dan koordinasi jurusan.")).join("");
   const guruCards = grouped.guru.map((item) => teacherCard(item)).join("");
+  const tendikCards = grouped.tendik.map((item) => teacherCard(item)).join("");
   return `
     <section class="teacher-tabs-section">
       <div class="container">
@@ -748,6 +790,7 @@ function teachersTabbedSections(teachers = []) {
           <input class="teacher-tab-input" type="radio" name="teacher-tab" id="teacher-tab-waka">
           <input class="teacher-tab-input" type="radio" name="teacher-tab" id="teacher-tab-k3">
           <input class="teacher-tab-input" type="radio" name="teacher-tab" id="teacher-tab-guru">
+          <input class="teacher-tab-input" type="radio" name="teacher-tab" id="teacher-tab-tendik">
 
           <div class="teacher-tabs-nav" role="tablist" aria-label="Kategori guru dan tendik">
             <label class="teacher-tab-button teacher-tab-head" for="teacher-tab-head" role="tab" aria-controls="teacher-panel-head">
@@ -778,6 +821,13 @@ function teachersTabbedSections(teachers = []) {
               </span>
               <b>${grouped.guru.length}</b>
             </label>
+            <label class="teacher-tab-button teacher-tab-tendik" for="teacher-tab-tendik" role="tab" aria-controls="teacher-panel-tendik">
+              <span class="teacher-tab-copy">
+                <span>Tenaga Kependidikan</span>
+                <small>${grouped.tendik.length} orang</small>
+              </span>
+              <b>${grouped.tendik.length}</b>
+            </label>
           </div>
 
           <div class="teacher-tabs-panels">
@@ -792,6 +842,9 @@ function teachersTabbedSections(teachers = []) {
             </div>
             <div class="teacher-tab-panel" id="teacher-panel-guru" data-panel="guru">
               ${guruCards ? `<div class="majors-grid teacher-grid">${guruCards}</div>` : '<p class="empty">Belum ada data guru-guru.</p>'}
+            </div>
+            <div class="teacher-tab-panel" id="teacher-panel-tendik" data-panel="tendik">
+              ${tendikCards ? `<div class="majors-grid teacher-grid">${tendikCards}</div>` : '<p class="empty">Belum ada data tenaga kependidikan.</p>'}
             </div>
           </div>
         </div>
@@ -1113,6 +1166,52 @@ function setupAgendaCalendar() {
   });
 }
 
+function setupAgendaList() {
+  const payload = document.querySelector("#agenda-list-data");
+  const modal = document.querySelector("[data-agenda-list-modal]");
+  const modalDate = document.querySelector("[data-agenda-list-date]");
+  const modalTitle = document.querySelector("[data-agenda-list-title]");
+  const modalContent = document.querySelector("[data-agenda-list-content]");
+  if (!payload || !modal || !modalDate || !modalTitle || !modalContent) return;
+
+  const agendas = JSON.parse(payload.textContent || "[]");
+  const byId = new Map(agendas.map((item) => [String(item.id), item]));
+  const closeModal = () => {
+    modal.classList.remove("open");
+    setTimeout(() => {
+      if (!modal.classList.contains("open")) modal.hidden = true;
+    }, 220);
+  };
+  const openModal = (id) => {
+    const item = byId.get(String(id));
+    if (!item) return;
+    const start = dateId(item.startDate);
+    const end = item.endDate ? dateId(item.endDate) : "";
+    modalDate.textContent = end ? `${start} - ${end}` : start;
+    modalTitle.textContent = item.title || "Agenda Sekolah";
+    modalContent.innerHTML = `
+      <div class="agenda-modal-item">
+        <h4>Lokasi</h4>
+        <p>${esc(item.location || "-")}</p>
+      </div>
+      <div class="agenda-modal-item">
+        <h4>Deskripsi</h4>
+        <p>${esc(item.description || "-")}</p>
+      </div>
+      ${item.status ? `<div class="agenda-modal-item"><h4>Status</h4><p><span class="badge">${esc(item.status)}</span></p></div>` : ""}`;
+    modal.hidden = false;
+    requestAnimationFrame(() => modal.classList.add("open"));
+  };
+
+  document.querySelectorAll("[data-agenda-open]").forEach((button) => {
+    button.addEventListener("click", () => openModal(button.dataset.agendaOpen));
+  });
+  modal.querySelectorAll("[data-agenda-list-close]").forEach((button) => button.addEventListener("click", closeModal));
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && modal.classList.contains("open")) closeModal();
+  });
+}
+
 function setupTestimonialForm() {
   const modal = document.querySelector("[data-testimonial-modal]");
   const open = document.querySelector("[data-testimonial-open]");
@@ -1301,10 +1400,95 @@ function pageHero(title, text) {
 }
 
 function splitLines(value) {
-  return String(value ?? "")
+  const input = String(value ?? "")
+    .replace(/\r\n?/g, "\n")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/&nbsp;/gi, " ")
+    .trim();
+  if (!input) return [];
+  const lines = input
+    .replace(/^\s*[\-\u2022\u25E6]\s*/gm, "")
     .split(/\n+/)
-    .map((line) => line.replace(/^\s*\d+[\).\:-]?\s*/, "").trim())
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .flatMap((line) => {
+      const chunks = line
+        .split(/(?=(?:\d+[\).:-]\s+))/g)
+        .map((chunk) => chunk.trim())
+        .filter(Boolean);
+      return chunks.length > 1 ? chunks : [line];
+    })
+    .map((line) => line.replace(/^\s*\d+[\).:-]?\s*/, "").trim())
     .filter(Boolean);
+  return lines;
+}
+
+function identityValue(identity = {}, keys = [], fallback = "") {
+  for (const key of keys) {
+    const value = identity?.[key];
+    if (String(value ?? "").trim()) return String(value).trim();
+  }
+  return fallback;
+}
+
+function identityReferenceSection(identity = {}) {
+  const principal = {
+    name: identityValue(identity, ["principalIdentityName", "Nama Lengkap"], "Dermawan Triwahyono,ST,MM"),
+    birth: identityValue(identity, ["principalIdentityBirth", "Tempat & Tanggal Lahir"], "Lumajang,03 Maret 1976"),
+    address: identityValue(identity, ["principalIdentityAddress", "Alamat"], "Dsn. Krajan RT.18/ RW.05\nDesa Yosowilangun Lor\nKec. Yosowilangun, Kab. Lumajang"),
+    phone: identityValue(identity, ["principalIdentityPhone", "Telepon Rumah/HP"], "085236083132"),
+    decreeNumber: identityValue(identity, ["principalIdentityDecreeNumber", "Nomor SK"], "800/9767/204/2025"),
+    decreeDate: identityValue(identity, ["principalIdentityDecreeDate", "Tanggal SK"], "09 Mei 2025"),
+    appointingOfficial: identityValue(identity, ["principalIdentityAppointingOfficial", "Pejabat yang mengangkat"], "Dra. Hj. Khofifah Indar Parawansa, M.Si\nGubernur Jawa Timur")
+  };
+  const committee = {
+    members: identityValue(identity, ["committeeMembers", "Jumlah Anggota"], "5 orang"),
+    chair: identityValue(identity, ["committeeChair", "Ketua"], "Sugeng Ngabekti"),
+    decreeNumber: identityValue(identity, ["committeeDecreeNumber", "Nomor SK pengangkatan"], "421.5/001/101.6.5.17/2023"),
+    decreeDate: identityValue(identity, ["committeeDecreeDate", "Tanggal SK pengangkatan"], "3 Agustus 2023")
+  };
+  const row = (label, value, extraClass = "") => `
+    <div class="identity-reference-row ${extraClass}">
+      <span class="identity-reference-label">${esc(label)}</span>
+      <span class="identity-reference-separator">:</span>
+      <span class="identity-reference-value">${esc(value)}</span>
+    </div>`;
+  const card = (title, content) => `
+    <article class="identity-reference-card">
+      <h3>${esc(title)}</h3>
+      ${content}
+    </article>`;
+  return `<section class="soft identity-reference-section">
+    <div class="container">
+      ${sectionHead("Identitas Kepala Sekolah dan Komite", "Data identitas kepala sekolah dan komite sekolah yang dikelola dari menu Profil Sekolah di admin.")}
+      <div class="identity-reference-grid">
+        ${card("Identitas Kepala Sekolah", `
+          <div class="identity-reference-list">
+            ${row("a. Nama Lengkap", principal.name)}
+            ${row("b. Tempat & Tanggal Lahir", principal.birth)}
+            ${row("c. Alamat", principal.address)}
+            ${row("d. Telepon Rumah/HP", principal.phone)}
+            <div class="identity-reference-block">
+              <div class="identity-reference-row">
+                <span class="identity-reference-label">e. SK pengangkatan terakhir</span>
+                <span class="identity-reference-separator">:</span>
+                <span class="identity-reference-value"></span>
+              </div>
+              ${row("01. Nomor SK", principal.decreeNumber, "nested")}
+              ${row("02. Tanggal", principal.decreeDate, "nested")}
+              ${row("03. Pejabat yang mengangkat", principal.appointingOfficial, "nested")}
+            </div>
+          </div>`)}
+        ${card("Komite Sekolah", `
+          <div class="identity-reference-list">
+            ${row("Jumlah Anggota", committee.members)}
+            ${row("Ketua", committee.chair)}
+            ${row("Nomor SK pengangkatan", committee.decreeNumber)}
+            ${row("Tanggal SK pengangkatan", committee.decreeDate)}
+          </div>`)}
+      </div>
+    </div>
+  </section>`;
 }
 
 async function profilePage() {
@@ -1356,7 +1540,7 @@ async function profilePage() {
           </div>
         </div>
       </div></section>
-      <section class="soft"><div class="container">${sectionHead("Fasilitas", "Fasilitas pendukung kegiatan belajar.")}<div class="grid">${data.facilities.map((item) => card(item.name, item.description)).join("")}</div></div></section>
+      ${identityReferenceSection(data.profile.identity || {})}
     </main>`, data);
 }
 
@@ -1375,7 +1559,7 @@ async function majorsPage() {
 async function teachersPage() {
   const data = await loadHome();
   data.teachers = await api("/api/teachers");
-  return layout(`<main>${pageHero("Guru & Tendik", "Disusun dalam tab Kepala Sekolah, Waka, dan K3 agar lebih rapi.")}${teachersTabbedSections(data.teachers || [])}</main>`, data);
+  return layout(`<main>${pageHero("Guru & Tendik", "Disusun dalam tab Kepala Sekolah, Waka, K3, dan Tenaga Kependidikan agar lebih rapi.")}${teachersTabbedSections(data.teachers || [])}</main>`, data);
 }
 
 async function majorDetailPage(slug) {
@@ -1574,6 +1758,7 @@ async function render() {
     setupMobileNavigation();
     setupBackToTop();
     setupAgendaCalendar();
+    setupAgendaList();
     setupTestimonialForm();
     setupTestimonialCarousel();
     setupManagementModal();

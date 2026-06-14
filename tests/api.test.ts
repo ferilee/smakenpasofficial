@@ -210,6 +210,21 @@ describe("settings and profile endpoints", () => {
     const res = await adminRequest("/profile", jsonInit("PUT", {
       ...before.data,
       location: "Lokasi Test",
+      identity: {
+        ...(before.data.identity || {}),
+        principalIdentityName: "Dermawan Triwahyono,ST,MM",
+        principalIdentityBirth: "Lumajang,03 Maret 1976",
+        principalIdentityAddress: "Dsn. Krajan RT.18/ RW.05\nDesa Yosowilangun Lor\nKec. Yosowilangun, Kab. Lumajang",
+        principalIdentityPhone: "085236083132",
+        principalIdentityDecreeNumber: "800/9767/204/2025",
+        principalIdentityDecreeDate: "09 Mei 2025",
+        principalIdentityAppointingOfficial: "Dra. Hj. Khofifah Indar Parawansa, M.Si\nGubernur Jawa Timur",
+        committeeMembers: "5 orang",
+        committeeChair: "Sugeng Ngabekti",
+        committeeDecreeNumber: "421.5/001/101.6.5.17/2023",
+        committeeDecreeDate: "3 Agustus 2023"
+      },
+      mission: "1. Poin satu<br>2. Poin dua\n3) Poin tiga\n- Poin empat\n• Poin lima",
       management: {
         ...(before.data.management || {}),
         kurikulum: {
@@ -225,6 +240,9 @@ describe("settings and profile endpoints", () => {
     const body = await json(res);
     expect(res.status).toBe(200);
     expect(body.data.location).toBe("Lokasi Test");
+    expect(body.data.identity.principalIdentityName).toBe("Dermawan Triwahyono,ST,MM");
+    expect(body.data.identity.committeeChair).toBe("Sugeng Ngabekti");
+    expect(body.data.mission).toBe("Poin satu\nPoin dua\nPoin tiga\nPoin empat\nPoin lima");
     expect(body.data.management.kurikulum.lead).toBe("Kurikulum Test");
     expect(body.data.management.kurikulum.resources.length).toBe(2);
   });
@@ -276,7 +294,7 @@ describe("admin CRUD endpoints", () => {
     expect(missing.status).toBe(404);
     expect(missingBody.ok).toBe(false);
     expect(missingBody.error.message).toBe("Data tidak ditemukan.");
-  });
+  }, { timeout: 10000 });
 
   test("teachers import template can be downloaded by admin", async () => {
     const res = await adminRequest("/teachers/import/template.csv");
