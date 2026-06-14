@@ -1,7 +1,7 @@
 const root = document.querySelector("#admin");
 const themeStorageKey = "websmakenpas-theme";
 const resources = {
-  majors: { title: "Program Keahlian", path: "/api/majors", fields: ["name", "slug", "description", "competencies", "careerProspects", "practiceFacilities", "productiveTeachers", "achievements", "imageUrl", "isFeatured"] },
+  majors: { title: "Program Keahlian", path: "/api/majors", fields: ["name", "slug", "fieldCategory", "profileMarkdown", "description", "competencies", "careerProspects", "practiceFacilities", "productiveTeachers", "achievements", "imageUrl", "isFeatured"] },
   teachers: { title: "Guru & Tendik", path: "/api/teachers", fields: ["name", "photoUrl", "position", "subject", "expertise", "status"] },
   facilities: { title: "Fasilitas", path: "/api/facilities", fields: ["name", "description", "imageUrl", "isFeatured"] },
   galleries: { title: "Galeri", path: "/api/galleries", fields: ["title", "slug", "category", "description", "coverUrl", "showOnHome"] },
@@ -315,9 +315,11 @@ async function api(path, options = {}) {
 }
 
 function fieldLabel(field) {
+  if (field === "profileMarkdown") return "Profil Konsentrasi (Markdown)";
   return field
     .replace(/([A-Z])/g, " $1")
     .replace(/^./, (ch) => ch.toUpperCase())
+    .replace("Field Category", "Bidang Keahlian")
     .replace("Url", "URL");
 }
 
@@ -327,6 +329,23 @@ function isBooleanField(field) {
 
 function formFields(config, item = {}) {
   return config.fields.map((field) => {
+    if (field === "fieldCategory") {
+      const options = [
+        ["tkb", "Teknologi Konstruksi dan Bangunan"],
+        ["tmr", "Teknologi Manufaktur dan Rekayasa"],
+        ["ti", "Teknologi Informasi"],
+        ["bm", "Bisnis dan Manajemen"],
+        ["sek", "Seni dan Ekonomi Kreatif"]
+      ];
+      const selected = String(item[field] || "").trim();
+      return `<div class="field"><label>${fieldLabel(field)}</label><select name="${field}">
+        <option value="">Pilih bidang keahlian</option>
+        ${options.map(([value, label]) => `<option value="${value}" ${selected === value ? "selected" : ""}>${label}</option>`).join("")}
+      </select><p class="hint">Bidang ini dipakai untuk mengelompokkan kartu jurusan di halaman publik.</p></div>`;
+    }
+    if (field === "profileMarkdown") {
+      return `<div class="field"><label>${fieldLabel(field)}</label><textarea name="${field}" rows="18" placeholder="Tulis profil konsentrasi keahlian dalam format markdown">${esc(item[field] ?? "")}</textarea><p class="hint">Gunakan heading (# / ## / ###), poin per baris, dan teks tebal (**...**) agar halaman profil tampil rapi.</p></div>`;
+    }
     if (isBooleanField(field)) {
       return `<div class="field"><label><input type="checkbox" name="${field}" ${item[field] ? "checked" : ""}> ${fieldLabel(field)}</label></div>`;
     }

@@ -30,7 +30,7 @@ type AnyTable = any;
 const tokenSecret = process.env.TOKEN_SECRET ?? "ubah-secret-ini-di-env";
 
 const tableFields = {
-  majors: ["name", "slug", "description", "competencies", "careerProspects", "practiceFacilities", "productiveTeachers", "achievements", "imageUrl", "isFeatured"],
+  majors: ["name", "slug", "fieldCategory", "profileMarkdown", "description", "competencies", "careerProspects", "practiceFacilities", "productiveTeachers", "achievements", "imageUrl", "isFeatured"],
   teachers: ["name", "photoUrl", "position", "subject", "expertise", "status"],
   facilities: ["name", "description", "imageUrl", "isFeatured"],
   galleries: ["title", "slug", "category", "description", "coverUrl", "showOnHome"],

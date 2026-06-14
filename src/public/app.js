@@ -263,30 +263,145 @@ function makeMajorIllustration(title, index) {
 function majorCard(item) {
   const image = item.imageUrl || makeMajorIllustration(item.name, Number(item.id || 0));
   const detailUrl = `/program-keahlian/${encodeURIComponent(item.slug || item.id || "")}`;
-  return `<article class="major-card">
+  return `<a class="major-card major-card-link" href="${detailUrl}">
     <div class="major-image-wrap">
       <img class="major-image" src="${esc(image)}" alt="${esc(item.name)}">
     </div>
     <div class="major-body">
       <h3>${esc(item.name)}</h3>
-      <a class="major-btn" href="${detailUrl}">LIHAT DETAIL JURUSAN &#8594;</a>
+      <span class="major-btn" aria-hidden="true">LIHAT PROFIL KONSENTRASI &#8594;</span>
     </div>
-  </article>`;
+  </a>`;
 }
 
-function majorsShowcase(data, withMoreButton = false, showHeader = true) {
-  const items = (data.majors || []).slice(0, withMoreButton ? 8 : 4);
-  return `<section class="majors-showcase">
+function inlineMarkdown(value) {
+  return esc(value)
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/`([^`]+)`/g, "<code>$1</code>");
+}
+
+function renderMarkdownBlock(value) {
+  const lines = String(value ?? "")
+    .replace(/\r\n?/g, "\n")
+    .split("\n");
+  const blocks = [];
+  let listType = "";
+  let listItems = [];
+  const flushList = () => {
+    if (!listType || !listItems.length) return;
+    blocks.push(`<${listType}>${listItems.join("")}</${listType}>`);
+    listType = "";
+    listItems = [];
+  };
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line) {
+      flushList();
+      continue;
+    }
+    const heading = line.match(/^(#{1,6})\s+(.+)$/);
+    if (heading) {
+      flushList();
+      const level = Math.min(heading[1].length + 1, 3);
+      blocks.push(`<h${level}>${inlineMarkdown(heading[2])}</h${level}>`);
+      continue;
+    }
+    const bullet = line.match(/^(?:[-*+])\s+(.+)$/);
+    if (bullet) {
+      if (listType !== "ul") flushList();
+      listType = "ul";
+      listItems.push(`<li>${inlineMarkdown(bullet[1])}</li>`);
+      continue;
+    }
+    const numbered = line.match(/^\d+[\).:-]?\s+(.+)$/);
+    if (numbered) {
+      if (listType !== "ol") flushList();
+      listType = "ol";
+      listItems.push(`<li>${inlineMarkdown(numbered[1])}</li>`);
+      continue;
+    }
+    flushList();
+    blocks.push(`<p>${inlineMarkdown(line)}</p>`);
+  }
+  flushList();
+  return blocks.join("") || "<p>-</p>";
+}
+
+function majorFallbackProfile(major) {
+  return [
+    "### Fokus dan Tujuan Kompetensi",
+    major.description || "-",
+    "",
+    "### Kompetensi Pembelajaran",
+    major.competencies || "-",
+    "",
+    "### Prospek Kerja",
+    major.careerProspects || "-",
+    "",
+    "### Fasilitas Praktik",
+    major.practiceFacilities || "-",
+    "",
+    "### Guru Produktif",
+    major.productiveTeachers || "-",
+    "",
+    "### Prestasi Jurusan",
+    major.achievements || "-"
+  ].join("\n");
+}
+
+function majorsTabbedSections(data = {}) {
+  const categories = [
+    { key: "tkb", tabId: "major-tab-tkb", panelId: "major-panel-tkb", label: "Teknologi Konstruksi dan Bangunan", short: "Bidang 1", accentClass: "teacher-tab-head", accent: "#2f9a66" },
+    { key: "tmr", tabId: "major-tab-tmr", panelId: "major-panel-tmr", label: "Teknologi Manufaktur dan Rekayasa", short: "Bidang 2", accentClass: "teacher-tab-waka", accent: "#22a06b" },
+    { key: "ti", tabId: "major-tab-ti", panelId: "major-panel-ti", label: "Teknologi Informasi", short: "Bidang 3", accentClass: "teacher-tab-k3", accent: "#4b6bff" },
+    { key: "bm", tabId: "major-tab-bm", panelId: "major-panel-bm", label: "Bisnis dan Manajemen", short: "Bidang 4", accentClass: "teacher-tab-guru", accent: "#8b5cf6" },
+    { key: "sek", tabId: "major-tab-sek", panelId: "major-panel-sek", label: "Seni dan Ekonomi Kreatif", short: "Bidang 5", accentClass: "teacher-tab-tendik", accent: "#e758a2" }
+  ];
+  const defaultCategory = categories[0];
+  const grouped = Object.fromEntries(categories.map((cat) => [cat.key, (data.majors || []).filter((item) => majorFieldCategory(item) === cat.key)]));
+  return `<section class="teacher-tabs-section majors-tabs-section">
     <div class="container">
-      ${showHeader ? `<div class="majors-head">
-        <p>PROGRAM KEAHLIAN</p>
-        <h2>Jurusan</h2>
-        <span>Sub Jurusan</span>
-      </div>` : ""}
-      <div class="majors-grid">${items.map(majorCard).join("")}</div>
-      ${withMoreButton ? '<div class="majors-more-wrap"><a class="majors-more" href="/program-keahlian">LIHAT PROGRAM KEAHLIAN LAINNYA &#8594;</a></div>' : ""}
+      <div class="teacher-tabs-shell">
+        ${categories.map((cat) => `<input class="teacher-tab-input" type="radio" name="major-tab" id="${cat.tabId}" ${defaultCategory.key === cat.key ? "checked" : ""}>`).join("")}
+        <div class="teacher-tabs-nav majors-tabs-nav" role="tablist" aria-label="Bidang keahlian">
+          ${categories.map((cat) => `
+            <label class="teacher-tab-button ${cat.accentClass}" for="${cat.tabId}" role="tab" aria-controls="${cat.panelId}">
+              <span class="teacher-tab-copy">
+                <span>${esc(cat.label)}</span>
+                <small>${esc(cat.short)}</small>
+              </span>
+              <b>${(grouped[cat.key] || []).length}</b>
+            </label>
+          `).join("")}
+        </div>
+        <div class="teacher-tabs-panels">
+          ${categories.map((cat) => `
+            <div class="teacher-tab-panel major-field-panel" id="${cat.panelId}" data-panel="${cat.key}" style="--major-accent:${cat.accent};">
+              <div class="major-field-grid">
+                ${(grouped[cat.key] || []).map((item) => majorCard(item)).join("") || '<p class="empty">Belum ada profil konsentrasi keahlian pada bidang ini.</p>'}
+              </div>
+            </div>
+          `).join("")}
+        </div>
+      </div>
     </div>
   </section>`;
+}
+
+function majorFieldCategory(item) {
+  const category = String(item?.fieldCategory || "").trim().toLowerCase();
+  return ["tkb", "tmr", "ti", "bm", "sek"].includes(category) ? category : "";
+}
+
+function fieldCategoryLabel(value) {
+  const map = {
+    tkb: "Teknologi Konstruksi dan Bangunan",
+    tmr: "Teknologi Manufaktur dan Rekayasa",
+    ti: "Teknologi Informasi",
+    bm: "Bisnis dan Manajemen",
+    sek: "Seni dan Ekonomi Kreatif"
+  };
+  return map[String(value || "").trim().toLowerCase()] || "-";
 }
 
 function quickAccessSection(settings = {}) {
@@ -1553,7 +1668,7 @@ async function collectionPage(apiPath, title, subtitle, renderer) {
 async function majorsPage() {
   const data = await loadHome();
   data.majors = await api("/api/majors");
-  return layout(`<main>${pageHero("Program Keahlian", "Pilihan jurusan dan kompetensi yang disiapkan untuk masa depan siswa.")}${majorsShowcase(data, false, false)}</main>`, data);
+  return layout(`<main>${pageHero("Program Keahlian", "Jurusan")}${majorsTabbedSections(data)}</main>`, data);
 }
 
 async function teachersPage() {
@@ -1570,31 +1685,22 @@ async function majorDetailPage(slug) {
     return layout(`<main>${pageHero("Program Keahlian", "Jurusan tidak ditemukan.")}<section><div class="container"><p class="empty">Data jurusan tidak ditemukan.</p><a class="btn" href="/program-keahlian">Kembali ke Program Keahlian</a></div></section></main>`, data);
   }
   const image = major.imageUrl || makeMajorIllustration(major.name, Number(major.id || 0));
+  const profileMarkdown = String(major.profileMarkdown || "").trim() || majorFallbackProfile(major);
   return layout(`
     <main>
-      ${pageHero(major.name, "Detail kompetensi, fasilitas, guru produktif, dan prospek kerja jurusan.")}
+      ${pageHero(major.name, "Profil konsentrasi keahlian, kompetensi, fasilitas praktik, dan prospek kerja.")}
       <section>
-        <div class="container split">
-          <div>
-            <h2>Deskripsi Jurusan</h2>
-            <p class="prose">${esc(major.description || "-")}</p>
-            <h2>Kompetensi</h2>
-            <p class="prose">${esc(major.competencies || "-")}</p>
-            <h2>Prospek Kerja</h2>
-            <p class="prose">${esc(major.careerProspects || "-")}</p>
-            <h2>Fasilitas Praktik</h2>
-            <p class="prose">${esc(major.practiceFacilities || "-")}</p>
-            <h2>Guru Produktif</h2>
-            <p class="prose">${esc(major.productiveTeachers || "-")}</p>
-            <h2>Prestasi Jurusan</h2>
-            <p class="prose">${esc(major.achievements || "-")}</p>
-            <div class="actions">
-              <a class="btn" href="/program-keahlian">Kembali ke Program Keahlian</a>
-              <a class="btn secondary" href="/kontak">Hubungi Sekolah</a>
-            </div>
-          </div>
-          <div class="card">
-            <img src="${esc(image)}" alt="${esc(major.name)}" style="width:100%;border-radius:8px;object-fit:cover;aspect-ratio:16/11;">
+        <div class="container major-detail-stack">
+          <article class="card major-detail-image-card">
+            <img src="${esc(image)}" alt="${esc(major.name)}" class="major-detail-image">
+          </article>
+          <article class="card major-profile-card">
+            <span class="major-profile-tag">${esc(fieldCategoryLabel(major.fieldCategory))}</span>
+            <div class="major-profile-markdown">${renderMarkdownBlock(profileMarkdown)}</div>
+          </article>
+          <div class="actions major-detail-actions">
+            <a class="btn" href="/program-keahlian">Kembali ke Program Keahlian</a>
+            <a class="btn secondary" href="/kontak">Hubungi Sekolah</a>
           </div>
         </div>
       </section>

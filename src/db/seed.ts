@@ -222,31 +222,168 @@ export async function seed() {
     }).where(eq(schoolProfile.id, profile.id));
   }
 
-  if ((await db.select().from(majors)).length === 0) {
-    await db.insert(majors).values([
-      {
-        name: "Rekayasa Perangkat Lunak",
-        slug: "rekayasa-perangkat-lunak",
-        description: "Program keahlian yang mempelajari pengembangan aplikasi web, mobile, basis data, dan integrasi sistem.",
-        competencies: "Pemrograman web, basis data, UI/UX, API, testing, deployment.",
-        careerProspects: "Programmer, web developer, QA tester, UI designer, teknisi IT.",
-        practiceFacilities: "Laboratorium komputer, jaringan internet, server praktik, perangkat kolaborasi.",
-        productiveTeachers: "Tim guru produktif RPL",
-        achievements: "Finalis lomba aplikasi tingkat provinsi.",
-        isFeatured: true
-      },
-      {
-        name: "Teknik Komputer dan Jaringan",
-        slug: "teknik-komputer-dan-jaringan",
-        description: "Program keahlian untuk merancang, memasang, dan mengelola jaringan komputer serta layanan infrastruktur.",
-        competencies: "Administrasi jaringan, keamanan jaringan, server, cloud dasar, troubleshooting.",
-        careerProspects: "Network administrator, teknisi jaringan, IT support, system administrator.",
-        practiceFacilities: "Lab jaringan, router, switch, perangkat server, alat fiber optik.",
-        productiveTeachers: "Tim guru produktif TKJ",
-        achievements: "Juara lomba konfigurasi jaringan kota.",
-        isFeatured: true
-      }
-    ]);
+  const majorFixtures = [
+    {
+      name: "Desain Pemodelan dan Informasi Bangunan",
+      slug: "desain-pemodelan-dan-informasi-bangunan",
+      fieldCategory: "tkb",
+      profileMarkdown: `Karakteristik Konsentrasi Keahlian **Desain Pemodelan dan Informasi Bangunan (DPIB)** di SMK Negeri Pasirian:
+
+### 1. Fokus dan Tujuan Kompetensi
+DPIB merupakan bagian dari Bidang Keahlian **Teknologi Konstruksi dan Bangunan**. Program ini bertujuan membekali peserta didik dengan pengetahuan dan keterampilan untuk menjadi profesional di bidang arsitektur dan teknik sipil. Fokus utamanya meliputi:
+* **Perencanaan dan Desain:** Membuat desain pemodelan 2D dan 3D untuk struktur, arsitektur, interior, dan eksterior gedung.
+* **Teknologi Digital:** Penggunaan perangkat lunak seperti **AutoCAD, SketchUp**, dan teknologi **Building Information Modelling (BIM)** dalam penggambaran konstruksi.
+* **Estimasi Biaya:** Kemampuan menghitung Rencana Anggaran Biaya (RAB) atau *real cost estimate* pembangunan.
+* **Pekerjaan Lapangan:** Meliputi pengukuran tanah (menggunakan alat sipat datar/leveling dan theodolit) serta pengawasan konstruksi.
+
+### 2. Karakteristik Pembelajaran
+Pembelajaran di DPIB dirancang untuk menumbuhkan motivasi, visi, imajinasi, dan kreativitas melalui berbagai metode:
+* **Pembelajaran Berbasis Proyek:** Menerapkan studi kasus dan simulasi dunia kerja untuk memberikan pengalaman praktis.
+* **Kombinasi Lingkungan Belajar:** Siswa belajar di dalam kelas, laboratorium, maupun langsung di dunia nyata (lapangan).
+* **Interaksi Industri:** Melibatkan praktisi industri dan guru tamu, kunjungan ke industri, serta kegiatan Praktik Kerja Lapangan (PKL).
+
+### 3. Fasilitas Praktik
+Untuk mendukung pembelajaran standar industri, tersedia berbagai fasilitas pendukung:
+* **Laboratorium Komputer:** Digunakan untuk praktik menggambar dengan perangkat lunak (AutoCAD/BIM).
+* **Ruang Gambar Manual:** Untuk penguasaan dasar-dasar gambar teknik menggunakan mesin gambar.
+* **Laboratorium Alat Bangunan:** Berisi peralatan untuk ilmu ukur tanah dan alat bangunan lainnya.
+
+### 4. Profil Lulusan dan Prospek Kerja
+Lulusan DPIB dipersiapkan untuk menjadi tenaga profesional yang mandiri dan berkarakter industri. Ruang lingkup pekerjaannya meliputi:
+* **Drafter (Juru Gambar):** Ahli menggambar sipil maupun arsitektur di kementerian, konsultan, atau kontraktor.
+* **Estimator:** Ahli menghitung biaya pembangunan gedung.
+* **Supervisor/Pengawas Lapangan:** Mengawasi jalannya proyek konstruksi.
+* **Juru Ukur Tanah:** Bekerja di departemen pekerjaan umum atau perusahaan pengembang.
+* **Wirausahawan:** Mendirikan jasa perencanaan bangunan secara mandiri.
+* **Studi Lanjut:** Melanjutkan ke perguruan tinggi di jurusan Teknik Sipil, Arsitektur, atau Desain Interior.
+
+### 5. Kerja Sama Industri
+DPIB telah menjalin kemitraan dengan berbagai instansi dan perusahaan (DUDIKA) seperti **Dinas Perumahan dan Kawasan Permukiman Lumajang**, **PT. Holcim**, **PT. Adhi Karya**, dan berbagai konsultan bangunan lainnya untuk sinkronisasi kurikulum, magang guru, serta PKL siswa.`,
+      description: "Mempelajari pemodelan bangunan, gambar teknik, dan representasi informasi konstruksi secara digital.",
+      competencies: "Gambar bangunan, pemodelan 3D, estimasi dasar, dokumentasi proyek, presentasi rancangan.",
+      careerProspects: "Drafter, estimator, asisten perencana, teknisi gambar bangunan.",
+      practiceFacilities: "Lab gambar, perangkat CAD, referensi desain, ruang proyek.",
+      productiveTeachers: "Guru produktif bidang bangunan",
+      achievements: "Juara desain gambar bangunan tingkat kabupaten.",
+      isFeatured: true
+    },
+    {
+      name: "Teknik Furnitur",
+      slug: "teknik-furnitur",
+      fieldCategory: "tkb",
+      description: "Fokus pada perancangan, pembuatan, dan finishing produk furnitur berbasis kayu dan bahan alternatif.",
+      competencies: "Desain furnitur, teknik sambungan, finishing, pengukuran, produksi workshop.",
+      careerProspects: "Teknisi furnitur, operator workshop kayu, wirausaha mebel.",
+      practiceFacilities: "Workshop kayu, mesin pertukangan, alat finishing, ruang praktik produk.",
+      productiveTeachers: "Guru produktif furnitur",
+      achievements: "Karya furnitur unggulan pada pameran sekolah.",
+      isFeatured: true
+    },
+    {
+      name: "Teknik Kendaraan Ringan",
+      slug: "teknik-kendaraan-ringan",
+      fieldCategory: "tmr",
+      description: "Mempelajari servis, perawatan, dan diagnosis dasar kendaraan ringan berbasis praktik industri.",
+      competencies: "Mesin otomotif, kelistrikan dasar, servis berkala, diagnosis, keselamatan kerja.",
+      careerProspects: "Mekanik bengkel, teknisi servis, quality control otomotif.",
+      practiceFacilities: "Bengkel otomotif, alat ukur, unit praktik kendaraan ringan.",
+      productiveTeachers: "Guru produktif otomotif",
+      achievements: "Finalis lomba keterampilan otomotif tingkat daerah.",
+      isFeatured: true
+    },
+    {
+      name: "Rekayasa Perangkat Lunak",
+      slug: "rekayasa-perangkat-lunak",
+      fieldCategory: "ti",
+      description: "Program keahlian yang mempelajari pengembangan aplikasi web, mobile, basis data, dan integrasi sistem.",
+      competencies: "Pemrograman web, basis data, UI/UX, API, testing, deployment.",
+      careerProspects: "Programmer, web developer, QA tester, UI designer, teknisi IT.",
+      practiceFacilities: "Laboratorium komputer, jaringan internet, server praktik, perangkat kolaborasi.",
+      productiveTeachers: "Tim guru produktif RPL",
+      achievements: "Finalis lomba aplikasi tingkat provinsi.",
+      isFeatured: true
+    },
+    {
+      name: "Teknik Komputer dan Jaringan",
+      slug: "teknik-komputer-dan-jaringan",
+      fieldCategory: "ti",
+      description: "Program keahlian untuk merancang, memasang, dan mengelola jaringan komputer serta layanan infrastruktur.",
+      competencies: "Administrasi jaringan, keamanan jaringan, server, cloud dasar, troubleshooting.",
+      careerProspects: "Network administrator, teknisi jaringan, IT support, system administrator.",
+      practiceFacilities: "Lab jaringan, router, switch, perangkat server, alat fiber optik.",
+      productiveTeachers: "Tim guru produktif TKJ",
+      achievements: "Juara lomba konfigurasi jaringan kota.",
+      isFeatured: true
+    },
+    {
+      name: "Bisnis Digital",
+      slug: "bisnis-digital",
+      fieldCategory: "bm",
+      description: "Mengembangkan kompetensi pemasaran digital, konten, analisis pelanggan, dan aktivitas bisnis daring.",
+      competencies: "Digital marketing, marketplace, konten media sosial, analitik dasar, layanan pelanggan.",
+      careerProspects: "Digital marketer, admin marketplace, social media specialist, pebisnis online.",
+      practiceFacilities: "Lab komputer, studio konten, perangkat produksi digital.",
+      productiveTeachers: "Guru produktif bisnis digital",
+      achievements: "Produk digital siswa tampil di expo kewirausahaan.",
+      isFeatured: true
+    },
+    {
+      name: "Akuntansi",
+      slug: "akuntansi",
+      fieldCategory: "bm",
+      description: "Mempelajari pencatatan transaksi, laporan keuangan, dan administrasi akuntansi berbasis teknologi.",
+      competencies: "Jurnal, buku besar, laporan keuangan, aplikasi akuntansi, administrasi pajak dasar.",
+      careerProspects: "Staf akuntansi, admin keuangan, kasir, asisten pembukuan.",
+      practiceFacilities: "Lab akuntansi, komputer administrasi, perangkat lunak keuangan.",
+      productiveTeachers: "Guru produktif akuntansi",
+      achievements: "Juara olimpiade akuntansi tingkat sekolah.",
+      isFeatured: true
+    },
+    {
+      name: "Desain Komunikasi Visual",
+      slug: "desain-komunikasi-visual",
+      fieldCategory: "sek",
+      description: "Mempelajari desain grafis, ilustrasi, layout, dan komunikasi visual untuk media cetak maupun digital.",
+      competencies: "Desain grafis, tipografi, ilustrasi, layout, branding, presentasi visual.",
+      careerProspects: "Desainer grafis, ilustrator, layout artist, content designer.",
+      practiceFacilities: "Lab desain, tablet grafis, perangkat kreatif, studio visual.",
+      productiveTeachers: "Guru produktif DKV",
+      achievements: "Poster siswa menjuarai lomba desain visual.",
+      isFeatured: true
+    },
+    {
+      name: "Kriya Kreatif Kayu dan Rotan",
+      slug: "kriya-kreatif-kayu-dan-rotan",
+      fieldCategory: "sek",
+      description: "Konsentrasi kriya yang fokus pada produk kreatif berbahan kayu dan rotan dengan sentuhan desain.",
+      competencies: "Teknik kriya, pengolahan bahan, finishing, desain produk, presentasi karya.",
+      careerProspects: "Pengrajin kriya, desainer produk, wirausaha kriya.",
+      practiceFacilities: "Workshop kriya, alat pertukangan, bahan kayu dan rotan.",
+      productiveTeachers: "Guru produktif kriya",
+      achievements: "Karya kriya dipamerkan pada event daerah.",
+      isFeatured: true
+    },
+    {
+      name: "Produksi dan Siaran Program Televisi",
+      slug: "produksi-dan-siaran-program-televisi",
+      fieldCategory: "sek",
+      description: "Mempelajari produksi konten video, pengambilan gambar, penyuntingan, dan siaran program televisi.",
+      competencies: "Produksi video, penyiaran, camera handling, editing, naskah siaran.",
+      careerProspects: "Videografer, editor, kru produksi, penyiar siaran, content creator.",
+      practiceFacilities: "Studio video, kamera, lighting, perangkat editing, ruang produksi.",
+      productiveTeachers: "Guru produktif broadcasting",
+      achievements: "Karya video siswa tampil di festival pelajar.",
+      isFeatured: true
+    }
+  ];
+
+  for (const fixture of majorFixtures) {
+    const existingMajor = await db.select().from(majors).where(eq(majors.slug, fixture.slug)).get();
+    if (existingMajor) {
+      await db.update(majors).set(fixture).where(eq(majors.id, existingMajor.id));
+    } else {
+      await db.insert(majors).values(fixture);
+    }
   }
 
   if ((await db.select().from(teachers)).length === 0) {

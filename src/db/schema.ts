@@ -53,6 +53,8 @@ export const majors = sqliteTable("majors", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   name: text("name").notNull(),
   slug: text("slug").notNull().unique(),
+  fieldCategory: text("field_category").notNull().default(""),
+  profileMarkdown: text("profile_markdown").notNull().default(""),
   description: text("description").notNull().default(""),
   competencies: text("competencies").notNull().default(""),
   careerProspects: text("career_prospects").notNull().default(""),
