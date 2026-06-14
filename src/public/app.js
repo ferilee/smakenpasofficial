@@ -265,7 +265,7 @@ function majorCard(item) {
   const detailUrl = `/program-keahlian/${encodeURIComponent(item.slug || item.id || "")}`;
   return `<a class="major-card major-card-link" href="${detailUrl}">
     <div class="major-image-wrap">
-      <img class="major-image" src="${esc(image)}" alt="${esc(item.name)}">
+      <img class="major-image major-cover-image" src="${esc(image)}" alt="${esc(item.name)}">
     </div>
     <div class="major-body">
       <h3>${esc(item.name)}</h3>
@@ -1753,7 +1753,7 @@ async function majorDetailPage(slug) {
       <section>
         <div class="container major-detail-stack">
           <article class="card major-detail-image-card">
-            <img src="${esc(image)}" alt="${esc(major.name)}" class="major-detail-image">
+            <img src="${esc(image)}" alt="${esc(major.name)}" class="major-detail-image major-cover-image">
           </article>
           <article class="card major-profile-card">
             <span class="major-profile-tag">${esc(fieldCategoryLabel(major.fieldCategory))}</span>

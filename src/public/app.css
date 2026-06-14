@@ -1146,9 +1146,11 @@ section { padding: 58px 0; }
 .major-detail-image {
   width: 100%;
   display: block;
-  aspect-ratio: 16 / 9;
   object-fit: cover;
   border-radius: 18px;
+}
+.major-cover-image {
+  aspect-ratio: 4 / 3;
 }
 .major-detail-actions {
   justify-content: flex-start;
