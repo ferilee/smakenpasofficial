@@ -227,6 +227,8 @@ export async function seed() {
       name: "Desain Pemodelan dan Informasi Bangunan",
       slug: "desain-pemodelan-dan-informasi-bangunan",
       fieldCategory: "tkb",
+      profileCtaLabel: "Lihat Album Foto/Video",
+      profileCtaUrl: "",
       profileMarkdown: `Karakteristik Konsentrasi Keahlian **Desain Pemodelan dan Informasi Bangunan (DPIB)** di SMK Negeri Pasirian:
 
 ### 1. Fokus dan Tujuan Kompetensi
@@ -271,6 +273,38 @@ DPIB telah menjalin kemitraan dengan berbagai instansi dan perusahaan (DUDIKA) s
       name: "Teknik Furnitur",
       slug: "teknik-furnitur",
       fieldCategory: "tkb",
+      profileCtaLabel: "Lihat Album Foto/Video",
+      profileCtaUrl: "",
+      profileMarkdown: `Karakteristik Konsentrasi Keahlian **Desain dan Teknik Furnitur (DTF)** di SMK Negeri Pasirian:
+
+### 1. Identitas dan Fokus Program
+* DTF merupakan konsentrasi keahlian di bawah Program Keahlian Teknik Furnitur yang termasuk dalam Bidang Keahlian **Teknologi Konstruksi dan Bangunan**.
+* Masa pembelajaran ditempuh selama **3 tahun**.
+* Fokus keilmuan bergerak di bidang **desain interior dan furnitur** yang menggabungkan seni terapan, pengetahuan bahan, serta teknik manufaktur.
+
+### 2. Tahapan Kompetensi
+Pembelajaran dibagi menjadi dua fase utama:
+* **Fase E (Kelas X):** dasar-dasar pekerjaan furnitur, gambar teknik manual dan digital, karakteristik kayu, penggunaan alat dan mesin tangan, serta penerapan K3LH.
+* **Fase F (Kelas XI & XII):** gambar kerja furnitur 2D/3D (CAD), pembahanan dengan mesin statis dan **CNC**, teknik finishing, serta penghitungan **Estimasi Biaya (RAB)**.
+
+### 3. Metode dan Lingkungan Belajar
+* Belajar dilakukan di ruang kelas, bengkel (*workshop*), dan laboratorium komputer.
+* Siswa mengerjakan proyek sederhana, kunjungan industri, pencarian informasi digital, serta interaksi langsung dengan praktisi industri atau alumni.
+* Selain *hard skills*, siswa dilatih berpikir kritis, kolaborasi, komunikasi, dan literasi digital.
+
+### 4. Profil Lulusan dan Prospek Kerja
+Lulusan DTF dipersiapkan untuk berkontribusi di pasar kerja maupun wirausaha. Ruang lingkupnya meliputi:
+* **Desain Interior:** perencana tata letak ruang dalam bangunan.
+* **Pelaksana Desain Interior:** pembuat purwarupa (*prototipe*) desain interior.
+* **Industri/Desain Furnitur:** perancang dan pembuat produk artistik berbahan kayu atau material baru.
+* **Wirausaha:** mengelola bisnis mandiri di bidang teknologi konstruksi dan bangunan.
+
+### 5. Kerja Sama Industri (DUDIKA)
+DTF bermitra aktif melalui **PKL**, **Magang Guru**, **Guru Tamu**, dan **Sinkronisasi Kurikulum**. Mitra industri antara lain:
+* P.T. Woodone Integra Indonesia
+* P.T. Mustikatama Group
+* P.T. Tanjung Rimba Perkasa
+* Lumajang Furnitur dan berbagai bengkel mebel lainnya.`,
       description: "Fokus pada perancangan, pembuatan, dan finishing produk furnitur berbasis kayu dan bahan alternatif.",
       competencies: "Desain furnitur, teknik sambungan, finishing, pengukuran, produksi workshop.",
       careerProspects: "Teknisi furnitur, operator workshop kayu, wirausaha mebel.",
@@ -283,6 +317,34 @@ DPIB telah menjalin kemitraan dengan berbagai instansi dan perusahaan (DUDIKA) s
       name: "Teknik Kendaraan Ringan",
       slug: "teknik-kendaraan-ringan",
       fieldCategory: "tmr",
+      profileCtaLabel: "Lihat Album Foto/Video",
+      profileCtaUrl: "",
+      profileMarkdown: `Karakteristik Konsentrasi Keahlian **Teknik Kendaraan Ringan (TKR)** di SMK Negeri Pasirian:
+
+### 1. Fokus dan Ruang Lingkup
+Teknik Kendaraan Ringan merupakan bagian dari Program Keahlian **Teknik Otomotif** yang menekankan pada penguasaan jasa perawatan dan perbaikan kendaraan ringan. Peserta didik dibekali keterampilan untuk melakukan pemeliharaan komponen mobil sesuai standar.
+
+### 2. Kompetensi Utama
+Kurikulum dirancang untuk mencetak tenaga profesional melalui dua tahap utama:
+* **Dasar-Dasar Teknik Otomotif (Fase E):** wawasan dunia otomotif, K3LH, gambar teknik, penggunaan peralatan bengkel, dasar kelistrikan, serta dasar sistem hidrolik dan pneumatik.
+* **Konsentrasi Keahlian (Fase F):** konversi energi, manajemen bengkel, **perawatan berkala (1.000 km hingga kelipatannya)**, serta perbaikan/overhaul pada sistem engine, power train, sasis, elektrikal, dan AC kendaraan.
+
+### 3. Fasilitas dan Tenaga Pendidik
+* **Tenaga Pendidik:** 5 orang guru dengan kualifikasi minimal S1/D4 di bidang Teknik Otomotif.
+* **Sarana Prasarana:** ruang kelas teori, ruang guru produktif, dan **Bengkel Otomotif** sebagai area praktik utama.
+* **Lingkungan Belajar:** pembelajaran dilakukan di kelas, bengkel, melalui projek sederhana, serta pencarian informasi melalui media digital.
+
+### 4. Profil Lulusan dan Prospek Kerja
+Lulusan dipersiapkan untuk menjadi individu mandiri, berkarakter Pancasila, dan sesuai tuntutan dunia kerja. Prospeknya meliputi:
+* Perakit dan teknisi perawatan pada bagian elektrikal, mesin, sasis, dan power train.
+* Okupasi spesifik seperti *mechanical basic*, *mechanical trainer*, *mechanical junior*, *maintenance technician*, *welder*, hingga *machine engineer*.
+* Wirausaha di bidang teknologi manufaktur dan rekayasa.
+
+### 5. Kerja Sama Industri (DUDIKA)
+TKR SMK Negeri Pasirian menjalin kemitraan aktif untuk menjaga relevansi kurikulum melalui program magang guru, guru tamu, PKL, dan rekrutmen. Mitra industrinya antara lain:
+* **Bengkel SUN MOTOR** dan **PT Sun Star Motor**
+* **Daihatsu Lumajang** dan **BMW Astra Malang**
+* **BLKI Singosari** serta berbagai bengkel spesialis lainnya seperti Perfecta Motor dan Sinar Asia Motor.`,
       description: "Mempelajari servis, perawatan, dan diagnosis dasar kendaraan ringan berbasis praktik industri.",
       competencies: "Mesin otomotif, kelistrikan dasar, servis berkala, diagnosis, keselamatan kerja.",
       careerProspects: "Mekanik bengkel, teknisi servis, quality control otomotif.",
@@ -295,6 +357,38 @@ DPIB telah menjalin kemitraan dengan berbagai instansi dan perusahaan (DUDIKA) s
       name: "Rekayasa Perangkat Lunak",
       slug: "rekayasa-perangkat-lunak",
       fieldCategory: "ti",
+      profileCtaLabel: "Lihat Album Foto/Video",
+      profileCtaUrl: "",
+      profileMarkdown: `Karakteristik Konsentrasi Keahlian **Rekayasa Perangkat Lunak (RPL)** di SMK Negeri Pasirian:
+
+### 1. Fokus dan Ruang Lingkup
+Rekayasa Perangkat Lunak merupakan konsentrasi keahlian di bawah Program Keahlian **Pengembangan Perangkat Lunak dan Gim** yang termasuk dalam Bidang Keahlian **Teknologi Informasi**. Program ini mempelajari pengembangan perangkat lunak, pemeliharaan, manajemen organisasi pengembangan, serta manajemen kualitas perangkat lunak.
+
+### 2. Kompetensi Utama
+Pembelajaran dibekali melalui dua fase utama:
+* **Fase E (Dasar):** wawasan dunia kerja, *cloud computing*, *technopreneurship*, teknologi jaringan komputer, pemrograman terstruktur, dan dasar PBO.
+* **Fase F (Lanjutan):** Basis Data (SQL), pemrograman berbasis teks, grafis dan multimedia (GUI), pemrograman web statis dan dinamis, serta pengembangan aplikasi perangkat bergerak (*Mobile Programming*).
+
+### 3. Perangkat Lunak dan Fasilitas Praktik
+* **NetBeans IDE** dan **Visual Studio Code** untuk pengembangan kode.
+* **Android Studio** untuk aplikasi *mobile*.
+* **Dev-C++, Adobe Dreamweaver,** dan **Edraw Max** untuk mendukung kebutuhan desain dan pemrograman.
+* Praktik dilakukan di laboratorium komputer dan melalui proyek sederhana.
+
+### 4. Metode Pembelajaran dan Keterampilan Abad ke-21
+* Berpikir kritis, kolaborasi tim, komunikasi lisan/tulisan, dan literasi digital.
+* Kunjungan industri, interaksi dengan praktisi/alumni, serta guru tamu.
+* Penanaman nilai Pancasila, integritas, dan etos kerja.
+
+### 5. Profil Lulusan dan Prospek Kerja
+* **Software Developer/Engineer**
+* **Web & Mobile Developer**
+* **Database Administrator & System Analyst**
+* **IT Consultant & Game Developer**
+* **Techno-Preneur**
+
+### 6. Kerja Sama Industri (DUDIKA)
+Kemitraan dengan perusahaan teknologi untuk PKL, magang guru, dan sinkronisasi kurikulum, seperti **Inatech Malang, Mascitra Jember, Luisoft Lumajang**, **Perumda Tirta Mahameru**, **Badan Pertanahan Lumajang**, **Dispendukcapil Lumajang**, dan kantor kecamatan/desa Pasirian.`,
       description: "Program keahlian yang mempelajari pengembangan aplikasi web, mobile, basis data, dan integrasi sistem.",
       competencies: "Pemrograman web, basis data, UI/UX, API, testing, deployment.",
       careerProspects: "Programmer, web developer, QA tester, UI designer, teknisi IT.",
@@ -307,6 +401,8 @@ DPIB telah menjalin kemitraan dengan berbagai instansi dan perusahaan (DUDIKA) s
       name: "Teknik Komputer dan Jaringan",
       slug: "teknik-komputer-dan-jaringan",
       fieldCategory: "ti",
+      profileCtaLabel: "Lihat Album Foto/Video",
+      profileCtaUrl: "",
       description: "Program keahlian untuk merancang, memasang, dan mengelola jaringan komputer serta layanan infrastruktur.",
       competencies: "Administrasi jaringan, keamanan jaringan, server, cloud dasar, troubleshooting.",
       careerProspects: "Network administrator, teknisi jaringan, IT support, system administrator.",
@@ -319,6 +415,34 @@ DPIB telah menjalin kemitraan dengan berbagai instansi dan perusahaan (DUDIKA) s
       name: "Bisnis Digital",
       slug: "bisnis-digital",
       fieldCategory: "bm",
+      profileCtaLabel: "Lihat Album Foto/Video",
+      profileCtaUrl: "",
+      profileMarkdown: `Karakteristik Konsentrasi Keahlian **Bisnis Digital** di SMK Negeri Pasirian:
+
+### 1. Fokus dan Definisi
+Bisnis Digital mempelajari usaha penjualan produk/jasa secara **daring (online)** melalui situs web maupun aplikasi. Fokus utamanya membekali siswa menjadi pemasar yang mampu bekerja secara konvensional dan digital.
+
+### 2. Tahapan dan Capaian Pembelajaran
+* **Fase E (Kelas X):** dasar perkembangan produksi online, wawasan dunia kerja pemasaran, K3LH, budaya kerja, dan ilmu ekonomi dasar.
+* **Fase F (Kelas XI & XII):** *Marketing*, *Perencanaan Bisnis*, *Komunikasi Bisnis*, serta operasional digital seperti **Digital Branding**, **Digital Onboarding**, **Digital Marketing (SEO/SEM)**, dan **Digital Operation**.
+
+### 3. Fasilitas dan Tenaga Pendidik
+* Ruang kelas teori, ruang guru produktif, **Laboratorium Komputer**, dan ruang praktik digital.
+* Memiliki 4 orang guru produktif berkualifikasi minimal S1/D4 dengan latar magang industri dan pelatihan kompetensi.
+
+### 4. Metode Pembelajaran
+* Berpusat pada siswa dan aktif mencari informasi melalui media digital.
+* Berbasis proyek sederhana dan simulasi dunia kerja.
+* Belajar dari internet dan lingkungan masyarakat.
+
+### 5. Profil Lulusan dan Prospek Kerja
+* *Affiliator, Content Creator, Influencer, Konsultan Bisnis Digital*
+* Manajer e-commerce, spesialis media sosial, dan *Digital Marketer*
+* Kasir, *merchandiser*, *public relation*, pramuniaga, atau supervisor
+* Staf perbankan, asuransi, administrasi keuangan, dan wirausaha mandiri
+
+### 6. Kerja Sama Industri (DUDIKA)
+PKL, Magang Guru, Sinkronisasi Kurikulum, dan Guru Tamu dengan mitra seperti **Matahari Lippo Plaza Jember, Graha Mulia, Toko Rezeki Baru, Sinar Terang, Bank Jatim Pasirian**, dan Kantor Kecamatan Pasirian.`,
       description: "Mengembangkan kompetensi pemasaran digital, konten, analisis pelanggan, dan aktivitas bisnis daring.",
       competencies: "Digital marketing, marketplace, konten media sosial, analitik dasar, layanan pelanggan.",
       careerProspects: "Digital marketer, admin marketplace, social media specialist, pebisnis online.",
@@ -331,6 +455,31 @@ DPIB telah menjalin kemitraan dengan berbagai instansi dan perusahaan (DUDIKA) s
       name: "Akuntansi",
       slug: "akuntansi",
       fieldCategory: "bm",
+      profileCtaLabel: "Lihat Album Foto/Video",
+      profileCtaUrl: "",
+      profileMarkdown: `Karakteristik Konsentrasi Keahlian **Akuntansi** di SMK Negeri Pasirian:
+
+### 1. Fokus dan Tujuan Utama
+Akuntansi merupakan konsentrasi keahlian dalam program **Akuntansi dan Keuangan Lembaga** di bawah bidang **Bisnis dan Manajemen**. Fokusnya membekali siswa menjadi **Teknisi Akuntansi Junior** dengan kemampuan pencatatan keuangan manual dan komputerisasi, perpajakan, serta kemandirian.
+
+### 2. Tahapan Kompetensi
+* **Fase E (Dasar-Dasar):** wawasan dunia kerja, perkembangan teknologi akuntansi, etika profesi, K3LH, budaya kerja 5R, dasar-dasar perbankan, dan spreadsheet.
+* **Fase F (Konsentrasi):** akuntansi perusahaan jasa/dagang/manufaktur, akuntansi lembaga, akuntansi keuangan & perpajakan, serta komputer akuntansi dan sistem *e-commerce*.
+
+### 3. Lingkungan dan Fasilitas Belajar
+* **Laboratorium Komputer Akuntansi**
+* **Laboratorium Bank Mini**
+* Laboratorium akuntansi perusahaan dagang dan ruang praktik akuntansi manual
+* Pendekatan interaktif, praktikum laboratorium, proyek sederhana, dan pencarian informasi digital
+
+### 4. Profil Lulusan dan Prospek Kerja
+* Teknisi Akuntansi Junior, *Account Officer*, *Credit Analyst*, *Budgeting Staff*
+* Kasir, **Teller Bank**, dan *Customer Service* Bank
+* Staf keuangan di kantor pajak, bea cukai, perbankan, asuransi, dan instansi pemerintah
+* Wirausaha mandiri atau melanjutkan ke perguruan tinggi bidang perpajakan dan akuntansi
+
+### 5. Kerja Sama Industri (DUDIKA)
+Program Akuntansi aktif bermitra dengan **PT Cipta Sarana Cendekia Malang**, **BAZNAS**, **Badan Pertanahan Nasional (BPN)**, **BAPENDA Provinsi Jawa Timur**, **Gramedia**, **Graha Mulia Toserba**, dan toko/apotek lokal lainnya.`,
       description: "Mempelajari pencatatan transaksi, laporan keuangan, dan administrasi akuntansi berbasis teknologi.",
       competencies: "Jurnal, buku besar, laporan keuangan, aplikasi akuntansi, administrasi pajak dasar.",
       careerProspects: "Staf akuntansi, admin keuangan, kasir, asisten pembukuan.",
@@ -343,6 +492,34 @@ DPIB telah menjalin kemitraan dengan berbagai instansi dan perusahaan (DUDIKA) s
       name: "Desain Komunikasi Visual",
       slug: "desain-komunikasi-visual",
       fieldCategory: "sek",
+      profileCtaLabel: "Lihat Album Foto/Video",
+      profileCtaUrl: "",
+      profileMarkdown: `Karakteristik Konsentrasi Keahlian **Desain Komunikasi Visual (DKV)** di SMK Negeri Pasirian:
+
+### 1. Fokus dan Definisi
+DKV berada di bawah Bidang Keahlian **Seni dan Ekonomi Kreatif** dan berfokus pada pengolahan **pesan visual secara informatif, komunikatif, dan efektif** agar tepat sasaran.
+
+### 2. Tahapan Kompetensi
+* **Fase E (Dasar-Dasar):** kreativitas, menggambar sketsa dan ilustrasi, tipografi, dasar fotografi, dan komputer grafis.
+* **Fase F (Lanjutan):** perangkat lunak desain profesional, *Design Brief* (*design thinking*), serta proses produksi desain dari praproduksi hingga pascaproduksi.
+
+### 3. Fasilitas dan Tenaga Pendidik
+* 4 hingga 6 guru dengan kualifikasi minimal S1/D4 di bidang DKV
+* Ruang kelas teori, ruang guru produktif, **laboratorium komputer**, serta **studio fotografi dan videografi**
+* Akses internet cepat dan perangkat teknologi yang memadai
+
+### 4. Metode Pembelajaran
+* Porsi *soft skills* sekitar 75% pada fase awal
+* Berpikir kritis, kolaborasi, komunikasi lisan/tulisan, dan literasi digital
+* Pembelajaran di kelas, studio, laboratorium, proyek sederhana, dan kunjungan industri
+
+### 5. Profil Lulusan dan Prospek Kerja
+* Desainer grafis, multimedia, dan produk
+* **Art Director**, fotografer, videografer, penyunting video, **animator**, ilustrator, komikus, dan penulis naskah
+* Biro iklan, percetakan, penerbitan, studio animasi, *production house*, *Content Creator*, dan technopreneur
+
+### 6. Kerja Sama Industri (DUDIKA)
+Mitra industri meliputi **Graono Digital Printing, Wimart SMKN Pasirian, Araya Digital Printing, Melon Digital Printing, Kreasi Langit Surabaya, El Aviv Production, Riski Foto, Motivace Store, California Advertising, Junkis Clothing**, dan studio foto lokal lainnya.`,
       description: "Mempelajari desain grafis, ilustrasi, layout, dan komunikasi visual untuk media cetak maupun digital.",
       competencies: "Desain grafis, tipografi, ilustrasi, layout, branding, presentasi visual.",
       careerProspects: "Desainer grafis, ilustrator, layout artist, content designer.",
@@ -355,6 +532,33 @@ DPIB telah menjalin kemitraan dengan berbagai instansi dan perusahaan (DUDIKA) s
       name: "Kriya Kreatif Kayu dan Rotan",
       slug: "kriya-kreatif-kayu-dan-rotan",
       fieldCategory: "sek",
+      profileCtaLabel: "Lihat Album Foto/Video",
+      profileCtaUrl: "",
+      profileMarkdown: `Karakteristik Konsentrasi Keahlian **Kriya Kreatif Kayu dan Rotan (KKKR)** di SMK Negeri Pasirian:
+
+### 1. Definisi dan Fokus Keahlian
+KKKR berfokus pada pembuatan produk kerajinan yang menggabungkan nilai fungsi dan estetika menggunakan bahan utama kayu dan rotan. Produk yang dihasilkan meliputi benda pakai, hiasan dinding, patung, topeng, gebyok, hingga furnitur artistik.
+
+### 2. Tahapan dan Capaian Pembelajaran
+* **Fase E (Dasar-Dasar):** manajemen industri kreatif, wawasan seni kriya, aplikasi gambar digital, marketplace online, budaya kerja, dan K3LH.
+* **Fase F (Konsentrasi):** kerja ukir, kerja bangku dan mesin, anyaman dan assembling, serta finishing manual maupun semprot.
+
+### 3. Karakteristik dan Metode Pembelajaran
+* Porsi dominan 75% untuk pengembangan karakter dan etos kerja
+* Belajar di kelas, studio/bengkel, dan kegiatan **Teaching Factory**
+* Pembelajaran berbasis proyek, kunjungan industri, dan interaksi dengan guru tamu serta alumni
+
+### 4. Fasilitas dan Tenaga Pendidik
+* 5 guru berkualifikasi minimal S1/D4 di bidang **Seni Rupa dan Kriya Seni**
+* Ruang kelas teori, ruang guru produktif, dan **Bengkel KKKR** dengan mesin perkayuan standar industri
+
+### 5. Profil Lulusan dan Prospek Kerja
+* *Drafter*, juru ukir, dekorator, tata artistik, dan pembuat prototipe model
+* Pengusaha muda kerajinan kayu dan rotan atau desainer kriya mandiri
+* Pendidik seni, konsultan desain, atau lanjut ke perguruan tinggi
+
+### 6. Kerja Sama Industri (DUDIKA)
+Mitra aktif meliputi **Dfanda Rotan**, **Matoa Design**, **Imam Meubel**, **Widie Art Furniture**, dan **PT Woodone Integra Indonesia**.`,
       description: "Konsentrasi kriya yang fokus pada produk kreatif berbahan kayu dan rotan dengan sentuhan desain.",
       competencies: "Teknik kriya, pengolahan bahan, finishing, desain produk, presentasi karya.",
       careerProspects: "Pengrajin kriya, desainer produk, wirausaha kriya.",
@@ -367,6 +571,34 @@ DPIB telah menjalin kemitraan dengan berbagai instansi dan perusahaan (DUDIKA) s
       name: "Produksi dan Siaran Program Televisi",
       slug: "produksi-dan-siaran-program-televisi",
       fieldCategory: "sek",
+      profileCtaLabel: "Lihat Album Foto/Video",
+      profileCtaUrl: "",
+      profileMarkdown: `Karakteristik Konsentrasi Keahlian **Produksi dan Siaran Program Televisi (PSPT)** di SMK Negeri Pasirian:
+
+### 1. Fokus dan Tujuan Kompetensi
+PSPT berada dalam Program Keahlian **Broadcasting dan Perfilman** dan bertujuan membekali siswa untuk memproduksi berbagai program televisi seperti *talk show*, video klip, dokumenter, dan film pendek.
+
+### 2. Tahapan dan Capaian Pembelajaran
+* **Fase E (Dasar-Dasar):** dunia kerja penyiaran, media digital, teknik dasar audio visual, dan prosedur operasional standar produksi.
+* **Fase F (Konsentrasi):** manajemen produksi & penulisan naskah, penyutradaraan, tata kamera, tata cahaya, tata suara, tata artistik, serta editing audio-video dan penyiaran online.
+
+### 3. Fasilitas Praktik dan Tenaga Pendidik
+* **Studio Program Acara Televisi**
+* **Laboratorium Komputer** untuk editing video dan audio
+* Tenaga pendidik berkualifikasi minimal S1/D4 dengan disiplin ilmu Teknologi Informatika
+
+### 4. Karakteristik Pembelajaran
+* Pembelajaran berbasis proyek dan simulasi dunia kerja
+* Belajar di kelas, laboratorium, dan lapangan
+* Interaksi industri melalui kunjungan, guru tamu, dan PKL
+
+### 5. Profil Lulusan dan Prospek Kerja
+* Sutradara, kamerawan, presenter/penyiar televisi
+* Editor video, penata suara, penulis naskah
+* Jurnalis televisi, manajemen produksi, wirausaha konten kreatif, atau lanjut ke Ilmu Komunikasi dan Perfilman
+
+### 6. Kerja Sama Industri (DUDIKA)
+Kemitraan aktif dengan **Kompas TV Jember, JTV Jember, JTV Malang, Arema TV, Paradise Picture**, dan **Radio City Guide**.`,
       description: "Mempelajari produksi konten video, pengambilan gambar, penyuntingan, dan siaran program televisi.",
       competencies: "Produksi video, penyiaran, camera handling, editing, naskah siaran.",
       careerProspects: "Videografer, editor, kru produksi, penyiar siaran, content creator.",

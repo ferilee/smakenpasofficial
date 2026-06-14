@@ -55,6 +55,8 @@ export const majors = sqliteTable("majors", {
   slug: text("slug").notNull().unique(),
   fieldCategory: text("field_category").notNull().default(""),
   profileMarkdown: text("profile_markdown").notNull().default(""),
+  profileCtaLabel: text("profile_cta_label").notNull().default("Lihat Album Foto/Video"),
+  profileCtaUrl: text("profile_cta_url").notNull().default(""),
   description: text("description").notNull().default(""),
   competencies: text("competencies").notNull().default(""),
   careerProspects: text("career_prospects").notNull().default(""),

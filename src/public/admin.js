@@ -1,7 +1,7 @@
 const root = document.querySelector("#admin");
 const themeStorageKey = "websmakenpas-theme";
 const resources = {
-  majors: { title: "Program Keahlian", path: "/api/majors", fields: ["name", "slug", "fieldCategory", "profileMarkdown", "description", "competencies", "careerProspects", "practiceFacilities", "productiveTeachers", "achievements", "imageUrl", "isFeatured"] },
+  majors: { title: "Program Keahlian", path: "/api/majors", fields: ["name", "slug", "fieldCategory", "profileMarkdown", "profileCtaLabel", "profileCtaUrl", "description", "competencies", "careerProspects", "practiceFacilities", "productiveTeachers", "achievements", "imageUrl", "isFeatured"] },
   teachers: { title: "Guru & Tendik", path: "/api/teachers", fields: ["name", "photoUrl", "position", "subject", "expertise", "status"] },
   facilities: { title: "Fasilitas", path: "/api/facilities", fields: ["name", "description", "imageUrl", "isFeatured"] },
   galleries: { title: "Galeri", path: "/api/galleries", fields: ["title", "slug", "category", "description", "coverUrl", "showOnHome"] },
@@ -65,6 +65,7 @@ let active = "majors";
 let rows = [];
 let complaintStatusFilter = "all";
 let teacherSearchQuery = "";
+let adminActionsBound = false;
 
 const statsLabels = {
   majors: "Program Keahlian",
@@ -316,6 +317,8 @@ async function api(path, options = {}) {
 
 function fieldLabel(field) {
   if (field === "profileMarkdown") return "Profil Konsentrasi (Markdown)";
+  if (field === "profileCtaLabel") return "Label CTA Profil";
+  if (field === "profileCtaUrl") return "URL CTA Profil";
   return field
     .replace(/([A-Z])/g, " $1")
     .replace(/^./, (ch) => ch.toUpperCase())
@@ -329,6 +332,7 @@ function isBooleanField(field) {
 
 function formFields(config, item = {}) {
   return config.fields.map((field) => {
+    const value = esc(item[field] ?? "");
     if (field === "fieldCategory") {
       const options = [
         ["tkb", "Teknologi Konstruksi dan Bangunan"],
@@ -346,10 +350,15 @@ function formFields(config, item = {}) {
     if (field === "profileMarkdown") {
       return `<div class="field"><label>${fieldLabel(field)}</label><textarea name="${field}" rows="18" placeholder="Tulis profil konsentrasi keahlian dalam format markdown">${esc(item[field] ?? "")}</textarea><p class="hint">Gunakan heading (# / ## / ###), poin per baris, dan teks tebal (**...**) agar halaman profil tampil rapi.</p></div>`;
     }
+    if (field === "profileCtaUrl") {
+      return `<div class="field"><label>${fieldLabel(field)}</label><input name="${field}" value="${value}" placeholder="https://..."><p class="hint">Tautan eksternal untuk album foto/video jurusan, galeri, atau halaman dokumentasi.</p></div>`;
+    }
+    if (field === "profileCtaLabel") {
+      return `<div class="field"><label>${fieldLabel(field)}</label><input name="${field}" value="${value}" placeholder="Lihat Album Foto/Video"></div>`;
+    }
     if (isBooleanField(field)) {
       return `<div class="field"><label><input type="checkbox" name="${field}" ${item[field] ? "checked" : ""}> ${fieldLabel(field)}</label></div>`;
     }
-    const value = esc(item[field] ?? "");
     if (["whatsapp", "telegram", "instagram", "tiktok", "facebook", "youtube"].includes(field)) {
       const placeholders = {
         whatsapp: "nomor WhatsApp atau URL",
@@ -666,6 +675,7 @@ async function dashboardView() {
     });
   });
   applyTheme(document.documentElement.dataset.theme || getPreferredTheme());
+  setupAdminActions();
   await renderPage("overview");
   await updateMenuBadges();
 }
@@ -828,11 +838,11 @@ async function resourcePage(key) {
             <td>${esc(row.name || row.title || row.username || row.subject || "-")}</td>
             <td>${esc(row.description || row.content || row.position || row.category || row.email || row.status || "").slice(0, 120)}</td>
             <td>
-              ${key === "testimonials" ? `<button class="btn ghost" data-view="${row.id}">View</button>` : ""}
-              ${key === "testimonials" && row.status !== "approved" ? `<button class="btn" data-approve="${row.id}">Approve</button>` : ""}
-              ${key === "messages" && row.status === "new" ? `<button class="btn" data-read="${row.id}">Tandai Dibaca</button>` : ""}
-              <button class="btn ghost" data-edit="${row.id}">Edit</button>
-              <button class="btn danger" data-delete="${row.id}">Hapus</button>
+              ${key === "testimonials" ? `<button class="btn ghost" type="button" data-view="${row.id}">View</button>` : ""}
+              ${key === "testimonials" && row.status !== "approved" ? `<button class="btn" type="button" data-approve="${row.id}">Approve</button>` : ""}
+              ${key === "messages" && row.status === "new" ? `<button class="btn" type="button" data-read="${row.id}">Tandai Dibaca</button>` : ""}
+              <button class="btn ghost" type="button" data-edit="${row.id}">Edit</button>
+              <button class="btn danger" type="button" data-delete="${row.id}">Hapus</button>
             </td>
           </tr>`).join("")}${filteredRows.length
             ? key === "teachers" ? '<tr data-search-empty hidden><td colspan="4" class="empty">Data Guru & Tendik tidak ditemukan.</td></tr>' : ""
@@ -865,58 +875,81 @@ async function resourcePage(key) {
       resourcePage("complaints");
     });
   }
-  document.querySelector("#add").addEventListener("click", () => openForm(key));
-  document.querySelectorAll("[data-edit]").forEach((button) => button.addEventListener("click", () => openForm(key, rows.find((row) => row.id === Number(button.dataset.edit)))));
-  document.querySelectorAll("[data-view]").forEach((button) => button.addEventListener("click", () => openDetail(key, rows.find((row) => row.id === Number(button.dataset.view)))));
-  document.querySelectorAll("[data-approve]").forEach((button) => button.addEventListener("click", async () => {
-    const item = rows.find((row) => row.id === Number(button.dataset.approve));
-    if (!item) return;
-    try {
-      await api(`${config.path}/${button.dataset.approve}`, { method: "PUT", body: JSON.stringify({ status: "approved" }) });
-      await resourcePage(key);
-      await updateMenuBadges();
-      notify("Testimoni berhasil di-approve.");
-    } catch (error) {
-      notify(error.message || "Gagal approve testimoni.", "error");
-    }
-  }));
-  document.querySelectorAll("[data-read]").forEach((button) => button.addEventListener("click", async () => {
-    const item = rows.find((row) => row.id === Number(button.dataset.read));
-    if (!item) return;
-    try {
-      await api(`${config.path}/${button.dataset.read}`, { method: "PUT", body: JSON.stringify({ status: "read" }) });
-      await resourcePage(key);
-      await updateMenuBadges();
-      notify("Pesan ditandai sebagai dibaca.");
-    } catch (error) {
-      notify(error.message || "Gagal menandai pesan.", "error");
-    }
-  }));
-  document.querySelectorAll("[data-delete]").forEach((button) => button.addEventListener("click", async () => {
-    const item = rows.find((row) => row.id === Number(button.dataset.delete));
-    const itemName = item?.name || item?.title || item?.username || item?.subject || `ID ${button.dataset.delete}`;
-    const confirmed = await confirmAction({
-      title: `Hapus ${config.title}`,
-      message: `Data "${itemName}" akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.`,
-      confirmLabel: "Hapus",
-      danger: true
-    });
-    if (!confirmed) return;
-    button.disabled = true;
-    const originalText = button.textContent;
-    button.textContent = "Menghapus...";
-    try {
-      await api(`${config.path}/${button.dataset.delete}`, { method: "DELETE" });
-      await resourcePage(key);
-      await updateMenuBadges();
-      notify(`${config.title} berhasil dihapus.`);
-    } catch (error) {
-      button.disabled = false;
-      button.textContent = originalText;
-      notify(error.message || `${config.title} gagal dihapus.`, "error");
-    }
-  }));
   await updateMenuBadges();
+}
+
+function setupAdminActions() {
+  if (adminActionsBound) return;
+  adminActionsBound = true;
+  document.addEventListener("click", async (event) => {
+    const target = event.target instanceof Element ? event.target.closest("button[data-edit], button[data-view], button[data-approve], button[data-read], button[data-delete], #add") : null;
+    if (!target) return;
+    const key = active;
+    const config = resources[key];
+    if (!config) return;
+    if (target.id === "add") {
+      openForm(key);
+      return;
+    }
+    if (target.dataset.edit) {
+      openForm(key, rows.find((row) => row.id === Number(target.dataset.edit)));
+      return;
+    }
+    if (target.dataset.view) {
+      openDetail(key, rows.find((row) => row.id === Number(target.dataset.view)));
+      return;
+    }
+    if (target.dataset.approve) {
+      const item = rows.find((row) => row.id === Number(target.dataset.approve));
+      if (!item) return;
+      try {
+        await api(`${config.path}/${target.dataset.approve}`, { method: "PUT", body: JSON.stringify({ status: "approved" }) });
+        await resourcePage(key);
+        await updateMenuBadges();
+        notify("Testimoni berhasil di-approve.");
+      } catch (error) {
+        notify(error.message || "Gagal approve testimoni.", "error");
+      }
+      return;
+    }
+    if (target.dataset.read) {
+      const item = rows.find((row) => row.id === Number(target.dataset.read));
+      if (!item) return;
+      try {
+        await api(`${config.path}/${target.dataset.read}`, { method: "PUT", body: JSON.stringify({ status: "read" }) });
+        await resourcePage(key);
+        await updateMenuBadges();
+        notify("Pesan ditandai sebagai dibaca.");
+      } catch (error) {
+        notify(error.message || "Gagal menandai pesan.", "error");
+      }
+      return;
+    }
+    if (target.dataset.delete) {
+      const item = rows.find((row) => row.id === Number(target.dataset.delete));
+      const itemName = item?.name || item?.title || item?.username || item?.subject || `ID ${target.dataset.delete}`;
+      const confirmed = await confirmAction({
+        title: `Hapus ${config.title}`,
+        message: `Data "${itemName}" akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.`,
+        confirmLabel: "Hapus",
+        danger: true
+      });
+      if (!confirmed) return;
+      target.disabled = true;
+      const originalText = target.textContent;
+      target.textContent = "Menghapus...";
+      try {
+        await api(`${config.path}/${target.dataset.delete}`, { method: "DELETE" });
+        await resourcePage(key);
+        await updateMenuBadges();
+        notify(`${config.title} berhasil dihapus.`);
+      } catch (error) {
+        target.disabled = false;
+        target.textContent = originalText;
+        notify(error.message || `${config.title} gagal dihapus.`, "error");
+      }
+    }
+  });
 }
 
 function openTeacherImport() {

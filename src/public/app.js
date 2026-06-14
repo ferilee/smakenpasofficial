@@ -327,6 +327,67 @@ function renderMarkdownBlock(value) {
   return blocks.join("") || "<p>-</p>";
 }
 
+function parseMarkdownOutline(value) {
+  const lines = String(value ?? "")
+    .replace(/\r\n?/g, "\n")
+    .split("\n");
+  const introLines = [];
+  const sections = [];
+  let currentTitle = "";
+  let currentBody = [];
+  let seenHeading = false;
+  const flushSection = () => {
+    if (!currentTitle && !currentBody.length) return;
+    sections.push({
+      title: currentTitle || "Bagian",
+      body: renderMarkdownBlock(currentBody.join("\n"))
+    });
+    currentTitle = "";
+    currentBody = [];
+  };
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line) {
+      if (seenHeading) currentBody.push("");
+      else introLines.push("");
+      continue;
+    }
+    const heading = line.match(/^(#{1,6})\s+(.+)$/);
+    if (heading) {
+      if (seenHeading) flushSection();
+      seenHeading = true;
+      currentTitle = heading[2].replace(/^\d+[\).:-]?\s*/, "").trim();
+      continue;
+    }
+    if (seenHeading) currentBody.push(rawLine);
+    else introLines.push(rawLine);
+  }
+  flushSection();
+  return {
+    intro: renderMarkdownBlock(introLines.join("\n").trim()),
+    sections
+  };
+}
+
+function renderMajorProfileAccordion(value) {
+  const { intro, sections } = parseMarkdownOutline(value);
+  return `
+    ${intro && intro !== "<p>-</p>" ? `<div class="major-profile-intro">${intro}</div>` : ""}
+    <div class="major-profile-accordion">
+      ${sections.length
+        ? sections.map((section, index) => `
+          <details class="major-accordion-item" ${index === 0 ? "open" : ""}>
+            <summary>
+              <span class="major-accordion-title">${esc(section.title)}</span>
+              <b class="major-accordion-badge">${String(index + 1).padStart(2, "0")}</b>
+            </summary>
+            <div class="major-accordion-body">${section.body}</div>
+          </details>
+        `).join("")
+        : `<div class="major-profile-intro">${renderMarkdownBlock(value)}</div>`}
+    </div>`;
+}
+
 function majorFallbackProfile(major) {
   return [
     "### Fokus dan Tujuan Kompetensi",
@@ -1696,9 +1757,10 @@ async function majorDetailPage(slug) {
           </article>
           <article class="card major-profile-card">
             <span class="major-profile-tag">${esc(fieldCategoryLabel(major.fieldCategory))}</span>
-            <div class="major-profile-markdown">${renderMarkdownBlock(profileMarkdown)}</div>
+            ${renderMajorProfileAccordion(profileMarkdown)}
           </article>
           <div class="actions major-detail-actions">
+            ${major.profileCtaUrl ? `<a class="btn secondary" href="${esc(major.profileCtaUrl)}" target="_blank" rel="noopener noreferrer">${esc(major.profileCtaLabel || "Lihat Album Foto/Video")}</a>` : ""}
             <a class="btn" href="/program-keahlian">Kembali ke Program Keahlian</a>
             <a class="btn secondary" href="/kontak">Hubungi Sekolah</a>
           </div>
