@@ -2492,6 +2492,13 @@ section { padding: 58px 0; }
   border-color: var(--brand);
   color: var(--brand);
 }
+.markdown-toolbar-separator {
+  width: 1px;
+  height: 24px;
+  align-self: center;
+  margin: 0 2px;
+  background: var(--line);
+}
 .markdown-field > textarea {
   margin-top: -8px;
   border-radius: 0 0 8px 8px;
@@ -2564,6 +2571,17 @@ section { padding: 58px 0; }
   color: var(--brand);
   text-decoration: underline;
   text-underline-offset: 2px;
+}
+.md-align-left { text-align: left; }
+.md-align-center { text-align: center; }
+.md-align-right { text-align: right; }
+.md-align-justify { text-align: justify; }
+.md-align-center ul,
+.md-align-center ol,
+.md-align-right ul,
+.md-align-right ol {
+  display: inline-block;
+  text-align: left;
 }
 .inline-upload {
   margin-top: 10px;

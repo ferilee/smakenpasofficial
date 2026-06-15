@@ -348,9 +348,14 @@ function markdownField(field, value, { rows = 8, hint = "", label = fieldLabel(f
       <button type="button" data-markdown-action="quote" title="Kutipan">&#10077;</button>
       <button type="button" data-markdown-action="code" title="Kode">&lt;/&gt;</button>
       <button type="button" data-markdown-action="link" title="Tautan">&#128279;</button>
+      <span class="markdown-toolbar-separator" aria-hidden="true"></span>
+      <button type="button" data-markdown-align="left" title="Rata kiri">L</button>
+      <button type="button" data-markdown-align="center" title="Rata tengah">C</button>
+      <button type="button" data-markdown-align="right" title="Rata kanan">R</button>
+      <button type="button" data-markdown-align="justify" title="Rata kiri kanan">J</button>
     </div>
     <textarea name="${field}" rows="${rows}" data-markdown-input placeholder="Tulis konten menggunakan Markdown">${value}</textarea>
-    ${hint || '<p class="hint">Mendukung heading, teks tebal/miring, daftar, kutipan, kode, dan tautan.</p>'}
+    ${hint || '<p class="hint">Mendukung heading, teks tebal/miring, daftar, kutipan, kode, tautan, dan alignment.</p>'}
     <details class="markdown-preview-panel">
       <summary>Preview Markdown</summary>
       <div class="markdown-preview" data-markdown-preview></div>
@@ -1135,37 +1140,50 @@ function markdownPreview(value) {
     listType = "";
     listItems = [];
   };
-  lines.forEach((rawLine) => {
+  for (let index = 0; index < lines.length; index += 1) {
+    const rawLine = lines[index];
     const line = rawLine.trim();
     if (!line) {
       flushList();
-      return;
+      continue;
+    }
+    const alignment = line.match(/^:::\s*(left|center|right|justify)\s*$/i);
+    if (alignment) {
+      flushList();
+      const alignedLines = [];
+      index += 1;
+      while (index < lines.length && lines[index].trim() !== ":::") {
+        alignedLines.push(lines[index]);
+        index += 1;
+      }
+      blocks.push(`<div class="md-align md-align-${alignment[1].toLowerCase()}">${markdownPreview(alignedLines.join("\n"))}</div>`);
+      continue;
     }
     const heading = line.match(/^(#{1,6})\s+(.+)$/);
     if (heading) {
       flushList();
       const level = Math.min(heading[1].length + 1, 4);
       blocks.push(`<h${level}>${markdownInlinePreview(heading[2])}</h${level}>`);
-      return;
+      continue;
     }
     const bullet = line.match(/^[-*+]\s+(.+)$/);
     if (bullet) {
       if (listType !== "ul") flushList();
       listType = "ul";
       listItems.push(`<li>${markdownInlinePreview(bullet[1])}</li>`);
-      return;
+      continue;
     }
     const numbered = line.match(/^\d+[.)]\s+(.+)$/);
     if (numbered) {
       if (listType !== "ol") flushList();
       listType = "ol";
       listItems.push(`<li>${markdownInlinePreview(numbered[1])}</li>`);
-      return;
+      continue;
     }
     const quote = line.match(/^>\s?(.+)$/);
     flushList();
     blocks.push(quote ? `<blockquote>${markdownInlinePreview(quote[1])}</blockquote>` : `<p>${markdownInlinePreview(line)}</p>`);
-  });
+  }
   flushList();
   return blocks.join("") || '<p class="empty">Preview akan tampil di sini.</p>';
 }
@@ -1195,6 +1213,14 @@ function setupMarkdownEditors(scope = document) {
       input.focus();
       updatePreview();
     };
+    const alignSelection = (alignment) => {
+      const start = input.selectionStart;
+      const end = input.selectionEnd;
+      const selected = input.value.slice(start, end) || "teks";
+      input.setRangeText(`::: ${alignment}\n${selected}\n:::`, start, end, "select");
+      input.focus();
+      updatePreview();
+    };
     editor.querySelectorAll("[data-markdown-action]").forEach((button) => button.addEventListener("click", () => {
       const action = button.dataset.markdownAction;
       if (action === "heading") prefixLines("## ");
@@ -1205,6 +1231,9 @@ function setupMarkdownEditors(scope = document) {
       if (action === "quote") prefixLines("> ");
       if (action === "code") replaceSelection("`", "`");
       if (action === "link") replaceSelection("[", "](https://...)", "teks tautan");
+    }));
+    editor.querySelectorAll("[data-markdown-align]").forEach((button) => button.addEventListener("click", () => {
+      alignSelection(button.dataset.markdownAlign || "left");
     }));
     input.addEventListener("input", updatePreview);
     editor.querySelector(".markdown-preview-panel")?.addEventListener("toggle", updatePreview);

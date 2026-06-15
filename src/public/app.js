@@ -358,10 +358,23 @@ function renderMarkdownBlock(value) {
     listType = "";
     listItems = [];
   };
-  for (const rawLine of lines) {
+  for (let index = 0; index < lines.length; index += 1) {
+    const rawLine = lines[index];
     const line = rawLine.trim();
     if (!line) {
       flushList();
+      continue;
+    }
+    const alignment = line.match(/^:::\s*(left|center|right|justify)\s*$/i);
+    if (alignment) {
+      flushList();
+      const alignedLines = [];
+      index += 1;
+      while (index < lines.length && lines[index].trim() !== ":::") {
+        alignedLines.push(lines[index]);
+        index += 1;
+      }
+      blocks.push(`<div class="md-align md-align-${alignment[1].toLowerCase()}">${renderMarkdownBlock(alignedLines.join("\n"))}</div>`);
       continue;
     }
     const heading = line.match(/^(#{1,6})\s+(.+)$/);
