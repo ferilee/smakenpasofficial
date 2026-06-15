@@ -792,28 +792,84 @@ async function agendaPage() {
 
 function agendaListSection(agendas = []) {
   const items = Array.isArray(agendas) ? agendas : [];
+  const todayKey = dateKey(new Date());
+  const getStartKey = (item) => dateKey(item.startDate);
+  const getEndKey = (item) => dateKey(item.endDate || item.startDate);
+  const todayItems = [];
+  const upcomingItems = [];
+  const pastItems = [];
+  items.forEach((item) => {
+    const start = getStartKey(item);
+    const end = getEndKey(item) || start;
+    if (end && end < todayKey) pastItems.push(item);
+    else if (start && start <= todayKey && end >= todayKey) todayItems.push(item);
+    else upcomingItems.push(item);
+  });
   const renderRange = (item) => {
     const start = dateId(item.startDate);
     const end = item.endDate ? dateId(item.endDate) : "";
     return end ? `${start} - ${end}` : start;
   };
+  const renderCards = (collection, emptyText) => collection.length ? collection.map((item) => `
+    <article class="agenda-card">
+      <div class="agenda-card-top">
+        <span class="badge">${esc(renderRange(item))}</span>
+        ${item.status ? `<span class="agenda-status">${esc(item.status)}</span>` : ""}
+      </div>
+      <h3>${esc(item.title || "Agenda Sekolah")}</h3>
+      <p class="agenda-card-location">${esc(item.location || "-")}</p>
+      <div class="agenda-card-description markdown-content">${renderMarkdownBlock(item.description || "-")}</div>
+      <div class="agenda-card-actions">
+        <button class="btn" type="button" data-agenda-open="${item.id}">Lihat Detail</button>
+      </div>
+    </article>
+  `).join("") : `<p class="empty">${esc(emptyText)}</p>`;
   return `<section class="agenda-list-section">
     <div class="container">
-      <div class="agenda-card-grid">
-        ${items.length ? items.map((item) => `
-          <article class="agenda-card">
-            <div class="agenda-card-top">
-              <span class="badge">${esc(renderRange(item))}</span>
-              ${item.status ? `<span class="agenda-status">${esc(item.status)}</span>` : ""}
+      <div class="agenda-layout">
+        <div class="agenda-main-column">
+          <div class="agenda-group">
+            <div class="agenda-group-head">
+              <div>
+                <p>Hari Ini</p>
+                <h2>Agenda Hari Ini</h2>
+              </div>
+              <span class="badge">${todayItems.length} agenda</span>
             </div>
-            <h3>${esc(item.title || "Agenda Sekolah")}</h3>
-            <p class="agenda-card-location">${esc(item.location || "-")}</p>
-            <div class="agenda-card-description markdown-content">${renderMarkdownBlock(item.description || "-")}</div>
-            <div class="agenda-card-actions">
-              <button class="btn" type="button" data-agenda-open="${item.id}">Lihat Detail</button>
+            <div class="agenda-card-grid agenda-card-grid-today">
+              ${renderCards(todayItems, "Tidak ada agenda hari ini.")}
             </div>
-          </article>
-        `).join("") : '<p class="empty">Belum ada agenda.</p>'}
+          </div>
+          <div class="agenda-group">
+            <div class="agenda-group-head">
+              <div>
+                <p>Mendatang</p>
+                <h2>Agenda Mendatang</h2>
+              </div>
+              <span class="badge">${upcomingItems.length} agenda</span>
+            </div>
+            <div class="agenda-card-grid agenda-card-grid-upcoming">
+              ${renderCards(upcomingItems, "Belum ada agenda mendatang.")}
+            </div>
+          </div>
+        </div>
+        <aside class="agenda-past-column">
+          <div class="agenda-group agenda-past-group">
+            <div class="agenda-group-head">
+              <div>
+                <p>Arsip</p>
+                <h2>Agenda Berlalu</h2>
+              </div>
+              <span class="badge">${pastItems.length} agenda</span>
+            </div>
+            <button class="btn ghost agenda-past-toggle" type="button" data-agenda-past-toggle aria-expanded="false" aria-controls="agenda-past-list">
+              Tampilkan agenda berlalu
+            </button>
+            <div class="agenda-card-grid agenda-card-grid-past" id="agenda-past-list" data-agenda-past-list hidden>
+              ${renderCards(pastItems, "Belum ada agenda berlalu.")}
+            </div>
+          </div>
+        </aside>
       </div>
     </div>
     <div class="agenda-modal" data-agenda-list-modal hidden>
@@ -1466,6 +1522,16 @@ function setupAgendaList() {
 
   document.querySelectorAll("[data-agenda-open]").forEach((button) => {
     button.addEventListener("click", () => openModal(button.dataset.agendaOpen));
+  });
+  document.querySelectorAll("[data-agenda-past-toggle]").forEach((button) => {
+    const target = document.getElementById(button.getAttribute("aria-controls") || "");
+    if (!target) return;
+    button.addEventListener("click", () => {
+      const isOpening = target.hidden;
+      target.hidden = !isOpening;
+      button.setAttribute("aria-expanded", String(isOpening));
+      button.textContent = isOpening ? "Sembunyikan agenda berlalu" : "Tampilkan agenda berlalu";
+    });
   });
   modal.querySelectorAll("[data-agenda-list-close]").forEach((button) => button.addEventListener("click", closeModal));
   document.addEventListener("keydown", (event) => {
