@@ -57,6 +57,10 @@ export const majors = sqliteTable("majors", {
   profileMarkdown: text("profile_markdown").notNull().default(""),
   profileCtaLabel: text("profile_cta_label").notNull().default("Lihat Album Foto/Video"),
   profileCtaUrl: text("profile_cta_url").notNull().default(""),
+  instagram: text("instagram").notNull().default(""),
+  tiktok: text("tiktok").notNull().default(""),
+  facebook: text("facebook").notNull().default(""),
+  youtube: text("youtube").notNull().default(""),
   description: text("description").notNull().default(""),
   competencies: text("competencies").notNull().default(""),
   careerProspects: text("career_prospects").notNull().default(""),
@@ -94,6 +98,7 @@ export const galleries = sqliteTable("galleries", {
   category: text("category").notNull().default("Kegiatan"),
   description: text("description").notNull().default(""),
   coverUrl: text("cover_url").notNull().default(""),
+  albumUrl: text("album_url").notNull().default(""),
   showOnHome: integer("show_on_home", { mode: "boolean" }).notNull().default(false),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`)
 });

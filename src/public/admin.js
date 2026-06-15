@@ -1,10 +1,10 @@
 const root = document.querySelector("#admin");
 const themeStorageKey = "websmakenpas-theme";
 const resources = {
-  majors: { title: "Program Keahlian", path: "/api/majors", fields: ["name", "slug", "fieldCategory", "profileMarkdown", "profileCtaLabel", "profileCtaUrl", "description", "competencies", "careerProspects", "practiceFacilities", "productiveTeachers", "achievements", "imageUrl", "isFeatured"] },
+  majors: { title: "Program Keahlian", path: "/api/majors", fields: ["name", "slug", "fieldCategory", "profileMarkdown", "profileCtaLabel", "profileCtaUrl", "instagram", "tiktok", "facebook", "youtube", "description", "competencies", "careerProspects", "practiceFacilities", "productiveTeachers", "achievements", "imageUrl", "isFeatured"] },
   teachers: { title: "Guru & Tendik", path: "/api/teachers", fields: ["name", "photoUrl", "position", "subject", "expertise", "status"] },
   facilities: { title: "Fasilitas", path: "/api/facilities", fields: ["name", "description", "imageUrl", "isFeatured"] },
-  galleries: { title: "Galeri", path: "/api/galleries", fields: ["title", "slug", "category", "description", "coverUrl", "showOnHome"] },
+  galleries: { title: "Galeri", path: "/api/galleries", fields: ["title", "slug", "category", "description", "coverUrl", "albumUrl", "showOnHome"] },
   agendas: { title: "Agenda", path: "/api/agendas", fields: ["title", "startDate", "endDate", "location", "description", "status"] },
   announcements: { title: "Pengumuman", path: "/api/announcements", fields: ["title", "content", "isPriority", "attachmentUrl", "status", "publishedAt"] },
   downloads: { title: "File Unduhan", path: "/api/downloads", fields: ["title", "category", "description", "fileUrl", "fileType", "fileSize"] },
@@ -85,6 +85,11 @@ const statsLabels = {
 
 const settingsFields = ["schoolName", "tagline", "logoUrl", "faviconUrl", "themeColor", "address", "email", "phone", "whatsapp", "wordpressUrl", "ppdbUrl", "metaDescription", "footerText"];
 const profileFields = ["history", "vision", "mission", "principalName", "principalGreeting", "principalPhotoUrl", "profileSummaryImageUrl", "principalCtaLabel", "principalCtaUrl", "organization", "accreditation", "location"];
+const markdownFields = new Set([
+  "tagline", "metaDescription", "footerText", "history", "vision", "mission", "principalGreeting", "organization",
+  "profileMarkdown", "description", "competencies", "careerProspects", "practiceFacilities", "productiveTeachers",
+  "achievements", "content", "subtitle", "message", "complaint", "expectation"
+]);
 const quickLinkIconOptions = ["report", "briefcase", "shield", "graduation", "globe", "book", "download", "link"];
 const quickLinkToneOptions = ["aqua", "violet", "gold"];
 const imageUploadFieldConfig = {
@@ -319,6 +324,7 @@ function fieldLabel(field) {
   if (field === "profileMarkdown") return "Profil Konsentrasi (Markdown)";
   if (field === "profileCtaLabel") return "Label CTA Profil";
   if (field === "profileCtaUrl") return "URL CTA Profil";
+  if (field === "albumUrl") return "URL Album Google Photos";
   return field
     .replace(/([A-Z])/g, " $1")
     .replace(/^./, (ch) => ch.toUpperCase())
@@ -328,6 +334,28 @@ function fieldLabel(field) {
 
 function isBooleanField(field) {
   return ["isFeatured", "showOnHome", "isPriority", "isActive"].includes(field);
+}
+
+function markdownField(field, value, { rows = 8, hint = "", label = fieldLabel(field) } = {}) {
+  return `<div class="field markdown-field" data-markdown-field>
+    <label>${esc(label)}</label>
+    <div class="markdown-toolbar" role="toolbar" aria-label="Format Markdown">
+      <button type="button" data-markdown-action="heading" title="Heading">H2</button>
+      <button type="button" data-markdown-action="bold" title="Tebal"><strong>B</strong></button>
+      <button type="button" data-markdown-action="italic" title="Miring"><em>I</em></button>
+      <button type="button" data-markdown-action="bullet" title="Daftar poin">&#8226;</button>
+      <button type="button" data-markdown-action="number" title="Daftar nomor">1.</button>
+      <button type="button" data-markdown-action="quote" title="Kutipan">&#10077;</button>
+      <button type="button" data-markdown-action="code" title="Kode">&lt;/&gt;</button>
+      <button type="button" data-markdown-action="link" title="Tautan">&#128279;</button>
+    </div>
+    <textarea name="${field}" rows="${rows}" data-markdown-input placeholder="Tulis konten menggunakan Markdown">${value}</textarea>
+    ${hint || '<p class="hint">Mendukung heading, teks tebal/miring, daftar, kutipan, kode, dan tautan.</p>'}
+    <details class="markdown-preview-panel">
+      <summary>Preview Markdown</summary>
+      <div class="markdown-preview" data-markdown-preview></div>
+    </details>
+  </div>`;
 }
 
 function formFields(config, item = {}) {
@@ -348,7 +376,7 @@ function formFields(config, item = {}) {
       </select><p class="hint">Bidang ini dipakai untuk mengelompokkan kartu jurusan di halaman publik.</p></div>`;
     }
     if (field === "profileMarkdown") {
-      return `<div class="field"><label>${fieldLabel(field)}</label><textarea name="${field}" rows="18" placeholder="Tulis profil konsentrasi keahlian dalam format markdown">${esc(item[field] ?? "")}</textarea><p class="hint">Gunakan heading (# / ## / ###), poin per baris, dan teks tebal (**...**) agar halaman profil tampil rapi.</p></div>`;
+      return markdownField(field, value, { rows: 18, hint: '<p class="hint">Gunakan heading (# / ## / ###), poin per baris, dan teks tebal (**...**) agar halaman profil tampil rapi.</p>' });
     }
     if (field === "profileCtaUrl") {
       return `<div class="field"><label>${fieldLabel(field)}</label><input name="${field}" value="${value}" placeholder="https://..."><p class="hint">Tautan eksternal untuk album foto/video jurusan, galeri, atau halaman dokumentasi.</p></div>`;
@@ -373,7 +401,10 @@ function formFields(config, item = {}) {
     }
     if (["description", "content", "competencies", "careerProspects", "practiceFacilities", "achievements", "message", "subtitle", "complaint", "expectation", "mission"].includes(field)) {
       const hint = field === "mission" ? '<p class="hint">Satu poin per baris. Contoh: 1. ... lalu baris baru untuk poin berikutnya.</p>' : "";
-      return `<div class="field"><label>${fieldLabel(field)}</label><textarea name="${field}" placeholder="${field === "mission" ? "Tulis satu misi per baris" : ""}">${value}</textarea>${hint}</div>`;
+      return markdownField(field, value, { hint });
+    }
+    if (markdownFields.has(field)) {
+      return markdownField(field, value);
     }
     const type = field === "password" ? "password" : field.toLowerCase().includes("date") || field === "publishedAt" ? "date" : "text";
     return `<div class="field"><label>${fieldLabel(field)}</label><input type="${type}" name="${field}" value="${value}"></div>`;
@@ -406,10 +437,7 @@ function managementEditor(data = {}) {
           return `
             <article class="management-admin-card">
               <h3>${esc(item.label)}</h3>
-              <div class="field">
-                <label>Ringkasan</label>
-                <textarea name="management_${item.key}_lead">${lead}</textarea>
-              </div>
+              ${markdownField(`management_${item.key}_lead`, lead, { rows: 5, label: "Ringkasan" })}
               <div class="field">
                 <label>Poin detail per baris</label>
                 <textarea name="management_${item.key}_points">${points}</textarea>
@@ -761,6 +789,7 @@ async function singleton(title, path, fields) {
     await api(path, { method: "PUT", body: JSON.stringify(body) });
     notify("Data tersimpan.");
   });
+  setupMarkdownEditors(document.querySelector("#single-form"));
 }
 
 async function settingsAdminPage() {
@@ -773,6 +802,7 @@ async function settingsAdminPage() {
       <button class="btn">Simpan</button>
     </form>`;
   const form = document.querySelector("#single-form");
+  setupMarkdownEditors(form);
   bindQuickLinkEditor(form);
   wireKnownImageUploadFields(form, data || {});
   form.addEventListener("submit", async (event) => {
@@ -795,6 +825,7 @@ async function profileAdminPage() {
       <button class="btn">Simpan</button>
     </form>`;
   const form = document.querySelector("#single-form");
+  setupMarkdownEditors(form);
   wireKnownImageUploadFields(form, data || {});
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -1069,6 +1100,118 @@ function formPayload(form, fields) {
   return data;
 }
 
+function safeMarkdownUrl(value) {
+  const url = String(value || "").trim();
+  return /^(?:https?:\/\/|mailto:|tel:|\/)/i.test(url) ? url : "#";
+}
+
+function markdownInlinePreview(value) {
+  const links = [];
+  const tokenized = String(value || "").replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_match, label, url) => {
+    const token = `@@MDLINK${links.length}@@`;
+    links.push(`<a href="${esc(safeMarkdownUrl(url))}" target="_blank" rel="noopener noreferrer">${esc(label)}</a>`);
+    return token;
+  });
+  let html = esc(tokenized)
+    .replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/__(.+?)__/g, "<strong>$1</strong>")
+    .replace(/(^|[^*])\*([^*]+)\*/g, "$1<em>$2</em>")
+    .replace(/(^|[^_])_([^_]+)_/g, "$1<em>$2</em>");
+  links.forEach((link, index) => {
+    html = html.replace(`@@MDLINK${index}@@`, link);
+  });
+  return html;
+}
+
+function markdownPreview(value) {
+  const lines = String(value || "").replace(/\r\n?/g, "\n").split("\n");
+  const blocks = [];
+  let listType = "";
+  let listItems = [];
+  const flushList = () => {
+    if (!listType || !listItems.length) return;
+    blocks.push(`<${listType}>${listItems.join("")}</${listType}>`);
+    listType = "";
+    listItems = [];
+  };
+  lines.forEach((rawLine) => {
+    const line = rawLine.trim();
+    if (!line) {
+      flushList();
+      return;
+    }
+    const heading = line.match(/^(#{1,6})\s+(.+)$/);
+    if (heading) {
+      flushList();
+      const level = Math.min(heading[1].length + 1, 4);
+      blocks.push(`<h${level}>${markdownInlinePreview(heading[2])}</h${level}>`);
+      return;
+    }
+    const bullet = line.match(/^[-*+]\s+(.+)$/);
+    if (bullet) {
+      if (listType !== "ul") flushList();
+      listType = "ul";
+      listItems.push(`<li>${markdownInlinePreview(bullet[1])}</li>`);
+      return;
+    }
+    const numbered = line.match(/^\d+[.)]\s+(.+)$/);
+    if (numbered) {
+      if (listType !== "ol") flushList();
+      listType = "ol";
+      listItems.push(`<li>${markdownInlinePreview(numbered[1])}</li>`);
+      return;
+    }
+    const quote = line.match(/^>\s?(.+)$/);
+    flushList();
+    blocks.push(quote ? `<blockquote>${markdownInlinePreview(quote[1])}</blockquote>` : `<p>${markdownInlinePreview(line)}</p>`);
+  });
+  flushList();
+  return blocks.join("") || '<p class="empty">Preview akan tampil di sini.</p>';
+}
+
+function setupMarkdownEditors(scope = document) {
+  scope.querySelectorAll("[data-markdown-field]").forEach((editor) => {
+    if (editor.dataset.markdownReady === "true") return;
+    editor.dataset.markdownReady = "true";
+    const input = editor.querySelector("[data-markdown-input]");
+    const preview = editor.querySelector("[data-markdown-preview]");
+    if (!input || !preview) return;
+    const updatePreview = () => { preview.innerHTML = markdownPreview(input.value); };
+    const replaceSelection = (before, after = before, fallback = "teks") => {
+      const start = input.selectionStart;
+      const end = input.selectionEnd;
+      const selected = input.value.slice(start, end) || fallback;
+      input.setRangeText(`${before}${selected}${after}`, start, end, "select");
+      input.focus();
+      updatePreview();
+    };
+    const prefixLines = (prefix) => {
+      const start = input.selectionStart;
+      const end = input.selectionEnd;
+      const selected = input.value.slice(start, end) || "item daftar";
+      const formatted = selected.split("\n").map((line, index) => typeof prefix === "function" ? `${prefix(index)}${line}` : `${prefix}${line}`).join("\n");
+      input.setRangeText(formatted, start, end, "select");
+      input.focus();
+      updatePreview();
+    };
+    editor.querySelectorAll("[data-markdown-action]").forEach((button) => button.addEventListener("click", () => {
+      const action = button.dataset.markdownAction;
+      if (action === "heading") prefixLines("## ");
+      if (action === "bold") replaceSelection("**", "**");
+      if (action === "italic") replaceSelection("*", "*");
+      if (action === "bullet") prefixLines("- ");
+      if (action === "number") prefixLines((index) => `${index + 1}. `);
+      if (action === "quote") prefixLines("> ");
+      if (action === "code") replaceSelection("`", "`");
+      if (action === "link") replaceSelection("[", "](https://...)", "teks tautan");
+    }));
+    input.addEventListener("input", updatePreview);
+    editor.querySelector(".markdown-preview-panel")?.addEventListener("toggle", updatePreview);
+    updatePreview();
+  });
+}
+
 function wireImageUploadField({ input, initialValue = "", title, description, successText, emptyText = "Belum ada file yang dipilih." }) {
   const field = input?.closest(".field");
   if (!field || field.querySelector("[data-inline-upload]")) return;
@@ -1150,6 +1293,7 @@ function openForm(key, item = {}) {
   modal.classList.add("open");
   document.querySelector("#close").addEventListener("click", () => modal.classList.remove("open"));
   const form = document.querySelector("#resource-form");
+  setupMarkdownEditors(form);
   wireKnownImageUploadFields(form, item);
   form.addEventListener("submit", async (event) => {
     event.preventDefault();

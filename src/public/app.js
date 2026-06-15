@@ -89,6 +89,8 @@ function footerSocialIcon(name) {
   const icons = {
     youtube: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.6 7.2a3 3 0 0 0-2.1-2.1C17.6 4.6 12 4.6 12 4.6s-5.6 0-7.5.5a3 3 0 0 0-2.1 2.1A31 31 0 0 0 2 12a31 31 0 0 0 .4 4.8 3 3 0 0 0 2.1 2.1c1.9.5 7.5.5 7.5.5s5.6 0 7.5-.5a3 3 0 0 0 2.1-2.1A31 31 0 0 0 22 12a31 31 0 0 0-.4-4.8ZM10 15.5v-7l6 3.5-6 3.5Z"/></svg>`,
     instagram: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="5"/><circle cx="12" cy="12" r="3.5"/><circle cx="17" cy="7" r="1"/></svg>`,
+    facebook: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 8h3V4h-3c-3 0-5 2-5 5v3H6v4h3v6h4v-6h3l1-4h-4V9c0-.7.3-1 1-1Z"/></svg>`,
+    tiktok: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3v11.2a4.7 4.7 0 1 1-4-4.6"/><path d="M14 3c.7 3 2.4 4.6 5 5"/></svg>`,
     email: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m4 7 8 6 8-6"/></svg>`
   };
   return icons[name] || "";
@@ -208,7 +210,7 @@ function layout(content, data = state.home) {
             <nav class="footer-links" aria-label="Link footer">
               ${footerLinks.map(([label, url]) => `<a href="${url}">${esc(label)}</a>`).join("")}
             </nav>
-            <p>${esc(data?.settings?.footerText || "SMK Negeri Pasirian. Seluruh hak cipta dilindungi.")}</p>
+            <div class="markdown-content">${renderMarkdownBlock(data?.settings?.footerText || "SMK Negeri Pasirian. Seluruh hak cipta dilindungi.")}</div>
           </div>
           <div class="footer-contact">
             <div class="footer-socials">
@@ -263,21 +265,84 @@ function makeMajorIllustration(title, index) {
 function majorCard(item) {
   const image = item.imageUrl || makeMajorIllustration(item.name, Number(item.id || 0));
   const detailUrl = `/program-keahlian/${encodeURIComponent(item.slug || item.id || "")}`;
-  return `<a class="major-card major-card-link" href="${detailUrl}">
-    <div class="major-image-wrap">
+  const socials = ["youtube", "instagram", "facebook", "tiktok"]
+    .filter((platform) => item[platform])
+    .map((platform) => `<a class="major-social-link" href="${esc(item[platform])}" target="_blank" rel="noopener noreferrer" aria-label="${platform} ${esc(item.name)}" title="${platform}">${footerSocialIcon(platform)}</a>`)
+    .join("");
+  return `<article class="major-card major-card-link">
+    <a class="major-card-cover-link" href="${detailUrl}" aria-label="Lihat profil ${esc(item.name)}">
+      <div class="major-image-wrap">
       <img class="major-image major-cover-image" src="${esc(image)}" alt="${esc(item.name)}">
-    </div>
+      </div>
+    </a>
     <div class="major-body">
-      <h3>${esc(item.name)}</h3>
-      <span class="major-btn" aria-hidden="true">LIHAT PROFIL KONSENTRASI &#8594;</span>
+      <h3><a href="${detailUrl}">${esc(item.name)}</a></h3>
+      ${socials ? `<div class="major-socials" aria-label="Media sosial ${esc(item.name)}">${socials}</div>` : ""}
+      <a class="major-btn" href="${detailUrl}">LIHAT PROFIL KONSENTRASI &#8594;</a>
     </div>
-  </a>`;
+  </article>`;
+}
+
+function galleryCard(item) {
+  const cover = item.coverUrl || makeMajorIllustration(item.title, Number(item.id || 0));
+  const albumButton = item.albumUrl
+    ? `<a class="btn" href="${esc(item.albumUrl)}" target="_blank" rel="noopener noreferrer">Lihat</a>`
+    : `<span class="btn ghost disabled" aria-disabled="true">Album belum tersedia</span>`;
+  return `<article class="card gallery-card">
+    <img class="gallery-card-cover" src="${esc(cover)}" alt="${esc(item.title)}">
+    <div class="gallery-card-body">
+      <span class="badge">${esc(item.category)}</span>
+      <h3>${esc(item.title)}</h3>
+      <div class="markdown-content">${renderMarkdownBlock(item.description)}</div>
+      ${albumButton}
+    </div>
+  </article>`;
+}
+
+function announcementCard(item) {
+  return `<article class="card announcement-card">
+    ${item.isPriority ? '<span class="badge">Prioritas</span>' : ""}
+    <h3>${esc(item.title)}</h3>
+    <div class="markdown-content announcement-summary">${renderMarkdownBlock(item.content)}</div>
+    <button class="btn announcement-detail-button" type="button"
+      data-announcement-detail
+      data-announcement-id="${esc(item.id)}">Detail</button>
+  </article>`;
+}
+
+function announcementModal(items = []) {
+  return `<div class="announcement-modal" data-announcement-modal hidden>
+    <div class="announcement-modal-backdrop" data-announcement-close></div>
+    <article class="announcement-modal-box" role="dialog" aria-modal="true" aria-labelledby="announcement-modal-title">
+      <button class="announcement-modal-close" type="button" data-announcement-close aria-label="Tutup">&times;</button>
+      <span class="announcement-modal-kicker">PENGUMUMAN SEKOLAH</span>
+      <h2 id="announcement-modal-title" data-announcement-title></h2>
+      <p class="announcement-modal-date" data-announcement-date></p>
+      <div class="announcement-modal-content prose" data-announcement-content></div>
+      <div class="actions" data-announcement-actions></div>
+    </article>
+  </div>
+  <script type="application/json" id="announcement-modal-data">${JSON.stringify(items).replace(/</g, "\\u003c")}</script>`;
 }
 
 function inlineMarkdown(value) {
-  return esc(value)
+  const links = [];
+  const tokenized = String(value || "").replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_match, label, url) => {
+    const safeUrl = /^(?:https?:\/\/|mailto:|tel:|\/)/i.test(url) ? url : "#";
+    const token = `@@MDLINK${links.length}@@`;
+    links.push(`<a href="${esc(safeUrl)}" ${/^https?:\/\//i.test(safeUrl) ? 'target="_blank" rel="noopener noreferrer"' : ""}>${esc(label)}</a>`);
+    return token;
+  });
+  let html = esc(tokenized)
+    .replace(/`([^`]+)`/g, "<code>$1</code>")
     .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-    .replace(/`([^`]+)`/g, "<code>$1</code>");
+    .replace(/__(.+?)__/g, "<strong>$1</strong>")
+    .replace(/(^|[^*])\*([^*]+)\*/g, "$1<em>$2</em>")
+    .replace(/(^|[^_])_([^_]+)_/g, "$1<em>$2</em>");
+  links.forEach((link, index) => {
+    html = html.replace(`@@MDLINK${index}@@`, link);
+  });
+  return html;
 }
 
 function renderMarkdownBlock(value) {
@@ -318,6 +383,12 @@ function renderMarkdownBlock(value) {
       if (listType !== "ol") flushList();
       listType = "ol";
       listItems.push(`<li>${inlineMarkdown(numbered[1])}</li>`);
+      continue;
+    }
+    const quote = line.match(/^>\s?(.+)$/);
+    if (quote) {
+      flushList();
+      blocks.push(`<blockquote>${inlineMarkdown(quote[1])}</blockquote>`);
       continue;
     }
     flushList();
@@ -608,7 +679,7 @@ function managementSchoolSection(management = {}) {
         <button class="management-modal-close" type="button" data-management-close aria-label="Tutup">&times;</button>
         <p class="management-modal-kicker">Manajemen Sekolah</p>
         <h3 id="management-modal-title" data-management-title></h3>
-        <p class="management-modal-lead" data-management-lead></p>
+        <div class="management-modal-lead markdown-content" data-management-lead></div>
         <div class="management-modal-list" data-management-list></div>
         <div class="management-modal-resources" data-management-resources hidden></div>
       </article>
@@ -724,7 +795,7 @@ function agendaListSection(agendas = []) {
             </div>
             <h3>${esc(item.title || "Agenda Sekolah")}</h3>
             <p class="agenda-card-location">${esc(item.location || "-")}</p>
-            <p class="agenda-card-description">${esc(item.description || "-")}</p>
+            <div class="agenda-card-description markdown-content">${renderMarkdownBlock(item.description || "-")}</div>
             <div class="agenda-card-actions">
               <button class="btn" type="button" data-agenda-open="${item.id}">Lihat Detail</button>
             </div>
@@ -790,7 +861,7 @@ function testimonialsSection(testimonials = []) {
         <div class="testimonial-track" data-testimonial-track>
           ${items.map((item, index) => `<article class="testimonial-card" data-testimonial-card data-year="${esc(item.graduationYear || "")}" style="--testimonial-index:${index}">
             <div class="testimonial-quote">“</div>
-            <p>${esc(item.message || "-")}</p>
+            <div class="markdown-content testimonial-message">${renderMarkdownBlock(item.message || "-")}</div>
             <div class="testimonial-socials">
               ${item.whatsapp ? `<a href="${esc(item.whatsapp)}" target="_blank" rel="noopener noreferrer" aria-label="WhatsApp">${socialIcon("whatsapp")}</a>` : ""}
               ${item.telegram ? `<a href="${esc(item.telegram)}" target="_blank" rel="noopener noreferrer" aria-label="Telegram">${socialIcon("telegram")}</a>` : ""}
@@ -1074,7 +1145,7 @@ async function homePage() {
           <div class="container hero-inner">
             <div class="eyebrow">Website Resmi Sekolah</div>
             <h1 id="hero-title">${esc(hero.title || data.settings.schoolName)}</h1>
-            <p id="hero-subtitle">${esc(hero.subtitle || data.settings.tagline)}</p>
+            <div id="hero-subtitle" class="hero-subtitle markdown-content">${renderMarkdownBlock(hero.subtitle || data.settings.tagline)}</div>
             <div class="actions">
               <a class="btn" id="hero-cta" href="${esc(hero.ctaUrl || "/profil")}">${esc(hero.ctaLabel || "Lihat Profil")}</a>
               <a class="btn secondary" href="https://www.smkpasirian-lmj.sch.id/blog/category/berita">Baca Berita</a>
@@ -1100,9 +1171,9 @@ async function homePage() {
               <h3>Sambutan Kepala Sekolah</h3>
               <div class="principal-block">
                 <img class="principal-photo" src="${esc(data.profile.principalPhotoUrl || "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=500&q=80")}" alt="${esc(data.profile.principalName || "Kepala Sekolah")}">
-                <div>
+                <div class="principal-copy">
                   <h4>${esc(data.profile.principalName)}</h4>
-                  <p class="prose">${esc(data.profile.principalGreeting)}</p>
+                  <div class="prose markdown-content">${renderMarkdownBlock(data.profile.principalGreeting)}</div>
                   <a class="btn" href="${esc(data.profile.principalCtaUrl || "/profil")}">${esc(data.profile.principalCtaLabel || "Selengkapnya")}</a>
                 </div>
               </div>
@@ -1119,13 +1190,13 @@ async function homePage() {
         </div>
       </section>
       <script type="application/json" id="hero-banners-data">${JSON.stringify(banners).replace(/</g, "\\u003c")}</script>
-      <section>
+      <section class="profile-summary-section">
         <div class="container">
           ${sectionHead("Profil Singkat Sekolah", "Gambaran ringkas karakter, visi, dan arah pengembangan sekolah.")}
-          <div class="split">
-          <div>
+          <div class="split profile-summary-layout">
+          <div class="profile-summary-copy">
             <h3>${esc(data.settings.schoolName)}</h3>
-            <p class="prose">${esc(data.profile.history)}</p>
+            <div class="prose markdown-content">${renderMarkdownBlock(data.profile.history)}</div>
           </div>
           <div class="photo-panel" style="background-image:url(&quot;${esc(data.profile.profileSummaryImageUrl || "https://images.unsplash.com/photo-1523580494863-6f3031224c94?auto=format&fit=crop&w=1200&q=80")}&quot;)"></div>
           </div>
@@ -1137,9 +1208,10 @@ async function homePage() {
       <section class="soft">
         <div class="container">
           ${sectionHead("Pengumuman Penting", "Informasi administratif yang perlu segera diketahui.")}
-          <div class="grid two">${(data.announcements || []).map((item) => card(item.title, item.content, item.isPriority ? '<span class="badge">Prioritas</span>' : "")).join("")}</div>
+          <div class="grid two">${(data.announcements || []).map(announcementCard).join("")}</div>
         </div>
       </section>
+      ${announcementModal(data.announcements || [])}
       ${testimonialsSection(data.testimonials || [])}
       <button class="back-to-top" type="button" data-back-to-top aria-label="Kembali ke atas">${navIcon("arrowUp")}</button>
     </main>`, data);
@@ -1176,7 +1248,7 @@ function setupHeroCarousel() {
     const image = item.imageUrl || "https://images.unsplash.com/photo-1580582932707-520aed937b7b?auto=format&fit=crop&w=1800&q=80";
     carousel.style.backgroundImage = `linear-gradient(100deg, rgba(6,31,28,.85), rgba(6,31,28,.48), rgba(6,31,28,.18)), url('${image}')`;
     if (title) title.textContent = item.title || "";
-    if (subtitle) subtitle.textContent = item.subtitle || "";
+    if (subtitle) subtitle.innerHTML = renderMarkdownBlock(item.subtitle || "");
     if (cta) {
       cta.textContent = item.ctaLabel || "Lihat Profil";
       cta.href = item.ctaUrl || "/profil";
@@ -1282,7 +1354,7 @@ function setupAgendaCalendar() {
       <h4>${esc(item.title || "Agenda Sekolah")}</h4>
       <p><strong>Waktu:</strong> ${esc(dateId(item.startDate))}${item.endDate ? ` - ${esc(dateId(item.endDate))}` : ""}</p>
       <p><strong>Lokasi:</strong> ${esc(item.location || "-")}</p>
-      <p>${esc(item.description || "-")}</p>
+      <div class="markdown-content">${renderMarkdownBlock(item.description || "-")}</div>
       ${item.status ? `<span class="badge">${esc(item.status)}</span>` : ""}
     </div>`).join("");
     modal.hidden = false;
@@ -1372,7 +1444,7 @@ function setupAgendaList() {
       </div>
       <div class="agenda-modal-item">
         <h4>Deskripsi</h4>
-        <p>${esc(item.description || "-")}</p>
+        <div class="markdown-content">${renderMarkdownBlock(item.description || "-")}</div>
       </div>
       ${item.status ? `<div class="agenda-modal-item"><h4>Status</h4><p><span class="badge">${esc(item.status)}</span></p></div>` : ""}`;
     modal.hidden = false;
@@ -1535,8 +1607,8 @@ function setupManagementModal() {
     const item = byKey.get(key);
     if (!item) return;
     title.textContent = item.title;
-    lead.textContent = item.lead;
-    list.innerHTML = item.points.map((point) => `<div class="management-modal-item"><span></span><p>${esc(point)}</p></div>`).join("");
+    lead.innerHTML = renderMarkdownBlock(item.lead);
+    list.innerHTML = item.points.map((point) => `<div class="management-modal-item"><span></span><div class="markdown-content">${renderMarkdownBlock(point)}</div></div>`).join("");
     const resourceItems = Array.isArray(item.resources) ? item.resources : [];
     resources.hidden = resourceItems.length === 0;
     resources.innerHTML = resourceItems.length ? `
@@ -1559,6 +1631,46 @@ function setupManagementModal() {
   modal.querySelectorAll("[data-management-close]").forEach((button) => button.addEventListener("click", closeModal));
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && modal.classList.contains("open")) closeModal();
+  });
+}
+
+function setupAnnouncementModal() {
+  const modal = document.querySelector("[data-announcement-modal]");
+  const payload = document.querySelector("#announcement-modal-data");
+  if (!modal || !payload) return;
+  const items = JSON.parse(payload.textContent || "[]");
+  const byId = new Map(items.map((item) => [String(item.id), item]));
+  const title = modal.querySelector("[data-announcement-title]");
+  const date = modal.querySelector("[data-announcement-date]");
+  const content = modal.querySelector("[data-announcement-content]");
+  const actions = modal.querySelector("[data-announcement-actions]");
+  const close = () => {
+    modal.classList.remove("open");
+    modal.hidden = true;
+    document.body.classList.remove("modal-open");
+  };
+  document.querySelectorAll("[data-announcement-detail]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const item = byId.get(String(button.dataset.announcementId));
+      if (!item) return;
+      title.textContent = item.title || "Pengumuman";
+      const publishedDate = item.publishedAt ? new Date(item.publishedAt) : null;
+      date.textContent = publishedDate && !Number.isNaN(publishedDate.getTime())
+        ? new Intl.DateTimeFormat("id-ID", { dateStyle: "long" }).format(publishedDate)
+        : "";
+      content.innerHTML = renderMarkdownBlock(item.content || "-");
+      actions.innerHTML = item.attachmentUrl
+        ? `<a class="btn" href="${esc(item.attachmentUrl)}" target="_blank" rel="noopener noreferrer">Lihat Lampiran</a>`
+        : "";
+      modal.hidden = false;
+      requestAnimationFrame(() => modal.classList.add("open"));
+      document.body.classList.add("modal-open");
+      modal.querySelector("[data-announcement-close]")?.focus();
+    });
+  });
+  modal.querySelectorAll("[data-announcement-close]").forEach((button) => button.addEventListener("click", close));
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && modal.classList.contains("open")) close();
   });
 }
 
@@ -1691,14 +1803,14 @@ async function profilePage() {
       ${pageHero("Profil Sekolah", "Sejarah, visi misi, identitas, fasilitas, dan lokasi sekolah.")}
       <section><div class="container split">
         <div>
-          <h2>Sejarah</h2><p class="prose">${esc(data.profile.history)}</p>
-          <h2>Visi</h2><p class="prose">${esc(data.profile.vision)}</p>
+          <div class="profile-history"><h2>Sejarah</h2><div class="prose markdown-content">${renderMarkdownBlock(data.profile.history)}</div></div>
+          <h2>Visi</h2><div class="prose markdown-content">${renderMarkdownBlock(data.profile.vision)}</div>
           <h2>Misi</h2>
           <ol class="mission-list">
             ${missionItems.map((item, index) => `
               <li>
                 <span class="mission-number">${index + 1}</span>
-                <span class="mission-text">${esc(item)}</span>
+                <span class="mission-text markdown-content">${inlineMarkdown(item)}</span>
               </li>
             `).join("")}
           </ol>
@@ -1724,6 +1836,18 @@ async function collectionPage(apiPath, title, subtitle, renderer) {
   const data = await loadHome();
   const rows = await api(apiPath);
   return layout(`<main>${pageHero(title, subtitle)}<section><div class="container"><div class="grid">${rows.map(renderer).join("") || '<p class="empty">Belum ada data.</p>'}</div></div></section></main>`, data);
+}
+
+async function galleryPage() {
+  const data = await loadHome();
+  const rows = await api("/api/galleries");
+  return layout(`<main>${pageHero("Galeri", "Album dokumentasi kegiatan, fasilitas, jurusan, dan ekstrakurikuler.")}<section><div class="container"><div class="grid">${rows.map(galleryCard).join("") || '<p class="empty">Belum ada data.</p>'}</div></div></section></main>`, data);
+}
+
+async function announcementsPage() {
+  const data = await loadHome();
+  const rows = await api("/api/announcements");
+  return layout(`<main>${pageHero("Pengumuman", "Informasi administratif dan pengumuman penting.")}<section><div class="container"><div class="grid">${rows.map(announcementCard).join("") || '<p class="empty">Belum ada data.</p>'}</div></div></section>${announcementModal(rows)}</main>`, data);
 }
 
 async function majorsPage() {
@@ -1888,10 +2012,10 @@ async function render() {
     else if (path.startsWith("/program-keahlian/")) app.innerHTML = await majorDetailPage(decodeURIComponent(path.replace("/program-keahlian/", "")));
     else if (path === "/guru-tendik") app.innerHTML = await teachersPage();
     else if (path.startsWith("/guru-tendik/")) app.innerHTML = await teacherDetailPage(decodeURIComponent(path.replace("/guru-tendik/", "")));
-    else if (path === "/galeri") app.innerHTML = await collectionPage("/api/galleries", "Galeri", "Album dokumentasi kegiatan, fasilitas, jurusan, dan ekstrakurikuler.", (item) => card(item.title, `${item.category}\n${item.description}`));
+    else if (path === "/galeri") app.innerHTML = await galleryPage();
     else if (path === "/agenda") app.innerHTML = await agendaPage();
-    else if (path === "/pengumuman") app.innerHTML = await collectionPage("/api/announcements", "Pengumuman", "Informasi administratif dan pengumuman penting.", (item) => card(item.title, item.content, item.isPriority ? '<span class="badge">Prioritas</span>' : ""));
-    else if (path === "/unduhan") app.innerHTML = await collectionPage("/api/downloads", "Unduhan", "Dokumen resmi sekolah yang dapat diunduh.", (item) => `<article class="card"><span class="badge">${esc(item.category)}</span><h3>${esc(item.title)}</h3><p>${esc(item.description)}</p><p>${esc(item.fileType)} - ${esc(item.fileSize)}</p><a class="btn ghost" href="${esc(item.fileUrl)}">Download</a></article>`);
+    else if (path === "/pengumuman") app.innerHTML = await announcementsPage();
+    else if (path === "/unduhan") app.innerHTML = await collectionPage("/api/downloads", "Unduhan", "Dokumen resmi sekolah yang dapat diunduh.", (item) => `<article class="card"><span class="badge">${esc(item.category)}</span><h3>${esc(item.title)}</h3><div class="markdown-content">${renderMarkdownBlock(item.description)}</div><p>${esc(item.fileType)} - ${esc(item.fileSize)}</p><a class="btn ghost" href="${esc(item.fileUrl)}">Download</a></article>`);
     else if (path === "/kontak") app.innerHTML = await contactPage();
     else if (path === "/pengaduan") app.innerHTML = await complaintPage();
     else app.innerHTML = await homePage();
@@ -1930,6 +2054,7 @@ async function render() {
     setupTestimonialForm();
     setupTestimonialCarousel();
     setupManagementModal();
+    setupAnnouncementModal();
     document.querySelectorAll("[data-theme-toggle]").forEach((button) => button.addEventListener("click", toggleTheme));
     applyTheme(document.documentElement.dataset.theme || getPreferredTheme());
     registerPwa();

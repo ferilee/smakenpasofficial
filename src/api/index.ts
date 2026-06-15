@@ -30,10 +30,10 @@ type AnyTable = any;
 const tokenSecret = process.env.TOKEN_SECRET ?? "ubah-secret-ini-di-env";
 
 const tableFields = {
-  majors: ["name", "slug", "fieldCategory", "profileMarkdown", "profileCtaLabel", "profileCtaUrl", "description", "competencies", "careerProspects", "practiceFacilities", "productiveTeachers", "achievements", "imageUrl", "isFeatured"],
+  majors: ["name", "slug", "fieldCategory", "profileMarkdown", "profileCtaLabel", "profileCtaUrl", "instagram", "tiktok", "facebook", "youtube", "description", "competencies", "careerProspects", "practiceFacilities", "productiveTeachers", "achievements", "imageUrl", "isFeatured"],
   teachers: ["name", "photoUrl", "position", "subject", "expertise", "status"],
   facilities: ["name", "description", "imageUrl", "isFeatured"],
-  galleries: ["title", "slug", "category", "description", "coverUrl", "showOnHome"],
+  galleries: ["title", "slug", "category", "description", "coverUrl", "albumUrl", "showOnHome"],
   galleryItems: ["galleryId", "type", "title", "fileUrl", "youtubeUrl", "isFeatured"],
   agendas: ["title", "startDate", "endDate", "location", "description", "status"],
   announcements: ["title", "content", "isPriority", "attachmentUrl", "status", "publishedAt"],
@@ -67,6 +67,12 @@ function normalizeBody(resource: keyof typeof tableFields, body: Record<string, 
   const data = pick(body, [...tableFields[resource]]);
   if ("name" in data && !("slug" in data) && (resource === "majors")) data.slug = slugify(String(data.name));
   if ("title" in data && !("slug" in data) && resource === "galleries") data.slug = slugify(String(data.title));
+  if (resource === "majors") {
+    if ("instagram" in data) data.instagram = socialProfileUrl("instagram", String(data.instagram || ""));
+    if ("tiktok" in data) data.tiktok = socialProfileUrl("tiktok", String(data.tiktok || ""));
+    if ("facebook" in data) data.facebook = socialProfileUrl("facebook", String(data.facebook || ""));
+    if ("youtube" in data) data.youtube = socialProfileUrl("youtube", String(data.youtube || ""));
+  }
   if (resource === "testimonials") {
     data.whatsapp = socialProfileUrl("whatsapp", String(data.whatsapp || ""));
     data.telegram = socialProfileUrl("telegram", String(data.telegram || ""));

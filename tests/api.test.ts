@@ -250,11 +250,23 @@ describe("settings and profile endpoints", () => {
 
 describe("admin CRUD endpoints", () => {
   test("majors supports create, read, update, and delete", async () => {
-    const create = await adminRequest("/majors", jsonInit("POST", { name: "Jurusan Test", description: "Desc", isFeatured: true }));
+    const create = await adminRequest("/majors", jsonInit("POST", {
+      name: "Jurusan Test",
+      description: "Desc",
+      instagram: "jurusan.test",
+      tiktok: "@jurusan.test",
+      facebook: "jurusan.test",
+      youtube: "@jurusan.test",
+      isFeatured: true
+    }));
     const created = await json(create);
     createdMajorId = created.data.id;
     expect(create.status).toBe(201);
     expect(created.data.slug).toBe("jurusan-test");
+    expect(created.data.instagram).toBe("https://instagram.com/jurusan.test");
+    expect(created.data.tiktok).toBe("https://www.tiktok.com/@jurusan.test");
+    expect(created.data.facebook).toBe("https://facebook.com/jurusan.test");
+    expect(created.data.youtube).toBe("https://www.youtube.com/@jurusan.test");
 
     const one = await json(await request(`/majors/${createdMajorId}`));
     expect(one.data.name).toBe("Jurusan Test");
@@ -373,9 +385,15 @@ describe("admin CRUD endpoints", () => {
   });
 
   test("galleries and gallery items can be managed", async () => {
-    const gallery = await json(await adminRequest("/galleries", jsonInit("POST", { title: "Galeri Test", slug: "galeri-test", category: "Test" })));
+    const gallery = await json(await adminRequest("/galleries", jsonInit("POST", {
+      title: "Galeri Test",
+      slug: "galeri-test",
+      category: "Test",
+      albumUrl: "https://photos.app.goo.gl/example"
+    })));
     createdGalleryId = gallery.data.id;
     expect(gallery.data.slug).toBe("galeri-test");
+    expect(gallery.data.albumUrl).toBe("https://photos.app.goo.gl/example");
 
     const item = await json(await adminRequest("/gallery-items", jsonInit("POST", { galleryId: createdGalleryId, title: "Item Test", type: "image" })));
     expect(item.data.galleryId).toBe(createdGalleryId);
