@@ -87,13 +87,14 @@ export async function seed() {
     await db.insert(users).values({
       name: "Ferilee",
       username: "ferilee",
-      email: "ferilee@sekolah.sch.id",
+      email: "the.real.ferilee@gmail.com",
       password: ferileePassword,
       role: "admin"
     });
   } else {
     await db.update(users).set({
       name: "Ferilee",
+      email: "the.real.ferilee@gmail.com",
       password: ferileePassword,
       role: "admin"
     }).where(eq(users.id, ferileeUser.id));

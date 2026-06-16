@@ -664,13 +664,27 @@ function bindQuickLinkEditor(container) {
 }
 
 function loginView() {
+  const oauthMessages = {
+    not_configured: "Google OAuth belum dikonfigurasi.",
+    invalid_state: "Sesi login Google tidak valid. Coba lagi.",
+    missing_code: "Kode login Google tidak diterima.",
+    token_failed: "Gagal menukar kode Google.",
+    token_missing: "Token Google tidak diterima.",
+    userinfo_failed: "Gagal mengambil profil Google.",
+    email_unverified: "Email Google belum terverifikasi.",
+    user_not_allowed: "Email Google belum terdaftar sebagai admin/editor.",
+    failed: "Login Google gagal."
+  };
+  const oauthError = new URLSearchParams(location.search).get("oauth");
   root.innerHTML = `
     <main class="login-screen">
       <form class="login-card form" id="login-form">
         <div class="brand"><img class="brand-mark brand-logo" src="/Logo_SMKNPasirian.png" alt="Logo SMK Negeri Pasirian"><span>Admin Sekolah</span></div>
+        ${oauthError ? `<p class="login-alert">${esc(oauthMessages[oauthError] || "Login Google gagal.")}</p>` : ""}
         <div class="field"><label>Username</label><input name="username" value="ferilee" required></div>
         <div class="field"><label>Password</label><input name="password" type="password" value="F3r!-lee" required></div>
         <button class="btn">Masuk</button>
+        <a class="btn secondary google-login-btn" href="/api/auth/google">Masuk dengan Google</a>
       </form>
     </main>`;
   document.querySelector("#login-form").addEventListener("submit", async (event) => {

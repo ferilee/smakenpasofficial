@@ -50,6 +50,21 @@ Password  : F3r!-lee
 
 Segera ganti password dan `TOKEN_SECRET` untuk penggunaan produksi.
 
+## Login Google OAuth
+
+Login Google tersedia di `/admin/login` dan hanya mengizinkan email yang sudah terdaftar di menu **User Admin** dengan role `admin` atau `editor`.
+
+Set environment berikut sebelum menjalankan server:
+
+```bash
+GOOGLE_CLIENT_ID="isi-client-id"
+GOOGLE_CLIENT_SECRET="isi-client-secret"
+# Opsional; default: {origin}/api/auth/google/callback
+GOOGLE_REDIRECT_URI="http://localhost:2005/api/auth/google/callback"
+```
+
+Tambahkan redirect URI yang sama di Google Cloud Console OAuth Client.
+
 ## Struktur Halaman Publik
 
 - `/` beranda sekolah
@@ -61,7 +76,7 @@ Segera ganti password dan `TOKEN_SECRET` untuk penggunaan produksi.
 - `/pengumuman` pengumuman
 - `/unduhan` file unduhan
 - `/kontak` kontak dan formulir pesan
-- `/berita` redirect ke WordPress
+- `/berita` berita sekolah dari WordPress
 
 ## Dashboard Admin
 
@@ -100,6 +115,8 @@ GET  /api/public/profile
 GET  /api/public/wordpress
 POST /api/messages
 POST /api/auth/login
+GET  /api/auth/google
+GET  /api/auth/google/callback
 POST /api/auth/logout
 GET  /api/auth/me
 ```

@@ -1,4 +1,4 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { and, asc, desc, eq, or } from "drizzle-orm";
 import { Hono } from "hono";
 import { getCookie, setCookie } from "hono/cookie";
@@ -32,6 +32,9 @@ import { fail, hashPassword, normalizeBulletList, normalizeTeacherImportRow, ok,
 type AnyTable = any;
 
 const tokenSecret = process.env.TOKEN_SECRET ?? "ubah-secret-ini-di-env";
+const googleAuthUrl = "https://accounts.google.com/o/oauth2/v2/auth";
+const googleTokenUrl = "https://oauth2.googleapis.com/token";
+const googleUserInfoUrl = "https://www.googleapis.com/oauth2/v3/userinfo";
 const editorFeatureKeys = [
   "settings", "profile", "banners", "majors", "teachers", "facilities", "galleries", "galleryItems",
   "agendas", "announcements", "studentInfos", "studentServices", "studentAnnouncements", "studentAgendas",
@@ -64,6 +67,28 @@ function sign(value: string) {
 function createToken(userId: number) {
   const payload = `${userId}.${Date.now()}`;
   return `${payload}.${sign(payload)}`;
+}
+
+function oauthRedirectUri(c: any) {
+  if (process.env.GOOGLE_REDIRECT_URI) return process.env.GOOGLE_REDIRECT_URI;
+  const url = new URL(c.req.url);
+  return `${url.origin}/api/auth/google/callback`;
+}
+
+function googleOauthConfigured() {
+  return Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
+}
+
+function createOauthState() {
+  return randomBytes(24).toString("hex");
+}
+
+async function adminUserForGoogleEmail(email = "") {
+  const normalized = String(email || "").trim().toLowerCase();
+  if (!normalized) return null;
+  const user = await db.select().from(users).where(eq(users.email, normalized)).get();
+  if (!user || (user.role !== "admin" && user.role !== "editor")) return null;
+  return user;
 }
 
 function verifyToken(token = "") {
@@ -267,6 +292,62 @@ export function apiRoutes() {
     const token = createToken(user.id);
     setCookie(c, "session", token, { httpOnly: true, sameSite: "Lax", path: "/", maxAge: 60 * 60 * 8 });
     return c.json(ok({ token, user: { id: user.id, name: user.name, username: user.username, email: user.email, role: user.role } }));
+  });
+
+  app.get("/auth/google", async (c) => {
+    if (!googleOauthConfigured()) return c.json(fail("Google OAuth belum dikonfigurasi.", 400), 400);
+    const state = createOauthState();
+    setCookie(c, "google_oauth_state", state, { httpOnly: true, sameSite: "Lax", path: "/", maxAge: 60 * 10 });
+    const url = new URL(googleAuthUrl);
+    url.searchParams.set("client_id", process.env.GOOGLE_CLIENT_ID!);
+    url.searchParams.set("redirect_uri", oauthRedirectUri(c));
+    url.searchParams.set("response_type", "code");
+    url.searchParams.set("scope", "openid email profile");
+    url.searchParams.set("state", state);
+    url.searchParams.set("prompt", "select_account");
+    return c.redirect(url.toString(), 302);
+  });
+
+  app.get("/auth/google/callback", async (c) => {
+    if (!googleOauthConfigured()) return c.redirect("/admin/login?oauth=not_configured", 302);
+    const state = String(c.req.query("state") || "");
+    const savedState = getCookie(c, "google_oauth_state") || "";
+    setCookie(c, "google_oauth_state", "", { path: "/", maxAge: 0 });
+    if (!state || !savedState || state !== savedState) return c.redirect("/admin/login?oauth=invalid_state", 302);
+    const code = String(c.req.query("code") || "");
+    if (!code) return c.redirect("/admin/login?oauth=missing_code", 302);
+
+    try {
+      const tokenResponse = await fetch(googleTokenUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          client_id: process.env.GOOGLE_CLIENT_ID!,
+          client_secret: process.env.GOOGLE_CLIENT_SECRET!,
+          code,
+          grant_type: "authorization_code",
+          redirect_uri: oauthRedirectUri(c)
+        })
+      });
+      if (!tokenResponse.ok) return c.redirect("/admin/login?oauth=token_failed", 302);
+      const tokenData = await tokenResponse.json() as { access_token?: string };
+      if (!tokenData.access_token) return c.redirect("/admin/login?oauth=token_missing", 302);
+
+      const userInfoResponse = await fetch(googleUserInfoUrl, {
+        headers: { Authorization: `Bearer ${tokenData.access_token}` }
+      });
+      if (!userInfoResponse.ok) return c.redirect("/admin/login?oauth=userinfo_failed", 302);
+      const profile = await userInfoResponse.json() as { email?: string; email_verified?: boolean };
+      if (profile.email_verified === false) return c.redirect("/admin/login?oauth=email_unverified", 302);
+      const user = await adminUserForGoogleEmail(profile.email);
+      if (!user) return c.redirect("/admin/login?oauth=user_not_allowed", 302);
+
+      const token = createToken(user.id);
+      setCookie(c, "session", token, { httpOnly: true, sameSite: "Lax", path: "/", maxAge: 60 * 60 * 8 });
+      return c.redirect("/admin", 302);
+    } catch {
+      return c.redirect("/admin/login?oauth=failed", 302);
+    }
   });
 
   app.post("/auth/logout", (c) => {

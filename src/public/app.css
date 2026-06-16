@@ -2718,6 +2718,19 @@ section { padding: 58px 0; }
   }
 }
 .form { display: grid; gap: 12px; }
+.login-alert {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--danger) 35%, var(--line));
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--danger) 10%, var(--surface));
+  color: var(--danger);
+  font-size: 13px;
+  font-weight: 750;
+}
+.google-login-btn {
+  text-align: center;
+}
 .field { display: grid; gap: 6px; }
 .field label { font-weight: 750; font-size: 13px; }
 .field input, .field textarea, .field select {

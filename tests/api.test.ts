@@ -92,6 +92,25 @@ describe("auth endpoints", () => {
     expect(body.data.role).toBe("admin");
   });
 
+  test("google login reports missing oauth configuration", async () => {
+    const res = await request("/auth/google");
+    const body = await json(res);
+    expect(res.status).toBe(400);
+    expect(body.ok).toBe(false);
+  });
+
+  test("google callback rejects invalid state before token exchange", async () => {
+    process.env.GOOGLE_CLIENT_ID = "client-test";
+    process.env.GOOGLE_CLIENT_SECRET = "secret-test";
+    const res = await request("/auth/google/callback?state=bad&code=code-test", {
+      headers: { Cookie: "google_oauth_state=other" }
+    });
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toContain("oauth=invalid_state");
+    delete process.env.GOOGLE_CLIENT_ID;
+    delete process.env.GOOGLE_CLIENT_SECRET;
+  });
+
   test("logout clears session", async () => {
     const res = await adminRequest("/auth/logout", { method: "POST" });
     const body = await json(res);
