@@ -1877,7 +1877,8 @@ async function fetchRegionList(url, fallback = []) {
   try {
     const response = await fetch(url, { cache: "force-cache" });
     if (!response.ok) throw new Error("Wilayah tidak tersedia");
-    const rows = await response.json();
+    const payload = await response.json();
+    const rows = Array.isArray(payload) ? payload : payload?.data;
     return Array.isArray(rows) && rows.length ? rows : fallback;
   } catch {
     return fallback;
@@ -1910,15 +1911,15 @@ async function openProfileModal() {
   const districtSelect = document.querySelector("#profile-district");
   const villageSelect = document.querySelector("#profile-village");
   const current = state.session || {};
-  const districts = await fetchRegionList("https://emsifa.github.io/api-wilayah-indonesia/api/districts/3508.json", lumajangDistrictFallback);
+  const districts = await fetchRegionList("/api/public/lumajang-districts", lumajangDistrictFallback);
   districtSelect.innerHTML = `<option value="">Pilih kecamatan</option>${districts.map((item) => `<option value="${esc(item.id)}" data-name="${esc(item.name)}" ${item.id === current.districtId ? "selected" : ""}>${esc(item.name)}</option>`).join("")}`;
 
   const loadVillages = async (districtId, selectedVillageId = "") => {
     villageSelect.innerHTML = `<option value="">Memuat desa/kelurahan...</option>`;
-    const rows = districtId ? await fetchRegionList(`https://emsifa.github.io/api-wilayah-indonesia/api/villages/${districtId}.json`, []) : [];
+    const rows = districtId ? await fetchRegionList(`/api/public/lumajang-villages/${districtId}`, []) : [];
     villageSelect.innerHTML = rows.length
       ? `<option value="">Pilih desa/kelurahan</option>${rows.map((item) => `<option value="${esc(item.id)}" data-name="${esc(item.name)}" ${item.id === selectedVillageId ? "selected" : ""}>${esc(item.name)}</option>`).join("")}`
-      : `<option value="${esc(districtId || "manual")}" data-name="Alamat Lumajang">Alamat Lumajang</option>`;
+      : `<option value="">Desa/kelurahan belum dapat dimuat</option>`;
   };
   if (current.districtId) await loadVillages(current.districtId, current.villageId);
   districtSelect.addEventListener("change", () => loadVillages(districtSelect.value));

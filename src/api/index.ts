@@ -35,6 +35,30 @@ const tokenSecret = process.env.TOKEN_SECRET ?? "ubah-secret-ini-di-env";
 const googleAuthUrl = "https://accounts.google.com/o/oauth2/v2/auth";
 const googleTokenUrl = "https://oauth2.googleapis.com/token";
 const googleUserInfoUrl = "https://www.googleapis.com/oauth2/v3/userinfo";
+const wilayahApiBase = "https://emsifa.github.io/api-wilayah-indonesia/api";
+const lumajangDistrictFallback = [
+  { id: "3508010", name: "TEMPURSARI" },
+  { id: "3508020", name: "PRONOJIWO" },
+  { id: "3508030", name: "CANDIPURO" },
+  { id: "3508040", name: "PASIRIAN" },
+  { id: "3508050", name: "TEMPEH" },
+  { id: "3508060", name: "LUMAJANG" },
+  { id: "3508061", name: "SUMBERSUKO" },
+  { id: "3508070", name: "TEKUNG" },
+  { id: "3508080", name: "KUNIR" },
+  { id: "3508090", name: "YOSOWILANGUN" },
+  { id: "3508100", name: "ROWOKANGKUNG" },
+  { id: "3508110", name: "JATIROTO" },
+  { id: "3508120", name: "RANDUAGUNG" },
+  { id: "3508130", name: "SUKODONO" },
+  { id: "3508140", name: "PADANG" },
+  { id: "3508150", name: "PASRUJAMBE" },
+  { id: "3508160", name: "SENDURO" },
+  { id: "3508170", name: "GUCIALIT" },
+  { id: "3508180", name: "KEDUNGJAJANG" },
+  { id: "3508190", name: "KLAKAH" },
+  { id: "3508200", name: "RANUYOSO" }
+];
 const editorFeatureKeys = [
   "settings", "profile", "banners", "majors", "teachers", "facilities", "galleries", "galleryItems",
   "agendas", "announcements", "studentInfos", "studentServices", "studentAnnouncements", "studentAgendas",
@@ -153,6 +177,21 @@ async function userForPublicGoogleProfile(profile: { email?: string; name?: stri
     lastLoginAt: now
   } as never).returning();
   return row;
+}
+
+async function fetchWilayah(path: string, fallback: Array<Record<string, string>> = []) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 4500);
+  try {
+    const response = await fetch(`${wilayahApiBase}/${path}`, { signal: controller.signal });
+    if (!response.ok) return fallback;
+    const rows = await response.json();
+    return Array.isArray(rows) ? rows : fallback;
+  } catch {
+    return fallback;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 function verifyToken(token = "") {
@@ -594,6 +633,18 @@ export function apiRoutes() {
     profile: await db.select().from(schoolProfile).get(),
     facilities: await db.select().from(facilities).orderBy(asc(facilities.name))
   })));
+
+  app.get("/public/lumajang-districts", async (c) => {
+    const rows = await fetchWilayah("districts/3508.json", lumajangDistrictFallback);
+    return c.json(ok(rows));
+  });
+
+  app.get("/public/lumajang-villages/:districtId", async (c) => {
+    const districtId = String(c.req.param("districtId") || "").trim();
+    if (!/^3508\d{3}$/.test(districtId)) return c.json(fail("Kode kecamatan Lumajang tidak valid.", 400), 400);
+    const rows = await fetchWilayah(`villages/${districtId}.json`, []);
+    return c.json(ok(rows));
+  });
 
   app.get("/public/agendas", async (c) => c.json(ok(
     await db.select().from(agendas).where(eq(agendas.status, "scheduled")).orderBy(asc(agendas.startDate))

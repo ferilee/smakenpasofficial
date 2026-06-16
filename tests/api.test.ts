@@ -142,6 +142,14 @@ describe("public endpoints", () => {
     expect(Array.isArray(body.data.facilities)).toBe(true);
   });
 
+  test("lumajang region endpoints return districts and villages", async () => {
+    const districts = await json(await request("/public/lumajang-districts"));
+    expect(districts.data.some((item: any) => item.id === "3508030")).toBe(true);
+
+    const villages = await json(await request("/public/lumajang-villages/3508030"));
+    expect(villages.data.some((item: any) => item.name === "CANDIPURO")).toBe(true);
+  });
+
   test("wordpress preview endpoint returns an array", async () => {
     const res = await request("/public/wordpress");
     const body = await json(res);
