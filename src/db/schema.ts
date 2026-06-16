@@ -46,7 +46,8 @@ export const schoolSettings = sqliteTable("school_settings", {
   wordpressUrl: text("wordpress_url").notNull().default(""),
   ppdbUrl: text("ppdb_url").notNull().default(""),
   metaDescription: text("meta_description").notNull().default(""),
-  footerText: text("footer_text").notNull().default("")
+  footerText: text("footer_text").notNull().default(""),
+  editorPermissions: text("editor_permissions", { mode: "json" }).$type<string[]>().notNull().default([])
 });
 
 export const majors = sqliteTable("majors", {
@@ -132,6 +133,49 @@ export const announcements = sqliteTable("announcements", {
   attachmentUrl: text("attachment_url").notNull().default(""),
   status: text("status").notNull().default("active"),
   publishedAt: text("published_at").notNull().default(sql`CURRENT_TIMESTAMP`)
+});
+
+export const studentInfos = sqliteTable("student_infos", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  title: text("title").notNull(),
+  category: text("category").notNull().default("Info Siswa"),
+  content: text("content").notNull().default(""),
+  isPriority: integer("is_priority", { mode: "boolean" }).notNull().default(false),
+  attachmentUrl: text("attachment_url").notNull().default(""),
+  status: text("status").notNull().default("active"),
+  publishedAt: text("published_at").notNull().default(sql`CURRENT_TIMESTAMP`)
+});
+
+export const studentServices = sqliteTable("student_services", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  title: text("title").notNull(),
+  description: text("description").notNull().default(""),
+  url: text("url").notNull().default("#"),
+  icon: text("icon").notNull().default("book"),
+  sortOrder: integer("sort_order").notNull().default(0),
+  isActive: integer("is_active", { mode: "boolean" }).notNull().default(true)
+});
+
+export const studentAnnouncements = sqliteTable("student_announcements", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  title: text("title").notNull(),
+  content: text("content").notNull().default(""),
+  isPriority: integer("is_priority", { mode: "boolean" }).notNull().default(false),
+  attachmentUrl: text("attachment_url").notNull().default(""),
+  status: text("status").notNull().default("active"),
+  publishedAt: text("published_at").notNull().default(sql`CURRENT_TIMESTAMP`)
+});
+
+export const studentAgendas = sqliteTable("student_agendas", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  title: text("title").notNull(),
+  startDate: text("start_date").notNull(),
+  endDate: text("end_date").notNull().default(""),
+  location: text("location").notNull().default(""),
+  description: text("description").notNull().default(""),
+  registrationUrl: text("registration_url").notNull().default(""),
+  status: text("status").notNull().default("scheduled"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`)
 });
 
 export const downloads = sqliteTable("downloads", {

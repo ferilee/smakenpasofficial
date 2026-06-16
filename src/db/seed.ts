@@ -12,6 +12,10 @@ import {
   majors,
   schoolProfile,
   schoolSettings,
+  studentAgendas,
+  studentAnnouncements,
+  studentInfos,
+  studentServices,
   teachers,
   testimonials,
   users
@@ -104,7 +108,7 @@ export async function seed() {
       email: "info@smkpasirian-lmj.sch.id",
       phone: "(0334) 574253",
       whatsapp: "6281220052005",
-      wordpressUrl: "https://domainsekolah.sch.id/blog",
+      wordpressUrl: "https://www.smkpasirian-lmj.sch.id/blog",
       ppdbUrl: "https://domainsekolah.sch.id/ppdb",
       metaDescription: "Website resmi SMK Negeri Pasirian sebagai pusat informasi sekolah.",
       footerText: "SMK Negeri Pasirian. Seluruh hak cipta dilindungi.",
@@ -701,6 +705,39 @@ Kemitraan aktif dengan **Kompas TV Jember, JTV Jember, JTV Malang, Arema TV, Par
     await db.insert(announcements).values([
       { title: "Jadwal Penilaian Akhir Tahun", content: "Penilaian akhir tahun dilaksanakan mulai 10 Juni 2026. Siswa wajib hadir 15 menit sebelum ujian dimulai.", isPriority: true, status: "active" },
       { title: "Informasi PPDB 2026", content: "Pendaftaran peserta didik baru dibuka melalui tautan resmi PPDB sekolah.", isPriority: true, status: "active" }
+    ]);
+  }
+
+  if ((await db.select().from(studentInfos)).length === 0) {
+    await db.insert(studentInfos).values([
+      { title: "Persiapan Kegiatan Pembelajaran", category: "Akademik", content: "Siswa diminta memeriksa jadwal kelas, membawa perlengkapan praktik sesuai jurusan, dan mengikuti arahan wali kelas.", isPriority: true, status: "active" },
+      { title: "Layanan Konsultasi BK", category: "Kesiswaan", content: "Siswa dapat menghubungi guru BK melalui kanal resmi sekolah untuk konsultasi belajar, kedisiplinan, atau kendala pribadi.", status: "active" },
+      { title: "Dokumen Administrasi Siswa", category: "Administrasi", content: "Formulir dan dokumen kebutuhan siswa dapat diakses melalui bagian Dokumen Siswa pada halaman ini.", status: "active" }
+    ]);
+  }
+
+  if ((await db.select().from(studentServices)).length === 0) {
+    await db.insert(studentServices).values([
+      { title: "Pengumuman Siswa", description: "Informasi khusus siswa dari sekolah.", url: "/siswa/pengumuman", icon: "bell", sortOrder: 1, isActive: true },
+      { title: "Agenda Siswa", description: "Kegiatan yang dapat diikuti siswa.", url: "/siswa/agenda", icon: "calendar", sortOrder: 2, isActive: true },
+      { title: "Unduhan", description: "Formulir, dokumen, dan berkas sekolah.", url: "/unduhan", icon: "download", sortOrder: 3, isActive: true },
+      { title: "Pengaduan", description: "Laporkan kendala layanan atau pembelajaran.", url: "/pengaduan", icon: "report", sortOrder: 4, isActive: true },
+      { title: "Program Keahlian", description: "Informasi jurusan dan kompetensi keahlian.", url: "/program-keahlian", icon: "layers", sortOrder: 5, isActive: true },
+      { title: "Kontak Sekolah", description: "Hubungi sekolah untuk kebutuhan layanan.", url: "/kontak", icon: "phone", sortOrder: 6, isActive: true }
+    ]);
+  }
+
+  if ((await db.select().from(studentAnnouncements)).length === 0) {
+    await db.insert(studentAnnouncements).values([
+      { title: "Jadwal Pembagian Kartu Ujian", content: "Kartu ujian dapat diambil melalui wali kelas masing-masing sesuai jadwal yang ditentukan.", isPriority: true, status: "active" },
+      { title: "Pengumpulan Berkas Administrasi Siswa", content: "Siswa diminta melengkapi berkas administrasi dan mengumpulkannya ke tata usaha sekolah.", status: "active" }
+    ]);
+  }
+
+  if ((await db.select().from(studentAgendas)).length === 0) {
+    await db.insert(studentAgendas).values([
+      { title: "Kegiatan Jumat Sehat", startDate: "2026-06-19", endDate: "2026-06-19", location: "Lapangan Sekolah", description: "Senam pagi dan kegiatan kebersihan lingkungan sekolah.", status: "scheduled" },
+      { title: "Workshop Karier Siswa", startDate: "2026-06-24", endDate: "2026-06-24", location: "Aula Sekolah", description: "Sesi persiapan karier, CV, dan wawancara kerja untuk siswa kelas akhir.", status: "scheduled" }
     ]);
   }
 

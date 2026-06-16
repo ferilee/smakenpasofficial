@@ -7,6 +7,7 @@ const themeStorageKey = "websmakenpas-theme";
 const navItems = [
   ["Beranda", "/"],
   ["Profil", "/profil"],
+  ["Siswa", "/siswa"],
   ["Program Keahlian", "/program-keahlian"],
   ["Guru & Tendik", "/guru-tendik"],
   ["Galeri", "/galeri"],
@@ -26,6 +27,7 @@ const mobilePrimaryNav = [
 
 const mobileMoreNav = [
   ["Profil", "/profil", "school"],
+  ["Siswa", "/siswa", "book"],
   ["Guru & Tendik", "/guru-tendik", "users"],
   ["Agenda", "/agenda", "calendar"],
   ["Unduhan", "/unduhan", "download"],
@@ -179,6 +181,7 @@ function layout(content, data = state.home) {
   const school = data?.settings?.schoolName || "Website Sekolah";
   const footerLinks = [
     ["Profil", "/profil"],
+    ["Siswa", "/siswa"],
     ["Jurusan", "/program-keahlian"],
     ["Agenda", "/agenda"],
     ["Pengaduan", "/pengaduan"],
@@ -192,9 +195,9 @@ function layout(content, data = state.home) {
   return `
     <header class="topbar">
       <div class="container nav">
-        <a class="brand" href="/"><span class="brand-mark">S</span><span>${esc(school)}</span></a>
+        <a class="brand" href="/"><img class="brand-mark brand-logo" src="/Logo_SMKNPasirian.png" alt="Logo ${esc(school)}"><span>${esc(school)}</span></a>
         <nav class="nav-links">
-          ${navItems.map(([label, url]) => `<a class="${location.pathname === url ? "active" : ""}" href="${url}">${label}</a>`).join("")}
+          ${navItems.map(([label, url]) => `<a class="${isNavActive(url) ? "active" : ""}" href="${url}">${label}</a>`).join("")}
           <button class="theme-toggle" data-theme-toggle type="button" aria-pressed="false" aria-label="Mode Gelap"></button>
         </nav>
       </div>
@@ -1539,6 +1542,19 @@ function setupAgendaList() {
   });
 }
 
+function setupNewsArchive() {
+  document.querySelectorAll("[data-news-archive-toggle]").forEach((button) => {
+    const target = document.getElementById(button.getAttribute("aria-controls") || "");
+    if (!target) return;
+    button.addEventListener("click", () => {
+      const isOpening = target.hidden;
+      target.hidden = !isOpening;
+      button.setAttribute("aria-expanded", String(isOpening));
+      button.textContent = isOpening ? "Sembunyikan arsip berita" : "Tampilkan arsip berita";
+    });
+  });
+}
+
 function setupTestimonialForm() {
   const modal = document.querySelector("[data-testimonial-modal]");
   const open = document.querySelector("[data-testimonial-open]");
@@ -1923,6 +1939,284 @@ async function galleryPage() {
   return layout(`<main>${pageHero("Galeri", "Album dokumentasi kegiatan, fasilitas, jurusan, dan ekstrakurikuler.")}<section><div class="container"><div class="grid">${rows.map(galleryCard).join("") || '<p class="empty">Belum ada data.</p>'}</div></div></section></main>`, data);
 }
 
+function studentServiceCard(item) {
+  const href = item.url || "#";
+  const external = /^https?:\/\//i.test(href);
+  return `<a class="student-service-card" href="${esc(href)}" ${external ? 'target="_blank" rel="noopener noreferrer"' : ""}>
+    <span class="student-service-icon">${navIcon(item.icon || "book")}</span>
+    <span>
+      <strong>${esc(item.title || "Layanan Siswa")}</strong>
+      <small>${esc(item.description || "Layanan untuk siswa.")}</small>
+    </span>
+  </a>`;
+}
+
+async function siswaPage() {
+  const data = await loadHome();
+  const [studentInfos, studentServices, studentAnnouncements, studentAgendas, downloads] = await Promise.all([
+    api("/api/public/student-infos"),
+    api("/api/public/student-services"),
+    api("/api/public/student-announcements"),
+    api("/api/public/student-agendas"),
+    api("/api/downloads")
+  ]);
+  const today = dateKey(new Date());
+  const agendas = (studentAgendas || [])
+    .filter((item) => dateKey(item.endDate || item.startDate) >= today)
+    .slice(0, 4);
+  const announcements = Array.isArray(studentAnnouncements) ? studentAnnouncements.slice(0, 4) : [];
+  const infos = Array.isArray(studentInfos) ? studentInfos.slice(0, 6) : [];
+  const services = Array.isArray(studentServices) ? studentServices : [];
+  const studentDownloads = (downloads || []).slice(0, 5);
+  return layout(`<main>
+    ${pageHero("Portal Siswa", "Pusat layanan, informasi akademik, agenda, dokumen, dan kanal bantuan untuk siswa.")}
+    <section class="student-section">
+      <div class="container">
+        <div class="agenda-layout student-layout">
+          <div class="agenda-main-column">
+            <div class="agenda-group">
+              <div class="agenda-group-head">
+                <div>
+                  <p>Info Siswa</p>
+                  <h2>Informasi Khusus Siswa</h2>
+                </div>
+                <span class="badge">${infos.length} info</span>
+              </div>
+              <div class="student-info-grid">
+                ${infos.length ? infos.map((item) => `
+                  <article class="student-info-card">
+                    ${item.isPriority ? '<span class="badge">Prioritas</span>' : `<span class="badge">${esc(item.category || "Info Siswa")}</span>`}
+                    <h3>${esc(item.title)}</h3>
+                    <div class="markdown-content">${renderMarkdownBlock(item.content || "-")}</div>
+                    ${item.attachmentUrl ? `<a class="btn ghost" href="${esc(item.attachmentUrl)}" target="_blank" rel="noopener noreferrer">Buka Lampiran</a>` : ""}
+                  </article>
+                `).join("") : '<p class="empty">Belum ada informasi khusus siswa.</p>'}
+              </div>
+            </div>
+            <div class="agenda-group">
+              <div class="agenda-group-head">
+                <div>
+                  <p>Pengumuman</p>
+                  <h2>Pengumuman Siswa</h2>
+                </div>
+                <a class="btn ghost" href="/siswa/pengumuman">Lihat Semua</a>
+              </div>
+              <div class="student-info-grid">
+                ${announcements.length ? announcements.map((item) => `
+                  <article class="student-info-card">
+                    ${item.isPriority ? '<span class="badge">Prioritas</span>' : '<span class="badge">Pengumuman Siswa</span>'}
+                    <h3>${esc(item.title)}</h3>
+                    <div class="markdown-content">${renderMarkdownBlock(item.content || "-")}</div>
+                    ${item.attachmentUrl ? `<a class="btn ghost" href="${esc(item.attachmentUrl)}" target="_blank" rel="noopener noreferrer">Buka Lampiran</a>` : ""}
+                  </article>
+                `).join("") : '<p class="empty">Belum ada pengumuman siswa.</p>'}
+              </div>
+            </div>
+            <div class="agenda-group">
+              <div class="agenda-group-head">
+                <div>
+                  <p>Kegiatan</p>
+                  <h2>Agenda Terdekat</h2>
+                </div>
+                <a class="btn ghost" href="/siswa/agenda">Lihat Semua</a>
+              </div>
+              <div class="student-agenda-list">
+                ${agendas.length ? agendas.map((item) => `
+                  <article class="student-agenda-item">
+                    <span class="badge">${esc(dateId(item.startDate))}</span>
+                    <div>
+                      <h3>${esc(item.title || "Agenda Sekolah")}</h3>
+                      <p>${esc(item.location || "-")}</p>
+                      ${item.registrationUrl ? `<a class="btn ghost" href="${esc(item.registrationUrl)}" target="_blank" rel="noopener noreferrer">Daftar / Ikuti</a>` : ""}
+                    </div>
+                  </article>
+                `).join("") : '<p class="empty">Belum ada agenda terdekat.</p>'}
+              </div>
+            </div>
+          </div>
+          <aside class="agenda-past-column">
+            <div class="agenda-group agenda-past-group student-side-group">
+              <div class="agenda-group-head">
+                <div>
+                  <p>Akses Cepat</p>
+                  <h2>Layanan Siswa</h2>
+                </div>
+              </div>
+              <div class="student-service-grid">
+                ${services.length ? services.map((item) => studentServiceCard(item)).join("") : '<p class="empty">Belum ada layanan siswa.</p>'}
+              </div>
+              <div class="student-downloads">
+                <h3>Dokumen Siswa</h3>
+                ${studentDownloads.length ? studentDownloads.map((item) => `
+                  <a href="${esc(item.fileUrl || "/unduhan")}" class="student-download-link">
+                    <span>${esc(item.title || "Dokumen Sekolah")}</span>
+                    <small>${esc(item.fileType || "File")} ${item.fileSize ? `- ${esc(item.fileSize)}` : ""}</small>
+                  </a>
+                `).join("") : '<p class="empty">Belum ada dokumen siswa.</p>'}
+              </div>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </section>
+  </main>`, data);
+}
+
+async function siswaPengumumanPage() {
+  const data = await loadHome();
+  const rows = await api("/api/public/student-announcements");
+  const items = Array.isArray(rows) ? rows : [];
+  return layout(`<main>
+    ${pageHero("Pengumuman Siswa", "Informasi khusus untuk siswa yang dikelola langsung melalui dashboard admin.")}
+    <section class="student-section">
+      <div class="container">
+        <div class="agenda-group">
+          <div class="agenda-group-head">
+            <div>
+              <p>Portal Siswa</p>
+              <h2>Daftar Pengumuman Siswa</h2>
+            </div>
+            <a class="btn ghost" href="/siswa">Kembali ke Portal Siswa</a>
+          </div>
+          <div class="student-info-grid">
+            ${items.length ? items.map((item) => `
+              <article class="student-info-card">
+                ${item.isPriority ? '<span class="badge">Prioritas</span>' : '<span class="badge">Pengumuman Siswa</span>'}
+                <h3>${esc(item.title || "Pengumuman Siswa")}</h3>
+                <p class="student-card-date">${esc(dateId(item.publishedAt))}</p>
+                <div class="markdown-content">${renderMarkdownBlock(item.content || "-")}</div>
+                ${item.attachmentUrl ? `<a class="btn ghost" href="${esc(item.attachmentUrl)}" target="_blank" rel="noopener noreferrer">Buka Lampiran</a>` : ""}
+              </article>
+            `).join("") : '<p class="empty">Belum ada pengumuman siswa.</p>'}
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>`, data);
+}
+
+async function siswaAgendaPage() {
+  const data = await loadHome();
+  const rows = await api("/api/public/student-agendas");
+  const items = Array.isArray(rows) ? rows : [];
+  const renderRange = (item) => {
+    const start = dateId(item.startDate);
+    const end = item.endDate ? dateId(item.endDate) : "";
+    return end ? `${start} - ${end}` : start;
+  };
+  return layout(`<main>
+    ${pageHero("Agenda Siswa", "Agenda kegiatan yang dapat diikuti siswa dan dikelola khusus melalui dashboard admin.")}
+    <section class="student-section">
+      <div class="container">
+        <div class="agenda-group">
+          <div class="agenda-group-head">
+            <div>
+              <p>Portal Siswa</p>
+              <h2>Agenda Kegiatan Siswa</h2>
+            </div>
+            <a class="btn ghost" href="/siswa">Kembali ke Portal Siswa</a>
+          </div>
+          <div class="agenda-card-grid">
+            ${items.length ? items.map((item) => `
+              <article class="agenda-card">
+                <div class="agenda-card-top">
+                  <span class="badge">${esc(renderRange(item))}</span>
+                  ${item.status ? `<span class="agenda-status">${esc(item.status)}</span>` : ""}
+                </div>
+                <h3>${esc(item.title || "Agenda Siswa")}</h3>
+                <p class="agenda-card-location">${esc(item.location || "-")}</p>
+                <div class="agenda-card-description markdown-content">${renderMarkdownBlock(item.description || "-")}</div>
+                ${item.registrationUrl ? `<div class="agenda-card-actions"><a class="btn" href="${esc(item.registrationUrl)}" target="_blank" rel="noopener noreferrer">Daftar / Ikuti</a></div>` : ""}
+              </article>
+            `).join("") : '<p class="empty">Belum ada agenda siswa.</p>'}
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>`, data);
+}
+
+function newsCard(item, variant = "") {
+  const image = item.image || "/Logo_SMKNPasirian.png";
+  return `<article class="news-card ${variant}">
+    <a class="news-card-cover" href="${esc(item.link || "#")}" target="_blank" rel="noopener noreferrer">
+      <img src="${esc(image)}" alt="${esc(item.title || "Berita Sekolah")}">
+    </a>
+    <div class="news-card-body">
+      <span class="badge">${esc(dateId(item.date))}</span>
+      <h3>${esc(item.title || "Berita Sekolah")}</h3>
+      <p>${esc(item.excerpt || "Informasi terbaru dari sekolah.")}</p>
+      <a class="btn ghost" href="${esc(item.link || "#")}" target="_blank" rel="noopener noreferrer">Baca Berita</a>
+    </div>
+  </article>`;
+}
+
+async function beritaPage() {
+  const data = await loadHome();
+  const rows = await api("/api/public/wordpress");
+  const items = Array.isArray(rows)
+    ? rows.slice().sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
+    : [];
+  const latest = items[0];
+  const otherNews = items.slice(1, 5);
+  const archiveNews = items.slice(5);
+  const archiveSource = archiveNews.length ? archiveNews : items.slice(1);
+  const wordpressUrl = data.settings?.wordpressUrl || "https://www.smkpasirian-lmj.sch.id/blog/category/berita";
+  return layout(`<main>
+    ${pageHero("Berita Sekolah", "Kabar terbaru, dokumentasi kegiatan, dan informasi publikasi sekolah.")}
+    <section class="news-list-section">
+      <div class="container">
+        <div class="agenda-layout news-layout">
+          <div class="agenda-main-column">
+            <div class="agenda-group">
+              <div class="agenda-group-head">
+                <div>
+                  <p>Terbaru</p>
+                  <h2>Berita Utama</h2>
+                </div>
+                <span class="badge">${latest ? "1 berita" : "0 berita"}</span>
+              </div>
+              <div class="news-featured-grid">
+                ${latest ? newsCard(latest, "featured") : '<p class="empty">Belum ada berita terbaru.</p>'}
+              </div>
+            </div>
+            <div class="agenda-group">
+              <div class="agenda-group-head">
+                <div>
+                  <p>Publikasi</p>
+                  <h2>Berita Lainnya</h2>
+                </div>
+                <span class="badge">${otherNews.length} berita</span>
+              </div>
+              <div class="news-card-grid">
+                ${otherNews.length ? otherNews.map((item) => newsCard(item)).join("") : '<p class="empty">Belum ada berita lainnya.</p>'}
+              </div>
+            </div>
+          </div>
+          <aside class="agenda-past-column">
+            <div class="agenda-group agenda-past-group news-archive-group">
+              <div class="agenda-group-head">
+                <div>
+                  <p>Arsip</p>
+                  <h2>Arsip Berita</h2>
+                </div>
+                <span class="badge">${archiveSource.length} berita</span>
+              </div>
+              <button class="btn ghost agenda-past-toggle" type="button" data-news-archive-toggle aria-expanded="false" aria-controls="news-archive-list">
+                Tampilkan arsip berita
+              </button>
+              <div class="news-archive-list" id="news-archive-list" data-news-archive-list hidden>
+                ${archiveSource.length ? archiveSource.map((item) => newsCard(item, "compact")).join("") : '<p class="empty">Belum ada arsip berita.</p>'}
+              </div>
+              <a class="btn" href="${esc(wordpressUrl)}" target="_blank" rel="noopener noreferrer">Buka Blog Sekolah</a>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </section>
+  </main>`, data);
+}
+
 async function announcementsPage() {
   const data = await loadHome();
   const rows = await api("/api/announcements");
@@ -2091,10 +2385,14 @@ async function render() {
     else if (path.startsWith("/program-keahlian/")) app.innerHTML = await majorDetailPage(decodeURIComponent(path.replace("/program-keahlian/", "")));
     else if (path === "/guru-tendik") app.innerHTML = await teachersPage();
     else if (path.startsWith("/guru-tendik/")) app.innerHTML = await teacherDetailPage(decodeURIComponent(path.replace("/guru-tendik/", "")));
+    else if (path === "/siswa/pengumuman") app.innerHTML = await siswaPengumumanPage();
+    else if (path === "/siswa/agenda") app.innerHTML = await siswaAgendaPage();
+    else if (path === "/siswa") app.innerHTML = await siswaPage();
     else if (path === "/galeri") app.innerHTML = await galleryPage();
     else if (path === "/agenda") app.innerHTML = await agendaPage();
     else if (path === "/pengumuman") app.innerHTML = await announcementsPage();
     else if (path === "/unduhan") app.innerHTML = await collectionPage("/api/downloads", "Unduhan", "Dokumen resmi sekolah yang dapat diunduh.", (item) => `<article class="card"><span class="badge">${esc(item.category)}</span><h3>${esc(item.title)}</h3><div class="markdown-content">${renderMarkdownBlock(item.description)}</div><p>${esc(item.fileType)} - ${esc(item.fileSize)}</p><a class="btn ghost" href="${esc(item.fileUrl)}">Download</a></article>`);
+    else if (path === "/berita") app.innerHTML = await beritaPage();
     else if (path === "/kontak") app.innerHTML = await contactPage();
     else if (path === "/pengaduan") app.innerHTML = await complaintPage();
     else app.innerHTML = await homePage();
@@ -2130,6 +2428,7 @@ async function render() {
     setupBackToTop();
     setupAgendaCalendar();
     setupAgendaList();
+    setupNewsArchive();
     setupTestimonialForm();
     setupTestimonialCarousel();
     setupManagementModal();

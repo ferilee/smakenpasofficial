@@ -18,6 +18,10 @@ import {
   messages,
   schoolProfile,
   schoolSettings,
+  studentAgendas,
+  studentAnnouncements,
+  studentInfos,
+  studentServices,
   teachers,
   testimonials,
   users
@@ -28,6 +32,11 @@ import { fail, hashPassword, normalizeBulletList, normalizeTeacherImportRow, ok,
 type AnyTable = any;
 
 const tokenSecret = process.env.TOKEN_SECRET ?? "ubah-secret-ini-di-env";
+const editorFeatureKeys = [
+  "settings", "profile", "banners", "majors", "teachers", "facilities", "galleries", "galleryItems",
+  "agendas", "announcements", "studentInfos", "studentServices", "studentAnnouncements", "studentAgendas",
+  "downloads", "messages", "complaints", "testimonials", "upload"
+] as const;
 
 const tableFields = {
   majors: ["name", "slug", "fieldCategory", "profileMarkdown", "profileCtaLabel", "profileCtaUrl", "instagram", "tiktok", "facebook", "youtube", "description", "competencies", "careerProspects", "practiceFacilities", "productiveTeachers", "achievements", "imageUrl", "isFeatured"],
@@ -37,6 +46,10 @@ const tableFields = {
   galleryItems: ["galleryId", "type", "title", "fileUrl", "youtubeUrl", "isFeatured"],
   agendas: ["title", "startDate", "endDate", "location", "description", "status"],
   announcements: ["title", "content", "isPriority", "attachmentUrl", "status", "publishedAt"],
+  studentInfos: ["title", "category", "content", "isPriority", "attachmentUrl", "status", "publishedAt"],
+  studentServices: ["title", "description", "url", "icon", "sortOrder", "isActive"],
+  studentAnnouncements: ["title", "content", "isPriority", "attachmentUrl", "status", "publishedAt"],
+  studentAgendas: ["title", "startDate", "endDate", "location", "description", "registrationUrl", "status"],
   downloads: ["title", "category", "description", "fileUrl", "fileType", "fileSize"],
   banners: ["title", "subtitle", "imageUrl", "ctaLabel", "ctaUrl", "sortOrder", "isActive"],
   messages: ["name", "email", "phone", "subject", "message", "status"],
@@ -128,25 +141,82 @@ function teacherImportTemplateCsv() {
 }
 
 async function requireAdmin(c: any, next: any) {
+  const user = await currentUser(c);
+  if (!user) return c.json(fail("Sesi admin tidak valid.", 401), 401);
+  if (user.role !== "admin") return c.json(fail("Akses admin diperlukan.", 403), 403);
+  c.set("user", user);
+  await next();
+}
+
+async function currentUser(c: any) {
   const header = c.req.header("authorization") ?? "";
   const token = header.startsWith("Bearer ") ? header.slice(7) : getCookie(c, "session");
   const userId = verifyToken(token);
-  if (!userId) return c.json(fail("Sesi admin tidak valid.", 401), 401);
-  const user = await db.select({
+  if (!userId) return null;
+  return await db.select({
     id: users.id,
     name: users.name,
     username: users.username,
     email: users.email,
     role: users.role
   }).from(users).where(eq(users.id, userId)).get();
-  if (!user) return c.json(fail("User tidak ditemukan.", 401), 401);
-  if (user.role !== "admin") return c.json(fail("Akses admin diperlukan.", 403), 403);
+}
+
+function normalizeEditorPermissions(value: unknown) {
+  const raw = Array.isArray(value)
+    ? value
+    : typeof value === "string"
+      ? (() => {
+        try {
+          return JSON.parse(value);
+        } catch {
+          return [];
+        }
+      })()
+      : [];
+  const allowed = new Set(editorFeatureKeys);
+  return Array.isArray(raw) ? raw.map(String).filter((key) => allowed.has(key as never)) : [];
+}
+
+function normalizeRole(value: unknown) {
+  return String(value || "").trim() === "editor" ? "editor" : "admin";
+}
+
+async function getEditorPermissions() {
+  const settings = await db.select().from(schoolSettings).get();
+  return normalizeEditorPermissions((settings as any)?.editorPermissions);
+}
+
+async function requireAuthenticated(c: any, next: any) {
+  const user = await currentUser(c);
+  if (!user) return c.json(fail("Sesi admin tidak valid.", 401), 401);
+  if (user.role !== "admin" && user.role !== "editor") return c.json(fail("Akses admin/editor diperlukan.", 403), 403);
   c.set("user", user);
+  c.set("editorPermissions", user.role === "admin" ? [...editorFeatureKeys] : await getEditorPermissions());
   await next();
 }
 
+function requireFeature(feature: string) {
+  return async (c: any, next: any) => {
+    const user = await currentUser(c);
+    if (!user) return c.json(fail("Sesi admin tidak valid.", 401), 401);
+    if (user.role === "admin") {
+      c.set("user", user);
+      await next();
+      return;
+    }
+    const permissions = await getEditorPermissions();
+    if (user.role !== "editor" || !permissions.includes(feature)) {
+      return c.json(fail("Akses editor tidak diizinkan untuk fitur ini.", 403), 403);
+    }
+    c.set("user", user);
+    c.set("editorPermissions", permissions);
+    await next();
+  };
+}
+
 function crud(app: Hono, path: string, table: AnyTable, resource: keyof typeof tableFields, adminOnly = true) {
-  const guard = adminOnly ? requireAdmin : async (_c: any, next: any) => next();
+  const guard = adminOnly ? requireFeature(String(resource)) : async (_c: any, next: any) => next();
 
   app.get(path, async (c) => {
     const rows = await db.select().from(table).orderBy(desc((table as any).id));
@@ -193,7 +263,7 @@ export function apiRoutes() {
     if (!user || !(await verifyPassword(password, user.password))) {
       return c.json(fail("Username/email atau password salah.", 401), 401);
     }
-    if (user.role !== "admin") return c.json(fail("Akses admin diperlukan.", 403), 403);
+    if (user.role !== "admin" && user.role !== "editor") return c.json(fail("Akses admin/editor diperlukan.", 403), 403);
     const token = createToken(user.id);
     setCookie(c, "session", token, { httpOnly: true, sameSite: "Lax", path: "/", maxAge: 60 * 60 * 8 });
     return c.json(ok({ token, user: { id: user.id, name: user.name, username: user.username, email: user.email, role: user.role } }));
@@ -204,7 +274,25 @@ export function apiRoutes() {
     return c.json(ok({ logout: true }));
   });
 
-  app.get("/auth/me", requireAdmin, (c) => c.json(ok((c as any).get("user"))));
+  app.get("/auth/me", requireAuthenticated, (c) => c.json(ok({
+    ...(c as any).get("user"),
+    permissions: (c as any).get("editorPermissions") || []
+  })));
+
+  app.get("/editor-permissions", requireAdmin, async (c) => c.json(ok({
+    permissions: await getEditorPermissions(),
+    features: editorFeatureKeys
+  })));
+
+  app.put("/editor-permissions", requireAdmin, async (c) => {
+    const body = await c.req.json<Record<string, unknown>>();
+    const permissions = normalizeEditorPermissions(body.permissions);
+    const current = await db.select().from(schoolSettings).get();
+    const [row] = current
+      ? await db.update(schoolSettings).set({ editorPermissions: permissions } as never).where(eq(schoolSettings.id, current.id)).returning()
+      : await db.insert(schoolSettings).values({ schoolName: "Website Sekolah", editorPermissions: permissions } as never).returning();
+    return c.json(ok({ permissions: normalizeEditorPermissions((row as any).editorPermissions) }));
+  });
 
   app.get("/users", requireAdmin, async (c) => {
     const rows = await db.select({
@@ -227,7 +315,7 @@ export function apiRoutes() {
       username: String(body.username || ""),
       email: String(body.email || ""),
       password: await hashPassword(password),
-      role: String(body.role || "admin")
+      role: normalizeRole(body.role)
     }).returning({
       id: users.id,
       name: users.name,
@@ -242,6 +330,7 @@ export function apiRoutes() {
   app.put("/users/:id", requireAdmin, async (c) => {
     const body = await c.req.json<Record<string, unknown>>();
     const data: Record<string, unknown> = pick(body, ["name", "username", "email", "role"]);
+    if ("role" in data) data.role = normalizeRole(data.role);
     if (body.password) data.password = await hashPassword(String(body.password));
     const [row] = await db.update(users).set(data as never).where(eq(users.id, Number(c.req.param("id")))).returning({
       id: users.id,
@@ -293,17 +382,45 @@ export function apiRoutes() {
     await db.select().from(agendas).where(eq(agendas.status, "scheduled")).orderBy(asc(agendas.startDate))
   )));
 
+  app.get("/public/student-infos", async (c) => c.json(ok(
+    await db.select().from(studentInfos).where(eq(studentInfos.status, "active")).orderBy(desc(studentInfos.publishedAt))
+  )));
+
+  app.get("/public/student-services", async (c) => c.json(ok(
+    await db.select().from(studentServices).where(eq(studentServices.isActive, true)).orderBy(asc(studentServices.sortOrder))
+  )));
+
+  app.get("/public/student-announcements", async (c) => c.json(ok(
+    await db.select().from(studentAnnouncements).where(eq(studentAnnouncements.status, "active")).orderBy(desc(studentAnnouncements.publishedAt))
+  )));
+
+  app.get("/public/student-agendas", async (c) => c.json(ok(
+    await db.select().from(studentAgendas).where(eq(studentAgendas.status, "scheduled")).orderBy(asc(studentAgendas.startDate))
+  )));
+
   app.get("/public/wordpress", async (c) => {
     const settings = await db.select().from(schoolSettings).get();
     if (!settings?.wordpressUrl) return c.json(ok([]));
     try {
       const base = settings.wordpressUrl.replace(/\/$/, "");
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 2500);
-      const response = await fetch(`${base}/wp-json/wp/v2/posts?_embed=1&per_page=3`, { signal: controller.signal });
-      clearTimeout(timeout);
-      if (!response.ok) return c.json(ok([]));
-      const posts = await response.json();
+      const origin = new URL(base).origin;
+      const candidates = Array.from(new Set([base, origin]));
+      let posts: any[] = [];
+      for (const candidate of candidates) {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 2500);
+        try {
+          const response = await fetch(`${candidate}/wp-json/wp/v2/posts?_embed=1&per_page=12`, { signal: controller.signal });
+          if (!response.ok) continue;
+          const payload = await response.json();
+          posts = Array.isArray(payload) ? payload : [];
+          break;
+        } catch {
+          continue;
+        } finally {
+          clearTimeout(timeout);
+        }
+      }
       return c.json(ok(posts.map((post: any) => ({
         title: post.title?.rendered?.replace(/<[^>]+>/g, ""),
         excerpt: post.excerpt?.rendered?.replace(/<[^>]+>/g, ""),
@@ -316,8 +433,13 @@ export function apiRoutes() {
     }
   });
 
-  app.get("/settings", async (c) => c.json(ok(await db.select().from(schoolSettings).get())));
-  app.put("/settings", requireAdmin, async (c) => {
+  app.get("/settings", async (c) => {
+    const settings = await db.select().from(schoolSettings).get();
+    if (!settings) return c.json(ok(settings));
+    const { editorPermissions: _editorPermissions, ...safeSettings } = settings as any;
+    return c.json(ok(safeSettings));
+  });
+  app.put("/settings", requireFeature("settings"), async (c) => {
     const body = await c.req.json<Record<string, unknown>>();
     const current = await db.select().from(schoolSettings).get();
     const data = pick(body, ["schoolName", "tagline", "logoUrl", "faviconUrl", "themeColor", "address", "email", "phone", "whatsapp", "socialLinks", "quickLinks", "mapEmbed", "wordpressUrl", "ppdbUrl", "metaDescription", "footerText"]);
@@ -328,7 +450,7 @@ export function apiRoutes() {
   });
 
   app.get("/profile", async (c) => c.json(ok(await db.select().from(schoolProfile).get())));
-  app.put("/profile", requireAdmin, async (c) => {
+  app.put("/profile", requireFeature("profile"), async (c) => {
     const body = await c.req.json<Record<string, unknown>>();
     const current = await db.select().from(schoolProfile).get();
     const data = pick(body, ["history", "vision", "mission", "principalName", "principalGreeting", "principalPhotoUrl", "profileSummaryImageUrl", "principalCtaLabel", "principalCtaUrl", "identity", "management", "organization", "accreditation", "location"]);
@@ -344,7 +466,7 @@ export function apiRoutes() {
   crud(app, "/majors", majors, "majors", true);
   crud(app, "/teachers", teachers, "teachers", true);
 
-  app.get("/teachers/import/template.csv", requireAdmin, (c) => {
+  app.get("/teachers/import/template.csv", requireFeature("teachers"), (c) => {
     return new Response(teacherImportTemplateCsv(), {
       headers: {
         "content-type": "text/csv; charset=utf-8",
@@ -354,7 +476,7 @@ export function apiRoutes() {
     });
   });
 
-  app.post("/teachers/import/google-sheets", requireAdmin, async (c) => {
+  app.post("/teachers/import/google-sheets", requireFeature("teachers"), async (c) => {
     try {
       const body = await c.req.json<Record<string, unknown>>();
       const sheetUrl = String(body.url || body.sheetUrl || "").trim();
@@ -403,6 +525,10 @@ export function apiRoutes() {
   crud(app, "/gallery-items", galleryItems as never, "galleryItems", true);
   crud(app, "/agendas", agendas as never, "agendas", true);
   crud(app, "/announcements", announcements as never, "announcements", true);
+  crud(app, "/student-infos", studentInfos as never, "studentInfos", true);
+  crud(app, "/student-services", studentServices as never, "studentServices", true);
+  crud(app, "/student-announcements", studentAnnouncements as never, "studentAnnouncements", true);
+  crud(app, "/student-agendas", studentAgendas as never, "studentAgendas", true);
   crud(app, "/downloads", downloads as never, "downloads", true);
   crud(app, "/banners", banners as never, "banners", true);
   crud(app, "/complaints", complaints as never, "complaints", true);
@@ -475,25 +601,25 @@ export function apiRoutes() {
     return c.json(ok(row), 201);
   });
 
-  app.get("/messages", requireAdmin, async (c) => c.json(ok(await db.select().from(messages).orderBy(desc(messages.id)))));
-  app.get("/messages/:id", requireAdmin, async (c) => {
+  app.get("/messages", requireFeature("messages"), async (c) => c.json(ok(await db.select().from(messages).orderBy(desc(messages.id)))));
+  app.get("/messages/:id", requireFeature("messages"), async (c) => {
     const row = await db.select().from(messages).where(eq(messages.id, Number(c.req.param("id")))).get();
     if (!row) return c.json(fail("Data tidak ditemukan.", 404), 404);
     return c.json(ok(row));
   });
-  app.put("/messages/:id", requireAdmin, async (c) => {
+  app.put("/messages/:id", requireFeature("messages"), async (c) => {
     const body = await c.req.json<Record<string, unknown>>();
     const data = pick(body, ["name", "email", "phone", "subject", "message", "status"]);
     const [row] = await db.update(messages).set(data as never).where(eq(messages.id, Number(c.req.param("id")))).returning();
     if (!row) return c.json(fail("Data tidak ditemukan.", 404), 404);
     return c.json(ok(row));
   });
-  app.delete("/messages/:id", requireAdmin, async (c) => {
+  app.delete("/messages/:id", requireFeature("messages"), async (c) => {
     await db.delete(messages).where(eq(messages.id, Number(c.req.param("id"))));
     return c.json(ok({ deleted: true }));
   });
 
-  app.post("/upload", requireAdmin, async (c) => {
+  app.post("/upload", requireFeature("upload"), async (c) => {
     const body = await c.req.parseBody();
     const input = body.file;
     if (!(input instanceof File)) return c.json(fail("Field file wajib diisi."), 400);
@@ -504,16 +630,20 @@ export function apiRoutes() {
     return c.json(ok(row), 201);
   });
 
-  app.get("/stats", requireAdmin, async (c) => {
+  app.get("/stats", requireAuthenticated, async (c) => {
     const count = (table: string) => Number((sqlite.prepare(`SELECT COUNT(*) as count FROM ${table}`).get() as { count?: number } | undefined)?.count ?? 0);
     const countWhere = (table: string, column: string, value: string) =>
       Number((sqlite.prepare(`SELECT COUNT(*) as count FROM ${table} WHERE ${column} = ?`).get(value) as { count?: number } | undefined)?.count ?? 0);
-    return c.json(ok({
+    const stats: Record<string, unknown> = {
       majors: count("majors"),
       teachers: count("teachers"),
       galleries: count("galleries"),
       agendas: count("agendas"),
       announcements: count("announcements"),
+      studentInfos: count("student_infos"),
+      studentServices: count("student_services"),
+      studentAnnouncements: count("student_announcements"),
+      studentAgendas: count("student_agendas"),
       downloads: count("downloads"),
       messages: count("messages"),
       complaints: count("complaints"),
@@ -523,7 +653,12 @@ export function apiRoutes() {
       pendingTestimonials: countWhere("testimonials", "status", "pending"),
       users: count("users"),
       storageMode: storageMode()
-    }));
+    };
+    const user = (c as any).get("user");
+    if (user?.role === "admin") return c.json(ok(stats));
+    const permissions = new Set((c as any).get("editorPermissions") || []);
+    const aliases: Record<string, string> = { newMessages: "messages", newComplaints: "complaints", pendingTestimonials: "testimonials" };
+    return c.json(ok(Object.fromEntries(Object.entries(stats).filter(([key]) => key === "storageMode" || permissions.has(aliases[key] || key)))));
   });
 
   return app;

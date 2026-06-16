@@ -73,6 +73,13 @@ img { max-width: 100%; display: block; }
 .nav { min-height: 70px; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
 .brand { display: flex; align-items: center; gap: 12px; font-weight: 800; letter-spacing: 0; }
 .brand-mark { width: 42px; height: 42px; border-radius: 8px; background: var(--brand); color: white; display: grid; place-items: center; font-weight: 900; }
+.brand-logo {
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  display: block;
+  object-fit: contain;
+}
 .nav-links { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
 .nav-links a { padding: 8px 10px; border-radius: 6px; color: var(--nav-link); font-size: 14px; }
 .nav-links a:hover, .nav-links a.active { background: var(--nav-active); color: var(--brand); }
@@ -2217,6 +2224,218 @@ section { padding: 58px 0; }
   display: flex;
   justify-content: flex-start;
 }
+.news-list-section {
+  padding-top: 22px;
+}
+.news-card-grid,
+.news-featured-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+.news-featured-grid {
+  grid-template-columns: 1fr;
+}
+.news-card {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: 0 18px 40px var(--shadow);
+}
+.news-card-cover {
+  display: block;
+  background: var(--soft);
+}
+.news-card-cover img {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+}
+.news-card-body {
+  display: grid;
+  gap: 12px;
+  padding: 20px;
+}
+.news-card h3 {
+  margin: 0;
+  font-size: 21px;
+  line-height: 1.25;
+}
+.news-card p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.65;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.news-card.featured {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr);
+}
+.news-card.featured .news-card-cover img {
+  height: 100%;
+  aspect-ratio: auto;
+  min-height: 320px;
+}
+.news-card.featured .news-card-body {
+  align-content: center;
+  padding: 28px;
+}
+.news-card.featured h3 {
+  font-size: clamp(26px, 3vw, 38px);
+}
+.news-archive-list {
+  display: grid;
+  gap: 14px;
+}
+.news-card.compact {
+  box-shadow: none;
+  border-radius: 14px;
+}
+.news-card.compact .news-card-cover img {
+  aspect-ratio: 16 / 9;
+}
+.news-card.compact .news-card-body {
+  padding: 16px;
+}
+.news-card.compact h3 {
+  font-size: 18px;
+}
+.news-card.compact p {
+  -webkit-line-clamp: 2;
+}
+.student-section {
+  padding-top: 22px;
+}
+.student-info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+.student-info-card,
+.student-agenda-item,
+.student-side-group,
+.student-downloads {
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: 0 18px 40px var(--shadow);
+}
+.student-info-card {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  padding: 22px;
+}
+.student-info-card h3 {
+  margin: 0;
+  font-size: 21px;
+  line-height: 1.25;
+}
+.student-info-card .markdown-content {
+  color: var(--muted);
+  line-height: 1.65;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.student-agenda-list {
+  display: grid;
+  gap: 14px;
+}
+.student-agenda-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+  padding: 18px;
+  box-shadow: none;
+}
+.student-agenda-item h3 {
+  margin: 0 0 6px;
+  font-size: 19px;
+  line-height: 1.25;
+}
+.student-agenda-item p {
+  margin: 0;
+  color: var(--muted);
+}
+.student-side-group {
+  padding: 18px;
+}
+.student-service-grid {
+  display: grid;
+  gap: 12px;
+}
+.student-service-card {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--soft);
+  color: var(--ink);
+}
+.student-service-card:hover,
+.student-service-card:focus-visible {
+  border-color: var(--brand);
+  background: color-mix(in srgb, var(--brand) 8%, var(--soft));
+}
+.student-service-icon {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  color: var(--brand);
+  background: var(--surface);
+}
+.student-service-icon svg {
+  width: 21px;
+  height: 21px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.student-service-card strong,
+.student-service-card small {
+  display: block;
+}
+.student-service-card small {
+  margin-top: 4px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+.student-downloads {
+  display: grid;
+  gap: 10px;
+  margin-top: 2px;
+  padding: 16px;
+  box-shadow: none;
+}
+.student-downloads h3 {
+  margin: 0 0 4px;
+  font-size: 18px;
+}
+.student-download-link {
+  display: grid;
+  gap: 3px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+  color: var(--ink);
+}
+.student-download-link small {
+  color: var(--muted);
+}
 .testimonials-section {
   background:
     radial-gradient(circle at 12% 8%, rgba(255, 106, 19, .12), transparent 30%),
@@ -2736,6 +2955,43 @@ section { padding: 58px 0; }
   color: var(--ink);
   padding: 0 12px;
 }
+.editor-access-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.editor-access-group {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--soft);
+}
+.editor-access-group legend {
+  padding: 0 8px;
+  color: var(--brand);
+  font-size: 12px;
+  font-weight: 850;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+.editor-access-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface);
+  cursor: pointer;
+}
+.editor-access-option input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--brand);
+}
 
 .admin-body { background: var(--soft); }
 .admin-layout {
@@ -2768,13 +3024,30 @@ section { padding: 58px 0; }
   gap: 6px;
 }
 .menu-group-title {
-  margin: 0 0 2px;
-  padding: 0 10px;
-  color: rgba(255,255,255,.5);
-  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  margin: 2px 0 4px;
+  padding: 5px 10px;
+  border: 1px solid rgba(255,255,255,.22);
+  border-radius: 999px;
+  background: rgba(255,255,255,.08);
+  color: rgba(255,255,255,.78);
+  font-size: 10px;
   font-weight: 850;
-  letter-spacing: .12em;
+  letter-spacing: .13em;
   text-transform: uppercase;
+  line-height: 1;
+}
+.menu-group-title::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: var(--accent);
+  box-shadow: 0 0 0 3px rgba(255, 106, 19, .18);
 }
 .menu button {
   display: flex;
@@ -3389,6 +3662,37 @@ td { color: var(--ink); }
     padding: 18px;
     border-radius: 14px;
   }
+  .news-card-grid,
+  .news-featured-grid,
+  .news-card.featured {
+    grid-template-columns: 1fr;
+  }
+  .news-card {
+    border-radius: 14px;
+  }
+  .news-card.featured .news-card-cover img {
+    min-height: 0;
+    aspect-ratio: 16 / 10;
+  }
+  .news-card.featured .news-card-body,
+  .news-card-body {
+    padding: 18px;
+  }
+  .news-card.featured h3 {
+    font-size: 24px;
+  }
+  .student-info-grid {
+    grid-template-columns: 1fr;
+  }
+  .student-info-card,
+  .student-side-group {
+    padding: 18px;
+    border-radius: 14px;
+  }
+  .student-agenda-item {
+    grid-template-columns: 1fr;
+    border-radius: 14px;
+  }
   .agenda-modal {
     padding: 14px;
   }
@@ -3405,6 +3709,9 @@ td { color: var(--ink); }
   }
   .testimonial-nav {
     justify-content: flex-end;
+  }
+  .editor-access-grid {
+    grid-template-columns: 1fr;
   }
   .testimonial-carousel {
     min-height: 260px;

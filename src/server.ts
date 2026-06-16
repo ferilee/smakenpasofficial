@@ -47,10 +47,6 @@ app.get("/sw.js", () => new Response(Bun.file("./src/public/sw.js"), {
 }));
 app.use("/uploads/*", serveStatic({ root: "./" }));
 
-app.get("/berita", async (c) => {
-  return c.redirect("https://www.smkpasirian-lmj.sch.id/blog/category/berita", 302);
-});
-
 app.get("/admin/login", (c) => c.html(adminShell("Login Admin")));
 app.get("/admin", (c) => c.html(adminShell("Dashboard Admin")));
 

@@ -1,0 +1,4 @@
+src/public/admin.js:670:        <div class="brand"><span class="brand-mark">S</span><span>Admin Sekolah</span></div>
+src/public/admin.js:742:        <div class="brand"><span class="brand-mark">S</span><span>Dashboard</span></div>
+src/public/app.css:75:.brand-mark { width: 42px; height: 42px; border-radius: 8px; background: var(--brand); color: white; display: grid; place-items: center; font-weight: 900; }
+src/public/app.css:3305:  .brand-mark { width: 38px; height: 38px; }

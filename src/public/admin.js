@@ -1,5 +1,6 @@
 const root = document.querySelector("#admin");
 const themeStorageKey = "websmakenpas-theme";
+let currentAdminUser = null;
 const resources = {
   majors: { title: "Program Keahlian", path: "/api/majors", fields: ["name", "slug", "fieldCategory", "profileMarkdown", "profileCtaLabel", "profileCtaUrl", "instagram", "tiktok", "facebook", "youtube", "description", "competencies", "careerProspects", "practiceFacilities", "productiveTeachers", "achievements", "imageUrl", "isFeatured"] },
   teachers: { title: "Guru & Tendik", path: "/api/teachers", fields: ["name", "photoUrl", "position", "subject", "expertise", "status"] },
@@ -7,6 +8,10 @@ const resources = {
   galleries: { title: "Galeri", path: "/api/galleries", fields: ["title", "slug", "category", "description", "coverUrl", "albumUrl", "showOnHome"] },
   agendas: { title: "Agenda", path: "/api/agendas", fields: ["title", "startDate", "endDate", "location", "description", "status"] },
   announcements: { title: "Pengumuman", path: "/api/announcements", fields: ["title", "content", "isPriority", "attachmentUrl", "status", "publishedAt"] },
+  studentInfos: { title: "Info Siswa", path: "/api/student-infos", fields: ["title", "category", "content", "isPriority", "attachmentUrl", "status", "publishedAt"] },
+  studentServices: { title: "Layanan Siswa", path: "/api/student-services", fields: ["title", "description", "url", "icon", "sortOrder", "isActive"] },
+  studentAnnouncements: { title: "Pengumuman Siswa", path: "/api/student-announcements", fields: ["title", "content", "isPriority", "attachmentUrl", "status", "publishedAt"] },
+  studentAgendas: { title: "Agenda Siswa", path: "/api/student-agendas", fields: ["title", "startDate", "endDate", "location", "description", "registrationUrl", "status"] },
   downloads: { title: "File Unduhan", path: "/api/downloads", fields: ["title", "category", "description", "fileUrl", "fileType", "fileSize"] },
   banners: { title: "Banner", path: "/api/banners", fields: ["title", "subtitle", "imageUrl", "ctaLabel", "ctaUrl", "sortOrder", "isActive"] },
   messages: { title: "Pesan Masuk", path: "/api/messages", fields: ["name", "email", "phone", "subject", "message", "status"] },
@@ -17,17 +22,22 @@ const resources = {
 
 const adminMenuGroups = [
   {
-    title: "Utama",
+    title: "Dashboard",
     items: [
-      ["overview", "Dashboard"],
+      ["overview", "Ringkasan"]
+    ]
+  },
+  {
+    title: "Website",
+    items: [
+      ["settings", "Pengaturan Website"],
       ["profile", "Profil Sekolah"],
-      ["settings", "Pengaturan Website"]
+      ["banners", resources.banners.title]
     ]
   },
   {
     title: "Konten Sekolah",
     items: [
-      ["banners", resources.banners.title],
       ["majors", resources.majors.title],
       ["teachers", resources.teachers.title],
       ["facilities", resources.facilities.title],
@@ -36,7 +46,7 @@ const adminMenuGroups = [
     ]
   },
   {
-    title: "Informasi Publik",
+    title: "Informasi Umum",
     items: [
       ["agendas", resources.agendas.title],
       ["announcements", resources.announcements.title],
@@ -45,10 +55,25 @@ const adminMenuGroups = [
     ]
   },
   {
-    title: "Administrasi",
+    title: "Portal Siswa",
+    items: [
+      ["studentInfos", resources.studentInfos.title],
+      ["studentServices", resources.studentServices.title],
+      ["studentAnnouncements", resources.studentAnnouncements.title],
+      ["studentAgendas", resources.studentAgendas.title]
+    ]
+  },
+  {
+    title: "Komunikasi",
     items: [
       ["messages", resources.messages.title],
-      ["complaints", resources.complaints.title],
+      ["complaints", resources.complaints.title]
+    ]
+  },
+  {
+    title: "Sistem",
+    items: [
+      ["editorAccess", "Akses Editor"],
       ["users", resources.users.title]
     ]
   },
@@ -67,12 +92,38 @@ let complaintStatusFilter = "all";
 let teacherSearchQuery = "";
 let adminActionsBound = false;
 
+const editorFeatureLabels = {
+  settings: "Pengaturan Website",
+  profile: "Profil Sekolah",
+  banners: "Banner",
+  majors: "Program Keahlian",
+  teachers: "Guru & Tendik",
+  facilities: "Fasilitas",
+  galleries: "Galeri",
+  galleryItems: "Item Galeri",
+  agendas: "Agenda Umum",
+  announcements: "Pengumuman Umum",
+  downloads: "File Unduhan",
+  studentInfos: "Info Siswa",
+  studentServices: "Layanan Siswa",
+  studentAnnouncements: "Pengumuman Siswa",
+  studentAgendas: "Agenda Siswa",
+  messages: "Pesan Masuk",
+  complaints: "Pengaduan",
+  testimonials: "Testimoni Alumni",
+  upload: "Upload File"
+};
+
 const statsLabels = {
   majors: "Program Keahlian",
   teachers: "Guru & Tendik",
   galleries: "Galeri",
   agendas: "Agenda",
   announcements: "Pengumuman",
+  studentInfos: "Info Siswa",
+  studentServices: "Layanan Siswa",
+  studentAnnouncements: "Pengumuman Siswa",
+  studentAgendas: "Agenda Siswa",
   downloads: "File Unduhan",
   messages: "Pesan Masuk",
   complaints: "Pengaduan",
@@ -389,6 +440,13 @@ function formFields(config, item = {}) {
     if (field === "profileCtaLabel") {
       return `<div class="field"><label>${fieldLabel(field)}</label><input name="${field}" value="${value}" placeholder="Lihat Album Foto/Video"></div>`;
     }
+    if (field === "role") {
+      const selected = String(item[field] || "admin");
+      return `<div class="field"><label>${fieldLabel(field)}</label><select name="${field}">
+        <option value="admin" ${selected === "admin" ? "selected" : ""}>Admin</option>
+        <option value="editor" ${selected === "editor" ? "selected" : ""}>Editor</option>
+      </select><p class="hint">Editor hanya bisa mengakses fitur yang dicentang di menu Akses Editor.</p></div>`;
+    }
     if (isBooleanField(field)) {
       return `<div class="field"><label><input type="checkbox" name="${field}" ${item[field] ? "checked" : ""}> ${fieldLabel(field)}</label></div>`;
     }
@@ -609,7 +667,7 @@ function loginView() {
   root.innerHTML = `
     <main class="login-screen">
       <form class="login-card form" id="login-form">
-        <div class="brand"><span class="brand-mark">S</span><span>Admin Sekolah</span></div>
+        <div class="brand"><img class="brand-mark brand-logo" src="/Logo_SMKNPasirian.png" alt="Logo SMK Negeri Pasirian"><span>Admin Sekolah</span></div>
         <div class="field"><label>Username</label><input name="username" value="ferilee" required></div>
         <div class="field"><label>Password</label><input name="password" type="password" value="F3r!-lee" required></div>
         <button class="btn">Masuk</button>
@@ -627,16 +685,27 @@ function loginView() {
   });
 }
 
+function canAccessAdminPage(page, type) {
+  if (type === "theme" || page === "logout" || page === "overview") return true;
+  if (!currentAdminUser || currentAdminUser.role === "admin") return true;
+  if (page === "users" || page === "editorAccess") return false;
+  return Array.isArray(currentAdminUser.permissions) && currentAdminUser.permissions.includes(page);
+}
+
 function adminMenu() {
-  return adminMenuGroups.map((group) => `
+  return adminMenuGroups.map((group) => {
+    const items = group.items.filter(([page, _label, type]) => canAccessAdminPage(page, type));
+    if (!items.length) return "";
+    return `
     <div class="menu-group">
       <p class="menu-group-title">${esc(group.title)}</p>
-      ${group.items.map(([page, label, type]) => {
+      ${items.map(([page, label, type]) => {
         const attr = type === "theme" ? "data-theme-toggle" : `data-page="${page}"`;
         const badge = page === "messages" || page === "testimonials" || page === "complaints" ? `<span class="menu-badge" data-menu-badge="${page}" hidden><i></i><b>0</b></span>` : "";
         return `<button ${attr} type="button"><span>${esc(label)}</span>${badge}</button>`;
       }).join("")}
-    </div>`).join("");
+    </div>`;
+  }).join("");
 }
 
 async function updateMenuBadges() {
@@ -661,7 +730,7 @@ async function updateMenuBadges() {
 
 async function dashboardView() {
   try {
-    await api("/api/auth/me");
+    currentAdminUser = await api("/api/auth/me");
   } catch {
     loginView();
     return;
@@ -670,7 +739,7 @@ async function dashboardView() {
     <div class="admin-layout">
       <div class="admin-backdrop" data-admin-drawer-close hidden></div>
       <aside class="sidebar" id="admin-sidebar" aria-hidden="true">
-        <div class="brand"><span class="brand-mark">S</span><span>Dashboard</span></div>
+        <div class="brand"><img class="brand-mark brand-logo" src="/Logo_SMKNPasirian.png" alt="Logo SMK Negeri Pasirian"><span>Dashboard</span></div>
         <nav class="menu">
           ${adminMenu()}
         </nav>
@@ -682,7 +751,7 @@ async function dashboardView() {
           </button>
           <div>
             <strong>Dashboard Admin</strong>
-            <span>Kelola konten website sekolah</span>
+            <span>${currentAdminUser.role === "editor" ? "Editor - akses terbatas" : "Admin - akses penuh"}</span>
           </div>
         </header>
         <section id="main"></section>
@@ -762,20 +831,31 @@ function setActive(page) {
 }
 
 async function renderPage(page) {
+  if (!canAccessAdminPage(page)) {
+    notify("Akses editor tidak diizinkan untuk fitur ini.", "error");
+    page = "overview";
+  }
   setActive(page);
   if (page === "overview") return overview();
   if (page === "profile") return profileAdminPage();
   if (page === "settings") return settingsAdminPage();
+  if (page === "editorAccess") return editorAccessPage();
   if (page === "upload") return uploadPage();
   return resourcePage(page);
 }
 
 async function overview() {
   const stats = await api("/api/stats");
+  const statPermissionKey = { newMessages: "messages", newComplaints: "complaints", pendingTestimonials: "testimonials" };
+  const visibleStats = Object.entries(stats).filter(([key]) => (
+    currentAdminUser?.role === "admin" ||
+    key === "storageMode" ||
+    currentAdminUser?.permissions?.includes(statPermissionKey[key] || key)
+  ));
   document.querySelector("#main").innerHTML = `
     <div class="toolbar"><div><h1>Dashboard</h1><p>Ringkasan konten website sekolah.</p></div><a class="btn secondary" href="/" target="_blank">Lihat Website</a></div>
     <div class="grid four">
-      ${Object.entries(stats).map(([key, value]) => `<div class="card"><h3>${esc(value)}</h3><p>${esc(statsLabels[key] || resources[key]?.title || key)}</p></div>`).join("")}
+      ${visibleStats.map(([key, value]) => `<div class="card"><h3>${esc(value)}</h3><p>${esc(statsLabels[key] || resources[key]?.title || key)}</p></div>`).join("")}
     </div>`;
   await updateMenuBadges();
 }
@@ -795,6 +875,45 @@ async function singleton(title, path, fields) {
     notify("Data tersimpan.");
   });
   setupMarkdownEditors(document.querySelector("#single-form"));
+}
+
+function editorPermissionGroups() {
+  const blocked = new Set(["overview", "editorAccess", "users", "theme", "logout"]);
+  return adminMenuGroups.map((group) => ({
+    title: group.title,
+    items: group.items
+      .filter(([page]) => !blocked.has(page))
+      .map(([page, label]) => [page, editorFeatureLabels[page] || label])
+  })).filter((group) => group.items.length);
+}
+
+async function editorAccessPage() {
+  const data = await api("/api/editor-permissions");
+  const selected = new Set(data.permissions || []);
+  document.querySelector("#main").innerHTML = `
+    <div class="toolbar"><div><h1>Akses Editor</h1><p>Pilih fitur admin yang dapat dibuka dan dikelola oleh user dengan role Editor.</p></div></div>
+    <form class="card form" id="editor-access-form">
+      <div class="editor-access-grid">
+        ${editorPermissionGroups().map((group) => `
+          <fieldset class="editor-access-group">
+            <legend>${esc(group.title)}</legend>
+            ${group.items.map(([key, label]) => `
+              <label class="editor-access-option">
+                <input type="checkbox" name="permissions" value="${esc(key)}" ${selected.has(key) ? "checked" : ""}>
+                <span>${esc(label)}</span>
+              </label>
+            `).join("")}
+          </fieldset>
+        `).join("")}
+      </div>
+      <button class="btn">Simpan Akses Editor</button>
+    </form>`;
+  document.querySelector("#editor-access-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const permissions = [...event.target.querySelectorAll('input[name="permissions"]:checked')].map((input) => input.value);
+    await api("/api/editor-permissions", { method: "PUT", body: JSON.stringify({ permissions }) });
+    notify("Akses editor tersimpan.");
+  });
 }
 
 async function settingsAdminPage() {

@@ -123,6 +123,117 @@ describe("public endpoints", () => {
     expect(Array.isArray(body.data)).toBe(true);
   });
 
+  test("public student info only returns active admin-managed items", async () => {
+    const active = await json(await adminRequest("/student-infos", jsonInit("POST", {
+      title: "Info Siswa Aktif",
+      category: "Akademik",
+      content: "Konten khusus siswa.",
+      status: "active"
+    })));
+    const draft = await json(await adminRequest("/student-infos", jsonInit("POST", {
+      title: "Info Siswa Draft",
+      category: "Draft",
+      content: "Tidak tampil untuk publik.",
+      status: "draft"
+    })));
+
+    const res = await request("/public/student-infos");
+    const body = await json(res);
+    expect(res.status).toBe(200);
+    expect(body.data.some((item: any) => item.id === active.data.id)).toBe(true);
+    expect(body.data.some((item: any) => item.id === draft.data.id)).toBe(false);
+
+    await adminRequest(`/student-infos/${active.data.id}`, { method: "DELETE" });
+    await adminRequest(`/student-infos/${draft.data.id}`, { method: "DELETE" });
+  });
+
+  test("public student services only returns active ordered admin-managed items", async () => {
+    const first = await json(await adminRequest("/student-services", jsonInit("POST", {
+      title: "Layanan Siswa Pertama",
+      description: "Tampil pertama.",
+      url: "/siswa",
+      icon: "book",
+      sortOrder: 10,
+      isActive: true
+    })));
+    const second = await json(await adminRequest("/student-services", jsonInit("POST", {
+      title: "Layanan Siswa Kedua",
+      description: "Tampil kedua.",
+      url: "/agenda",
+      icon: "calendar",
+      sortOrder: 11,
+      isActive: true
+    })));
+    const inactive = await json(await adminRequest("/student-services", jsonInit("POST", {
+      title: "Layanan Siswa Nonaktif",
+      description: "Tidak tampil.",
+      url: "/kontak",
+      icon: "phone",
+      sortOrder: 9,
+      isActive: false
+    })));
+
+    const res = await request("/public/student-services");
+    const body = await json(res);
+    const ids = body.data.map((item: any) => item.id);
+    expect(res.status).toBe(200);
+    expect(ids.indexOf(first.data.id)).toBeLessThan(ids.indexOf(second.data.id));
+    expect(ids.includes(inactive.data.id)).toBe(false);
+
+    await adminRequest(`/student-services/${first.data.id}`, { method: "DELETE" });
+    await adminRequest(`/student-services/${second.data.id}`, { method: "DELETE" });
+    await adminRequest(`/student-services/${inactive.data.id}`, { method: "DELETE" });
+  });
+
+  test("public student announcements only returns active admin-managed items", async () => {
+    const active = await json(await adminRequest("/student-announcements", jsonInit("POST", {
+      title: "Pengumuman Siswa Aktif",
+      content: "Tampil di halaman siswa.",
+      status: "active"
+    })));
+    const draft = await json(await adminRequest("/student-announcements", jsonInit("POST", {
+      title: "Pengumuman Siswa Draft",
+      content: "Tidak tampil di halaman siswa.",
+      status: "draft"
+    })));
+
+    const res = await request("/public/student-announcements");
+    const body = await json(res);
+    expect(res.status).toBe(200);
+    expect(body.data.some((item: any) => item.id === active.data.id)).toBe(true);
+    expect(body.data.some((item: any) => item.id === draft.data.id)).toBe(false);
+
+    await adminRequest(`/student-announcements/${active.data.id}`, { method: "DELETE" });
+    await adminRequest(`/student-announcements/${draft.data.id}`, { method: "DELETE" });
+  });
+
+  test("public student agendas only returns scheduled admin-managed items", async () => {
+    const scheduled = await json(await adminRequest("/student-agendas", jsonInit("POST", {
+      title: "Agenda Siswa Terjadwal",
+      startDate: "2026-06-20",
+      endDate: "2026-06-20",
+      location: "Aula",
+      description: "Tampil di agenda siswa.",
+      status: "scheduled"
+    })));
+    const draft = await json(await adminRequest("/student-agendas", jsonInit("POST", {
+      title: "Agenda Siswa Draft",
+      startDate: "2026-06-21",
+      location: "Ruang BK",
+      description: "Tidak tampil di agenda siswa.",
+      status: "draft"
+    })));
+
+    const res = await request("/public/student-agendas");
+    const body = await json(res);
+    expect(res.status).toBe(200);
+    expect(body.data.some((item: any) => item.id === scheduled.data.id)).toBe(true);
+    expect(body.data.some((item: any) => item.id === draft.data.id)).toBe(false);
+
+    await adminRequest(`/student-agendas/${scheduled.data.id}`, { method: "DELETE" });
+    await adminRequest(`/student-agendas/${draft.data.id}`, { method: "DELETE" });
+  });
+
   test("public testimonial submission creates pending item", async () => {
     const form = new FormData();
     form.append("name", "Alumni Test");
@@ -543,6 +654,54 @@ describe("messages, users, upload, and stats endpoints", () => {
     const remove = await adminRequest(`/users/${createdUserId}`, { method: "DELETE" });
     expect(remove.status).toBe(200);
     createdUserId = 0;
+  });
+
+  test("editor role only accesses admin features allowed by admin", async () => {
+    const access = await json(await adminRequest("/editor-permissions", jsonInit("PUT", {
+      permissions: ["studentInfos"]
+    })));
+    expect(access.data.permissions).toContain("studentInfos");
+
+    const create = await json(await adminRequest("/users", jsonInit("POST", {
+      name: "Editor Test",
+      username: "editortest",
+      email: "editor@test.local",
+      password: "secret123",
+      role: "editor"
+    })));
+    const editorId = create.data.id;
+    const login = await request("/auth/login", jsonInit("POST", { username: "editortest", password: "secret123" }));
+    expect(login.status).toBe(200);
+    const editorCookie = login.headers.get("set-cookie") || "";
+
+    const me = await json(await request("/auth/me", { headers: { Cookie: editorCookie } }));
+    expect(me.data.role).toBe("editor");
+    expect(me.data.permissions).toContain("studentInfos");
+
+    const allowed = await request("/student-infos", {
+      ...jsonInit("POST", {
+        title: "Info Editor",
+        category: "Editor",
+        content: "Dibuat editor.",
+        status: "active"
+      }),
+      headers: { Cookie: editorCookie, "Content-Type": "application/json" }
+    });
+    const allowedBody = await json(allowed);
+    expect(allowed.status).toBe(201);
+
+    const denied = await request("/banners", {
+      ...jsonInit("POST", { title: "Banner Editor", subtitle: "Tidak boleh" }),
+      headers: { Cookie: editorCookie, "Content-Type": "application/json" }
+    });
+    expect(denied.status).toBe(403);
+
+    const userList = await request("/users", { headers: { Cookie: editorCookie } });
+    expect(userList.status).toBe(403);
+
+    await adminRequest(`/student-infos/${allowedBody.data.id}`, { method: "DELETE" });
+    await adminRequest(`/users/${editorId}`, { method: "DELETE" });
+    await adminRequest("/editor-permissions", jsonInit("PUT", { permissions: [] }));
   });
 
   test("current admin cannot delete self", async () => {
