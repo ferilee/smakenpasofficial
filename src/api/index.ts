@@ -36,6 +36,7 @@ const googleAuthUrl = "https://accounts.google.com/o/oauth2/v2/auth";
 const googleTokenUrl = "https://oauth2.googleapis.com/token";
 const googleUserInfoUrl = "https://www.googleapis.com/oauth2/v3/userinfo";
 const wilayahApiBase = "https://emsifa.github.io/api-wilayah-indonesia/api";
+const defaultWordpressUrl = "https://www.smkpasirian-lmj.sch.id";
 const lumajangDistrictFallback = [
   { id: "3508010", name: "TEMPURSARI" },
   { id: "3508020", name: "PRONOJIWO" },
@@ -191,6 +192,37 @@ async function fetchWilayah(path: string, fallback: Array<Record<string, string>
     return fallback;
   } finally {
     clearTimeout(timeout);
+  }
+}
+
+function stripHtml(value: unknown) {
+  return String(value || "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&#8211;|&ndash;/g, "-")
+    .replace(/&#8220;|&#8221;|&ldquo;|&rdquo;/g, '"')
+    .replace(/&#8217;|&rsquo;/g, "'")
+    .replace(/&amp;/g, "&")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function wordpressCandidates(input: string) {
+  const raw = String(input || defaultWordpressUrl).trim() || defaultWordpressUrl;
+  const normalized = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+  try {
+    const url = new URL(normalized);
+    const pathParts = url.pathname.split("/").filter(Boolean);
+    const blogIndex = pathParts.indexOf("blog");
+    const blogBase = blogIndex >= 0 ? `${url.origin}/${pathParts.slice(0, blogIndex + 1).join("/")}` : "";
+    return Array.from(new Set([
+      normalized.replace(/\/$/, ""),
+      blogBase,
+      url.origin,
+      defaultWordpressUrl
+    ].filter(Boolean)));
+  } catch {
+    return [defaultWordpressUrl];
   }
 }
 
@@ -668,21 +700,25 @@ export function apiRoutes() {
 
   app.get("/public/wordpress", async (c) => {
     const settings = await db.select().from(schoolSettings).get();
-    if (!settings?.wordpressUrl) return c.json(ok([]));
     try {
-      const base = settings.wordpressUrl.replace(/\/$/, "");
-      const origin = new URL(base).origin;
-      const candidates = Array.from(new Set([base, origin]));
       let posts: any[] = [];
-      for (const candidate of candidates) {
+      for (const candidate of wordpressCandidates(settings?.wordpressUrl || defaultWordpressUrl)) {
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 2500);
+        const timeout = setTimeout(() => controller.abort(), 7000);
         try {
-          const response = await fetch(`${candidate}/wp-json/wp/v2/posts?_embed=1&per_page=12`, { signal: controller.signal });
+          const response = await fetch(`${candidate}/wp-json/wp/v2/posts?_embed=1&per_page=12&orderby=date&order=desc`, {
+            signal: controller.signal,
+            headers: {
+              Accept: "application/json",
+              "User-Agent": "websmakenpas/1.0 (+https://web.smkpasirian-lmj.sch.id)"
+            }
+          });
           if (!response.ok) continue;
+          const contentType = String(response.headers.get("content-type") || "");
+          if (!contentType.includes("application/json")) continue;
           const payload = await response.json();
           posts = Array.isArray(payload) ? payload : [];
-          break;
+          if (posts.length) break;
         } catch {
           continue;
         } finally {
@@ -690,8 +726,8 @@ export function apiRoutes() {
         }
       }
       return c.json(ok(posts.map((post: any) => ({
-        title: post.title?.rendered?.replace(/<[^>]+>/g, ""),
-        excerpt: post.excerpt?.rendered?.replace(/<[^>]+>/g, ""),
+        title: stripHtml(post.title?.rendered),
+        excerpt: stripHtml(post.excerpt?.rendered),
         date: post.date,
         link: post.link,
         image: post._embedded?.["wp:featuredmedia"]?.[0]?.source_url ?? ""
@@ -706,24 +742,25 @@ export function apiRoutes() {
     let berita = "";
     try {
       const settings = await db.select().from(schoolSettings).get();
-      if (settings?.wordpressUrl) {
-        const base = settings.wordpressUrl.replace(/\/$/, "");
-        const origin = new URL(base).origin;
-        const candidates = Array.from(new Set([base, origin]));
-        for (const candidate of candidates) {
-          const controller = new AbortController();
-          const timeout = setTimeout(() => controller.abort(), 1800);
-          try {
-            const response = await fetch(`${candidate}/wp-json/wp/v2/posts?per_page=1&orderby=date&order=desc`, { signal: controller.signal });
-            if (!response.ok) continue;
-            const payload = await response.json();
-            berita = Array.isArray(payload) ? String(payload[0]?.date || "") : "";
-            break;
-          } catch {
-            continue;
-          } finally {
-            clearTimeout(timeout);
-          }
+      for (const candidate of wordpressCandidates(settings?.wordpressUrl || defaultWordpressUrl)) {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 4500);
+        try {
+          const response = await fetch(`${candidate}/wp-json/wp/v2/posts?per_page=1&orderby=date&order=desc`, {
+            signal: controller.signal,
+            headers: {
+              Accept: "application/json",
+              "User-Agent": "websmakenpas/1.0 (+https://web.smkpasirian-lmj.sch.id)"
+            }
+          });
+          if (!response.ok || !String(response.headers.get("content-type") || "").includes("application/json")) continue;
+          const payload = await response.json();
+          berita = Array.isArray(payload) ? String(payload[0]?.date || "") : "";
+          if (berita) break;
+        } catch {
+          continue;
+        } finally {
+          clearTimeout(timeout);
         }
       }
     } catch {
