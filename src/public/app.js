@@ -261,7 +261,7 @@ function dateKey(value) {
 function layout(content, data = state.home) {
   const school = data?.settings?.schoolName || "Website Sekolah";
   const authControl = state.session
-    ? `<div class="nav-user"><span>${navIcon("user")}<b>${esc(state.session.name || state.session.email)}</b></span><button type="button" data-logout aria-label="Keluar" title="Keluar">${navIcon("logout")}</button></div>`
+    ? ""
     : `<a class="nav-login" href="${googleLoginHref()}">${navIcon("login")}<span>Login</span></a>`;
   const footerLinks = [
     ["Profil", "/profil"],
