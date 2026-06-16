@@ -17,7 +17,7 @@ const resources = {
   messages: { title: "Pesan Masuk", path: "/api/messages", fields: ["name", "email", "phone", "subject", "message", "status"] },
   complaints: { title: "Pengaduan", path: "/api/complaints", fields: ["name", "reporterRole", "classOrUnit", "phone", "email", "category", "title", "complaint", "attachmentUrl", "expectation", "status"] },
   testimonials: { title: "Testimoni Alumni", path: "/api/testimonials", fields: ["name", "graduationYear", "occupation", "photoUrl", "whatsapp", "telegram", "instagram", "tiktok", "facebook", "youtube", "message", "status"] },
-  users: { title: "User Admin", path: "/api/users", fields: ["name", "username", "email", "password", "role"] }
+  users: { title: "User & Login", path: "/api/users", fields: ["name", "username", "email", "password", "role"] }
 };
 
 const adminMenuGroups = [
@@ -131,7 +131,7 @@ const statsLabels = {
   newMessages: "Pesan Baru",
   newComplaints: "Pengaduan Baru",
   pendingTestimonials: "Testimoni Baru",
-  users: "User Admin"
+  users: "User & Login"
 };
 
 const settingsFields = ["schoolName", "tagline", "logoUrl", "faviconUrl", "themeColor", "address", "email", "phone", "whatsapp", "wordpressUrl", "ppdbUrl", "metaDescription", "footerText"];
@@ -372,6 +372,10 @@ async function api(path, options = {}) {
 }
 
 function fieldLabel(field) {
+  if (field === "profileCompleted") return "Profil Lengkap";
+  if (field === "lastLoginAt") return "Login Terakhir";
+  if (field === "districtName") return "Kecamatan";
+  if (field === "villageName") return "Desa/Kelurahan";
   if (field === "profileMarkdown") return "Profil Konsentrasi (Markdown)";
   if (field === "profileCtaLabel") return "Label CTA Profil";
   if (field === "profileCtaUrl") return "URL CTA Profil";
@@ -381,6 +385,27 @@ function fieldLabel(field) {
     .replace(/^./, (ch) => ch.toUpperCase())
     .replace("Field Category", "Bidang Keahlian")
     .replace("Url", "URL");
+}
+
+function formatAdminDate(value) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return new Intl.DateTimeFormat("id-ID", { dateStyle: "medium", timeStyle: "short" }).format(date);
+}
+
+function userLocationText(row) {
+  return [row.villageName, row.districtName].filter(Boolean).join(", ") || "-";
+}
+
+function userProfileInfo(row) {
+  return [
+    `Email: ${row.email || "-"}`,
+    `WA: ${row.whatsapp || "-"}`,
+    `Alamat: ${[row.address, userLocationText(row)].filter((part) => part && part !== "-").join(", ") || "-"}`,
+    `Profil: ${row.profileCompleted ? "Lengkap" : "Belum lengkap"}`,
+    `Login terakhir: ${formatAdminDate(row.lastLoginAt)}`
+  ].join(" | ");
 }
 
 function isBooleanField(field) {
@@ -445,7 +470,8 @@ function formFields(config, item = {}) {
       return `<div class="field"><label>${fieldLabel(field)}</label><select name="${field}">
         <option value="admin" ${selected === "admin" ? "selected" : ""}>Admin</option>
         <option value="editor" ${selected === "editor" ? "selected" : ""}>Editor</option>
-      </select><p class="hint">Editor hanya bisa mengakses fitur yang dicentang di menu Akses Editor.</p></div>`;
+        <option value="user" ${selected === "user" ? "selected" : ""}>User Publik</option>
+      </select><p class="hint">Admin dan Editor dapat masuk panel admin. User Publik hanya untuk login website.</p></div>`;
     }
     if (isBooleanField(field)) {
       return `<div class="field"><label><input type="checkbox" name="${field}" ${item[field] ? "checked" : ""}> ${fieldLabel(field)}</label></div>`;
@@ -678,25 +704,13 @@ function loginView() {
   const oauthError = new URLSearchParams(location.search).get("oauth");
   root.innerHTML = `
     <main class="login-screen">
-      <form class="login-card form" id="login-form">
+      <section class="login-card form">
         <div class="brand"><img class="brand-mark brand-logo" src="/Logo_SMKNPasirian.png" alt="Logo SMK Negeri Pasirian"><span>Admin Sekolah</span></div>
         ${oauthError ? `<p class="login-alert">${esc(oauthMessages[oauthError] || "Login Google gagal.")}</p>` : ""}
-        <div class="field"><label>Username</label><input name="username" value="ferilee" required></div>
-        <div class="field"><label>Password</label><input name="password" type="password" value="F3r!-lee" required></div>
-        <button class="btn">Masuk</button>
-        <a class="btn secondary google-login-btn" href="/api/auth/google">Masuk dengan Google</a>
-      </form>
+        <p class="muted">Login admin hanya menggunakan akun Google yang sudah terdaftar sebagai Admin atau Editor.</p>
+        <a class="btn google-login-btn" href="/api/auth/google?context=admin">Masuk dengan Google</a>
+      </section>
     </main>`;
-  document.querySelector("#login-form").addEventListener("submit", async (event) => {
-    event.preventDefault();
-    try {
-      await api("/api/auth/login", { method: "POST", body: JSON.stringify(Object.fromEntries(new FormData(event.target))) });
-      history.pushState(null, "", "/admin");
-      await dashboardView();
-    } catch (error) {
-      notify(error.message, "error");
-    }
-  });
 }
 
 function canAccessAdminPage(page, type) {
@@ -981,6 +995,28 @@ async function resourcePage(key) {
   const filteredRows = key === "complaints"
     ? rows.filter((row) => complaintStatusFilter === "all" ? true : String(row.status || "") === complaintStatusFilter)
     : rows;
+  const rowMarkup = (row) => {
+    const title = key === "users"
+      ? `${row.name || row.username || "-"} (${row.role || "-"})`
+      : row.name || row.title || row.username || row.subject || "-";
+    const info = key === "users"
+      ? userProfileInfo(row)
+      : String(row.description || row.content || row.position || row.category || row.email || row.status || "").slice(0, 120);
+    return `
+          <tr data-resource-row data-search="${esc([row.name, row.position, row.subject, row.expertise, row.status, row.email, row.whatsapp, row.districtName, row.villageName].filter(Boolean).join(" ").toLowerCase())}">
+            <td>${row.id}</td>
+            <td>${esc(title)}</td>
+            <td>${esc(info)}</td>
+            <td>
+              ${key === "testimonials" ? `<button class="btn ghost" type="button" data-view="${row.id}">View</button>` : ""}
+              ${key === "testimonials" && row.status !== "approved" ? `<button class="btn" type="button" data-approve="${row.id}">Approve</button>` : ""}
+              ${key === "messages" && row.status === "new" ? `<button class="btn" type="button" data-read="${row.id}">Tandai Dibaca</button>` : ""}
+              ${key === "users" ? `<button class="btn ghost" type="button" data-view="${row.id}">Detail</button>` : ""}
+              <button class="btn ghost" type="button" data-edit="${row.id}">Edit</button>
+              <button class="btn danger" type="button" data-delete="${row.id}">Hapus</button>
+            </td>
+          </tr>`;
+  };
   document.querySelector("#main").innerHTML = `
     <div class="toolbar">
       <div><h1>${config.title}</h1><p>Kelola data ${config.title.toLowerCase()}.</p></div>
@@ -1001,19 +1037,7 @@ async function resourcePage(key) {
     <div class="table-wrap">
       <table>
         <thead><tr><th>ID</th><th>Judul/Nama</th><th>Info</th><th>Aksi</th></tr></thead>
-        <tbody>${filteredRows.map((row) => `
-          <tr data-resource-row data-search="${esc([row.name, row.position, row.subject, row.expertise, row.status].filter(Boolean).join(" ").toLowerCase())}">
-            <td>${row.id}</td>
-            <td>${esc(row.name || row.title || row.username || row.subject || "-")}</td>
-            <td>${esc(row.description || row.content || row.position || row.category || row.email || row.status || "").slice(0, 120)}</td>
-            <td>
-              ${key === "testimonials" ? `<button class="btn ghost" type="button" data-view="${row.id}">View</button>` : ""}
-              ${key === "testimonials" && row.status !== "approved" ? `<button class="btn" type="button" data-approve="${row.id}">Approve</button>` : ""}
-              ${key === "messages" && row.status === "new" ? `<button class="btn" type="button" data-read="${row.id}">Tandai Dibaca</button>` : ""}
-              <button class="btn ghost" type="button" data-edit="${row.id}">Edit</button>
-              <button class="btn danger" type="button" data-delete="${row.id}">Hapus</button>
-            </td>
-          </tr>`).join("")}${filteredRows.length
+        <tbody>${filteredRows.map(rowMarkup).join("")}${filteredRows.length
             ? key === "teachers" ? '<tr data-search-empty hidden><td colspan="4" class="empty">Data Guru & Tendik tidak ditemukan.</td></tr>' : ""
             : '<tr><td colspan="4" class="empty">Belum ada data.</td></tr>'}</tbody>
       </table>
@@ -1188,6 +1212,38 @@ function openDetail(key, item = {}) {
   const config = resources[key];
   const modal = document.querySelector("#modal");
   const box = document.querySelector("#modal-box");
+  if (key === "users" && item.id) {
+    const waHref = item.whatsapp ? `https://wa.me/${String(item.whatsapp).replace(/\D/g, "")}` : "";
+    box.innerHTML = `
+      <div class="toolbar"><h2>Detail ${config.title}</h2><button class="btn ghost" id="close">Tutup</button></div>
+      <article class="detail-view">
+        <div class="detail-head">
+          <div class="detail-avatar"><span>${esc((item.name || item.email || "U").slice(0, 1).toUpperCase())}</span></div>
+          <div>
+            <h3>${esc(item.name || "-")}</h3>
+            <p>${esc(item.email || "-")}</p>
+            <span class="badge">${esc(item.role || "-")}</span>
+            <span class="badge">${item.profileCompleted ? "Profil lengkap" : "Profil belum lengkap"}</span>
+          </div>
+        </div>
+        <div class="detail-grid">
+          <div><strong>Username</strong><p>${esc(item.username || "-")}</p></div>
+          <div><strong>Email</strong><p>${esc(item.email || "-")}</p></div>
+          <div><strong>WhatsApp</strong><p>${waHref ? `<a href="${esc(waHref)}" target="_blank" rel="noopener noreferrer">${esc(item.whatsapp)}</a>` : "-"}</p></div>
+          <div><strong>Kecamatan</strong><p>${esc(item.districtName || "-")}</p></div>
+          <div><strong>Desa/Kelurahan</strong><p>${esc(item.villageName || "-")}</p></div>
+          <div><strong>Login Terakhir</strong><p>${esc(formatAdminDate(item.lastLoginAt))}</p></div>
+          <div><strong>Dibuat</strong><p>${esc(formatAdminDate(item.createdAt))}</p></div>
+        </div>
+        <div class="detail-message">
+          <strong>Alamat Detail</strong>
+          <p>${esc(item.address || "-")}</p>
+        </div>
+      </article>`;
+    modal.classList.add("open");
+    document.querySelector("#close").addEventListener("click", () => modal.classList.remove("open"));
+    return;
+  }
   if (key !== "testimonials" || !item.id) return;
   const socialLinks = [
     item.whatsapp ? { label: "WhatsApp", href: item.whatsapp } : null,

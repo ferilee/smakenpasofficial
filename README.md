@@ -38,21 +38,20 @@ Server memakai port `2005` secara default. Jika perlu mengganti port:
 PORT=2005 bun src/server.ts
 ```
 
-## Akun Admin Awal
+## Login Admin
 
-Seed data otomatis dijalankan saat server pertama kali hidup.
+Seed data otomatis dijalankan saat server pertama kali hidup. Login admin menggunakan Google OAuth.
 
 ```txt
 URL login : http://localhost:2005/admin/login
-Username  : ferilee
-Password  : F3r!-lee
+Email     : the.real.ferilee@gmail.com
 ```
 
-Segera ganti password dan `TOKEN_SECRET` untuk penggunaan produksi.
+Pastikan email admin/editor sudah terdaftar di menu **User Admin** dan `TOKEN_SECRET` diganti untuk produksi.
 
 ## Login Google OAuth
 
-Login Google tersedia di `/admin/login` dan hanya mengizinkan email yang sudah terdaftar di menu **User Admin** dengan role `admin` atau `editor`.
+Login Google tersedia di `/admin/login` untuk admin/editor dan di tombol login navbar untuk pengguna publik. Pengguna publik yang pertama kali login akan diminta melengkapi nama, alamat wilayah Lumajang, dan nomor WA.
 
 Set environment berikut sebelum menjalankan server:
 
@@ -383,7 +382,6 @@ S3_SECRET_KEY=isi_dengan_RUSTFS_SECRET_KEY
 
 ## Catatan Produksi
 
-- Ganti password admin bawaan.
 - Set `TOKEN_SECRET` yang kuat.
 - Backup volume SQLite dan object storage RustFS.
 - Pasang reverse proxy HTTPS.

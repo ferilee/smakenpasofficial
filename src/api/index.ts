@@ -1,5 +1,5 @@
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
-import { and, asc, desc, eq, or } from "drizzle-orm";
+import { and, asc, desc, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { getCookie, setCookie } from "hono/cookie";
 import { db } from "../db/client";
@@ -27,7 +27,7 @@ import {
   users
 } from "../db/schema";
 import { storageMode, storeUploadedFile } from "../lib/storage";
-import { fail, hashPassword, normalizeBulletList, normalizeTeacherImportRow, ok, parseCsv, pick, resolveGoogleSheetCsvUrl, slugify, socialProfileUrl, verifyPassword } from "../lib/utils";
+import { fail, hashPassword, normalizeBulletList, normalizeTeacherImportRow, ok, parseCsv, pick, resolveGoogleSheetCsvUrl, slugify, socialProfileUrl } from "../lib/utils";
 
 type AnyTable = any;
 
@@ -89,6 +89,70 @@ async function adminUserForGoogleEmail(email = "") {
   const user = await db.select().from(users).where(eq(users.email, normalized)).get();
   if (!user || (user.role !== "admin" && user.role !== "editor")) return null;
   return user;
+}
+
+function safeRedirectPath(value: unknown, fallback = "/") {
+  const input = String(value || "").trim();
+  if (!input || !input.startsWith("/") || input.startsWith("//") || input.startsWith("/api/")) return fallback;
+  return input;
+}
+
+function makeUsernameFromEmail(email: string) {
+  const prefix = email.split("@")[0] || "user";
+  return slugify(prefix).replace(/-/g, ".") || "user";
+}
+
+async function uniqueUsername(base: string) {
+  const seed = base || "user";
+  let candidate = seed;
+  let suffix = 1;
+  while (await db.select({ id: users.id }).from(users).where(eq(users.username, candidate)).get()) {
+    suffix += 1;
+    candidate = `${seed}.${suffix}`;
+  }
+  return candidate;
+}
+
+function publicUserPayload(user: any) {
+  return {
+    id: user.id,
+    name: user.name,
+    username: user.username,
+    email: user.email,
+    role: user.role,
+    address: user.address || "",
+    districtId: user.districtId || "",
+    districtName: user.districtName || "",
+    villageId: user.villageId || "",
+    villageName: user.villageName || "",
+    whatsapp: user.whatsapp || "",
+    profileCompleted: Boolean(user.profileCompleted)
+  };
+}
+
+async function userForPublicGoogleProfile(profile: { email?: string; name?: string; sub?: string }) {
+  const email = String(profile.email || "").trim().toLowerCase();
+  if (!email) return null;
+  const existing = await db.select().from(users).where(eq(users.email, email)).get();
+  const now = new Date().toISOString();
+  if (existing) {
+    const [row] = await db.update(users).set({
+      googleSub: String(profile.sub || existing.googleSub || ""),
+      lastLoginAt: now
+    } as never).where(eq(users.id, existing.id)).returning();
+    return row;
+  }
+  const name = String(profile.name || email.split("@")[0] || "Pengguna").trim();
+  const [row] = await db.insert(users).values({
+    name,
+    username: await uniqueUsername(makeUsernameFromEmail(email)),
+    email,
+    password: await hashPassword(randomBytes(18).toString("hex")),
+    role: "user",
+    googleSub: String(profile.sub || ""),
+    lastLoginAt: now
+  } as never).returning();
+  return row;
 }
 
 function verifyToken(token = "") {
@@ -183,7 +247,14 @@ async function currentUser(c: any) {
     name: users.name,
     username: users.username,
     email: users.email,
-    role: users.role
+    role: users.role,
+    address: users.address,
+    districtId: users.districtId,
+    districtName: users.districtName,
+    villageId: users.villageId,
+    villageName: users.villageName,
+    whatsapp: users.whatsapp,
+    profileCompleted: users.profileCompleted
   }).from(users).where(eq(users.id, userId)).get();
 }
 
@@ -204,7 +275,15 @@ function normalizeEditorPermissions(value: unknown) {
 }
 
 function normalizeRole(value: unknown) {
+  if (String(value || "").trim() === "user") return "user";
   return String(value || "").trim() === "editor" ? "editor" : "admin";
+}
+
+async function requireLoggedIn(c: any, next: any) {
+  const user = await currentUser(c);
+  if (!user) return c.json(fail("Sesi login tidak valid.", 401), 401);
+  c.set("user", user);
+  await next();
 }
 
 async function getEditorPermissions() {
@@ -281,23 +360,18 @@ export function apiRoutes() {
 
   app.get("/health", (c) => c.json(ok({ status: "ok", port: 2005 })));
 
-  app.post("/auth/login", async (c) => {
-    const { email, username, password } = await c.req.json<{ email?: string; username?: string; password: string }>();
-    const login = String(username || email || "").trim();
-    const user = await db.select().from(users).where(or(eq(users.email, login), eq(users.username, login))).get();
-    if (!user || !(await verifyPassword(password, user.password))) {
-      return c.json(fail("Username/email atau password salah.", 401), 401);
-    }
-    if (user.role !== "admin" && user.role !== "editor") return c.json(fail("Akses admin/editor diperlukan.", 403), 403);
-    const token = createToken(user.id);
-    setCookie(c, "session", token, { httpOnly: true, sameSite: "Lax", path: "/", maxAge: 60 * 60 * 8 });
-    return c.json(ok({ token, user: { id: user.id, name: user.name, username: user.username, email: user.email, role: user.role } }));
+  app.post("/auth/login", (c) => {
+    return c.json(fail("Login username/password sudah dinonaktifkan. Gunakan Google.", 410), 410);
   });
 
   app.get("/auth/google", async (c) => {
     if (!googleOauthConfigured()) return c.json(fail("Google OAuth belum dikonfigurasi.", 400), 400);
     const state = createOauthState();
+    const context = c.req.query("context") === "admin" ? "admin" : "public";
+    const next = safeRedirectPath(c.req.query("next"), "/");
     setCookie(c, "google_oauth_state", state, { httpOnly: true, sameSite: "Lax", path: "/", maxAge: 60 * 10 });
+    setCookie(c, "google_oauth_context", context, { httpOnly: true, sameSite: "Lax", path: "/", maxAge: 60 * 10 });
+    setCookie(c, "google_oauth_next", next, { httpOnly: true, sameSite: "Lax", path: "/", maxAge: 60 * 10 });
     const url = new URL(googleAuthUrl);
     url.searchParams.set("client_id", process.env.GOOGLE_CLIENT_ID!);
     url.searchParams.set("redirect_uri", oauthRedirectUri(c));
@@ -312,10 +386,16 @@ export function apiRoutes() {
     if (!googleOauthConfigured()) return c.redirect("/admin/login?oauth=not_configured", 302);
     const state = String(c.req.query("state") || "");
     const savedState = getCookie(c, "google_oauth_state") || "";
+    const context = getCookie(c, "google_oauth_context") === "admin" ? "admin" : "public";
+    const next = safeRedirectPath(getCookie(c, "google_oauth_next"), "/");
+    const failureTarget = context === "admin" ? "/admin/login" : next;
+    const failureRedirect = (code: string) => `${failureTarget}${failureTarget.includes("?") ? "&" : "?"}oauth=${code}`;
     setCookie(c, "google_oauth_state", "", { path: "/", maxAge: 0 });
-    if (!state || !savedState || state !== savedState) return c.redirect("/admin/login?oauth=invalid_state", 302);
+    setCookie(c, "google_oauth_context", "", { path: "/", maxAge: 0 });
+    setCookie(c, "google_oauth_next", "", { path: "/", maxAge: 0 });
+    if (!state || !savedState || state !== savedState) return c.redirect(failureRedirect("invalid_state"), 302);
     const code = String(c.req.query("code") || "");
-    if (!code) return c.redirect("/admin/login?oauth=missing_code", 302);
+    if (!code) return c.redirect(failureRedirect("missing_code"), 302);
 
     try {
       const tokenResponse = await fetch(googleTokenUrl, {
@@ -329,24 +409,26 @@ export function apiRoutes() {
           redirect_uri: oauthRedirectUri(c)
         })
       });
-      if (!tokenResponse.ok) return c.redirect("/admin/login?oauth=token_failed", 302);
+      if (!tokenResponse.ok) return c.redirect(failureRedirect("token_failed"), 302);
       const tokenData = await tokenResponse.json() as { access_token?: string };
-      if (!tokenData.access_token) return c.redirect("/admin/login?oauth=token_missing", 302);
+      if (!tokenData.access_token) return c.redirect(failureRedirect("token_missing"), 302);
 
       const userInfoResponse = await fetch(googleUserInfoUrl, {
         headers: { Authorization: `Bearer ${tokenData.access_token}` }
       });
-      if (!userInfoResponse.ok) return c.redirect("/admin/login?oauth=userinfo_failed", 302);
-      const profile = await userInfoResponse.json() as { email?: string; email_verified?: boolean };
-      if (profile.email_verified === false) return c.redirect("/admin/login?oauth=email_unverified", 302);
-      const user = await adminUserForGoogleEmail(profile.email);
-      if (!user) return c.redirect("/admin/login?oauth=user_not_allowed", 302);
+      if (!userInfoResponse.ok) return c.redirect(failureRedirect("userinfo_failed"), 302);
+      const profile = await userInfoResponse.json() as { email?: string; email_verified?: boolean; name?: string; sub?: string };
+      if (profile.email_verified === false) return c.redirect(failureRedirect("email_unverified"), 302);
+      const user = context === "admin"
+        ? await adminUserForGoogleEmail(profile.email)
+        : await userForPublicGoogleProfile(profile);
+      if (!user) return c.redirect(failureRedirect(context === "admin" ? "user_not_allowed" : "user_missing"), 302);
 
       const token = createToken(user.id);
       setCookie(c, "session", token, { httpOnly: true, sameSite: "Lax", path: "/", maxAge: 60 * 60 * 8 });
-      return c.redirect("/admin", 302);
+      return c.redirect(context === "admin" ? "/admin" : `${next}${next.includes("?") ? "&" : "?"}login=success`, 302);
     } catch {
-      return c.redirect("/admin/login?oauth=failed", 302);
+      return c.redirect(failureRedirect("failed"), 302);
     }
   });
 
@@ -359,6 +441,36 @@ export function apiRoutes() {
     ...(c as any).get("user"),
     permissions: (c as any).get("editorPermissions") || []
   })));
+
+  app.get("/auth/session", requireLoggedIn, (c) => c.json(ok(publicUserPayload((c as any).get("user")))));
+
+  app.put("/auth/profile", requireLoggedIn, async (c) => {
+    const user = (c as any).get("user");
+    const body = await c.req.json<Record<string, unknown>>();
+    const name = String(body.name || "").trim();
+    const districtId = String(body.districtId || "").trim();
+    const districtName = String(body.districtName || "").trim();
+    const villageId = String(body.villageId || "").trim();
+    const villageName = String(body.villageName || "").trim();
+    const address = String(body.address || "").trim();
+    const whatsapp = String(body.whatsapp || "").replace(/[^\d+]/g, "").replace(/^\+/, "");
+    if (!name) return c.json(fail("Nama wajib diisi."), 400);
+    if (!districtId || !districtName) return c.json(fail("Kecamatan wajib dipilih."), 400);
+    if (!villageId || !villageName) return c.json(fail("Desa/kelurahan wajib dipilih."), 400);
+    if (!address) return c.json(fail("Alamat detail wajib diisi."), 400);
+    if (!whatsapp) return c.json(fail("Nomor WA wajib diisi."), 400);
+    const [row] = await db.update(users).set({
+      name,
+      districtId,
+      districtName,
+      villageId,
+      villageName,
+      address,
+      whatsapp: whatsapp.replace(/^0/, "62"),
+      profileCompleted: true
+    } as never).where(eq(users.id, user.id)).returning();
+    return c.json(ok(publicUserPayload(row)));
+  });
 
   app.get("/editor-permissions", requireAdmin, async (c) => c.json(ok({
     permissions: await getEditorPermissions(),
@@ -382,6 +494,14 @@ export function apiRoutes() {
       username: users.username,
       email: users.email,
       role: users.role,
+      address: users.address,
+      districtId: users.districtId,
+      districtName: users.districtName,
+      villageId: users.villageId,
+      villageName: users.villageName,
+      whatsapp: users.whatsapp,
+      profileCompleted: users.profileCompleted,
+      lastLoginAt: users.lastLoginAt,
       createdAt: users.createdAt
     }).from(users).orderBy(desc(users.id));
     return c.json(ok(rows));
@@ -403,6 +523,14 @@ export function apiRoutes() {
       username: users.username,
       email: users.email,
       role: users.role,
+      address: users.address,
+      districtId: users.districtId,
+      districtName: users.districtName,
+      villageId: users.villageId,
+      villageName: users.villageName,
+      whatsapp: users.whatsapp,
+      profileCompleted: users.profileCompleted,
+      lastLoginAt: users.lastLoginAt,
       createdAt: users.createdAt
     });
     return c.json(ok(row), 201);
@@ -419,6 +547,14 @@ export function apiRoutes() {
       username: users.username,
       email: users.email,
       role: users.role,
+      address: users.address,
+      districtId: users.districtId,
+      districtName: users.districtName,
+      villageId: users.villageId,
+      villageName: users.villageName,
+      whatsapp: users.whatsapp,
+      profileCompleted: users.profileCompleted,
+      lastLoginAt: users.lastLoginAt,
       createdAt: users.createdAt
     });
     if (!row) return c.json(fail("User tidak ditemukan.", 404), 404);
@@ -512,6 +648,43 @@ export function apiRoutes() {
     } catch {
       return c.json(ok([]));
     }
+  });
+
+  app.get("/public/nav-updates", async (c) => {
+    const latest = (query: string) => String((sqlite.prepare(query).get() as { value?: string } | undefined)?.value || "");
+    let berita = "";
+    try {
+      const settings = await db.select().from(schoolSettings).get();
+      if (settings?.wordpressUrl) {
+        const base = settings.wordpressUrl.replace(/\/$/, "");
+        const origin = new URL(base).origin;
+        const candidates = Array.from(new Set([base, origin]));
+        for (const candidate of candidates) {
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 1800);
+          try {
+            const response = await fetch(`${candidate}/wp-json/wp/v2/posts?per_page=1&orderby=date&order=desc`, { signal: controller.signal });
+            if (!response.ok) continue;
+            const payload = await response.json();
+            berita = Array.isArray(payload) ? String(payload[0]?.date || "") : "";
+            break;
+          } catch {
+            continue;
+          } finally {
+            clearTimeout(timeout);
+          }
+        }
+      }
+    } catch {
+      berita = "";
+    }
+    return c.json(ok({
+      galeri: latest("SELECT MAX(created_at) as value FROM galleries"),
+      agenda: latest("SELECT MAX(created_at) as value FROM agendas WHERE status = 'scheduled'"),
+      pengumuman: latest("SELECT MAX(published_at) as value FROM announcements WHERE status = 'active'"),
+      unduhan: latest("SELECT MAX(created_at) as value FROM downloads"),
+      berita
+    }));
   });
 
   app.get("/settings", async (c) => {

@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { createHmac } from "node:crypto";
 import { existsSync, rmSync } from "node:fs";
 import { join } from "node:path";
 
@@ -21,6 +22,12 @@ let createdMessageId = 0;
 let createdComplaintId = 0;
 let createdTestimonialId = 0;
 let createdUserId = 0;
+
+function testToken(userId: number) {
+  const payload = `${userId}.${Date.now()}`;
+  const signature = createHmac("sha256", process.env.TOKEN_SECRET!).update(payload).digest("hex");
+  return `${payload}.${signature}`;
+}
 
 async function json(res: Response) {
   return res.json() as Promise<any>;
@@ -50,9 +57,7 @@ function jsonInit(method: string, body: Record<string, unknown>): RequestInit {
 
 beforeAll(async () => {
   await seed();
-  const res = await request("/auth/login", jsonInit("POST", { username: "ferilee", password: "F3r!-lee" }));
-  expect(res.status).toBe(200);
-  adminCookie = res.headers.get("set-cookie") || "";
+  adminCookie = `session=${testToken(2)}`;
   expect(adminCookie).toContain("session=");
 });
 
@@ -79,9 +84,11 @@ describe("utility response endpoints", () => {
 });
 
 describe("auth endpoints", () => {
-  test("login rejects invalid credentials", async () => {
+  test("password login is disabled", async () => {
     const res = await request("/auth/login", jsonInit("POST", { username: "ferilee", password: "wrong" }));
-    expect(res.status).toBe(401);
+    const body = await json(res);
+    expect(res.status).toBe(410);
+    expect(body.error.message).toContain("Google");
   });
 
   test("auth me returns current admin", async () => {
@@ -675,6 +682,43 @@ describe("messages, users, upload, and stats endpoints", () => {
     createdUserId = 0;
   });
 
+  test("admin can see completed public user profile data", async () => {
+    const create = await json(await adminRequest("/users", jsonInit("POST", {
+      name: "Public User",
+      username: "publicuser",
+      email: "public@test.local",
+      password: "secret123",
+      role: "user"
+    })));
+    const userId = create.data.id;
+    const userCookie = `session=${testToken(userId)}`;
+
+    const saveProfile = await request("/auth/profile", {
+      ...jsonInit("PUT", {
+        name: "Public User",
+        districtId: "3508040",
+        districtName: "PASIRIAN",
+        villageId: "3508040001",
+        villageName: "CONDRO",
+        address: "Jl. Sekolah No. 1",
+        whatsapp: "081234567890"
+      }),
+      headers: { Cookie: userCookie, "Content-Type": "application/json" }
+    });
+    expect(saveProfile.status).toBe(200);
+
+    const list = await json(await adminRequest("/users"));
+    const row = list.data.find((item: any) => item.id === userId);
+    expect(row.role).toBe("user");
+    expect(row.profileCompleted).toBe(true);
+    expect(row.districtName).toBe("PASIRIAN");
+    expect(row.villageName).toBe("CONDRO");
+    expect(row.address).toBe("Jl. Sekolah No. 1");
+    expect(row.whatsapp).toBe("6281234567890");
+
+    await adminRequest(`/users/${userId}`, { method: "DELETE" });
+  });
+
   test("editor role only accesses admin features allowed by admin", async () => {
     const access = await json(await adminRequest("/editor-permissions", jsonInit("PUT", {
       permissions: ["studentInfos"]
@@ -689,9 +733,7 @@ describe("messages, users, upload, and stats endpoints", () => {
       role: "editor"
     })));
     const editorId = create.data.id;
-    const login = await request("/auth/login", jsonInit("POST", { username: "editortest", password: "secret123" }));
-    expect(login.status).toBe(200);
-    const editorCookie = login.headers.get("set-cookie") || "";
+    const editorCookie = `session=${testToken(editorId)}`;
 
     const me = await json(await request("/auth/me", { headers: { Cookie: editorCookie } }));
     expect(me.data.role).toBe("editor");

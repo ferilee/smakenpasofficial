@@ -1,7 +1,7 @@
 import { sqlite } from "./client";
 
 const statements = [
-  `CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, username TEXT NOT NULL UNIQUE, email TEXT NOT NULL UNIQUE, password TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'admin', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`,
+  `CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, username TEXT NOT NULL UNIQUE, email TEXT NOT NULL UNIQUE, password TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'admin', address TEXT NOT NULL DEFAULT '', district_id TEXT NOT NULL DEFAULT '', district_name TEXT NOT NULL DEFAULT '', village_id TEXT NOT NULL DEFAULT '', village_name TEXT NOT NULL DEFAULT '', whatsapp TEXT NOT NULL DEFAULT '', google_sub TEXT NOT NULL DEFAULT '', profile_completed INTEGER NOT NULL DEFAULT 0, last_login_at TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`,
   `CREATE TABLE IF NOT EXISTS school_profile (id INTEGER PRIMARY KEY AUTOINCREMENT, history TEXT NOT NULL DEFAULT '', vision TEXT NOT NULL DEFAULT '', mission TEXT NOT NULL DEFAULT '', principal_name TEXT NOT NULL DEFAULT '', principal_greeting TEXT NOT NULL DEFAULT '', principal_photo_url TEXT NOT NULL DEFAULT '', profile_summary_image_url TEXT NOT NULL DEFAULT '', principal_cta_label TEXT NOT NULL DEFAULT 'Selengkapnya', principal_cta_url TEXT NOT NULL DEFAULT '/profil', identity TEXT NOT NULL DEFAULT '{}', management TEXT NOT NULL DEFAULT '{}', organization TEXT NOT NULL DEFAULT '', accreditation TEXT NOT NULL DEFAULT '', location TEXT NOT NULL DEFAULT '')`,
   `CREATE TABLE IF NOT EXISTS school_settings (id INTEGER PRIMARY KEY AUTOINCREMENT, school_name TEXT NOT NULL, tagline TEXT NOT NULL DEFAULT '', logo_url TEXT NOT NULL DEFAULT '', favicon_url TEXT NOT NULL DEFAULT '', theme_color TEXT NOT NULL DEFAULT '#0f766e', address TEXT NOT NULL DEFAULT '', email TEXT NOT NULL DEFAULT '', phone TEXT NOT NULL DEFAULT '', whatsapp TEXT NOT NULL DEFAULT '', social_links TEXT NOT NULL DEFAULT '{}', quick_links TEXT NOT NULL DEFAULT '[]', map_embed TEXT NOT NULL DEFAULT '', wordpress_url TEXT NOT NULL DEFAULT '', ppdb_url TEXT NOT NULL DEFAULT '', meta_description TEXT NOT NULL DEFAULT '', footer_text TEXT NOT NULL DEFAULT '', editor_permissions TEXT NOT NULL DEFAULT '[]')`,
   `CREATE TABLE IF NOT EXISTS majors (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, slug TEXT NOT NULL UNIQUE, field_category TEXT NOT NULL DEFAULT '', profile_markdown TEXT NOT NULL DEFAULT '', profile_cta_label TEXT NOT NULL DEFAULT 'Lihat Album Foto/Video', profile_cta_url TEXT NOT NULL DEFAULT '', instagram TEXT NOT NULL DEFAULT '', tiktok TEXT NOT NULL DEFAULT '', facebook TEXT NOT NULL DEFAULT '', youtube TEXT NOT NULL DEFAULT '', description TEXT NOT NULL DEFAULT '', competencies TEXT NOT NULL DEFAULT '', career_prospects TEXT NOT NULL DEFAULT '', practice_facilities TEXT NOT NULL DEFAULT '', productive_teachers TEXT NOT NULL DEFAULT '', achievements TEXT NOT NULL DEFAULT '', image_url TEXT NOT NULL DEFAULT '', is_featured INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`,
@@ -30,6 +30,22 @@ export function migrate() {
     if (!columns.some((column) => column.name === "username")) {
       sqlite.run("ALTER TABLE users ADD COLUMN username TEXT NOT NULL DEFAULT ''");
       sqlite.run("UPDATE users SET username = lower(replace(email, '@sekolah.sch.id', '')) WHERE username = ''");
+    }
+    const userColumnDefaults: Record<string, string> = {
+      address: "TEXT NOT NULL DEFAULT ''",
+      district_id: "TEXT NOT NULL DEFAULT ''",
+      district_name: "TEXT NOT NULL DEFAULT ''",
+      village_id: "TEXT NOT NULL DEFAULT ''",
+      village_name: "TEXT NOT NULL DEFAULT ''",
+      whatsapp: "TEXT NOT NULL DEFAULT ''",
+      google_sub: "TEXT NOT NULL DEFAULT ''",
+      profile_completed: "INTEGER NOT NULL DEFAULT 0",
+      last_login_at: "TEXT NOT NULL DEFAULT ''"
+    };
+    for (const [column, definition] of Object.entries(userColumnDefaults)) {
+      if (!columns.some((item) => item.name === column)) {
+        sqlite.run(`ALTER TABLE users ADD COLUMN ${column} ${definition}`);
+      }
     }
     sqlite.run("CREATE UNIQUE INDEX IF NOT EXISTS users_username_unique ON users(username)");
 

@@ -8,6 +8,15 @@ export const users = sqliteTable("users", {
   email: text("email").notNull().unique(),
   password: text("password").notNull(),
   role: text("role").notNull().default("admin"),
+  address: text("address").notNull().default(""),
+  districtId: text("district_id").notNull().default(""),
+  districtName: text("district_name").notNull().default(""),
+  villageId: text("village_id").notNull().default(""),
+  villageName: text("village_name").notNull().default(""),
+  whatsapp: text("whatsapp").notNull().default(""),
+  googleSub: text("google_sub").notNull().default(""),
+  profileCompleted: integer("profile_completed", { mode: "boolean" }).notNull().default(false),
+  lastLoginAt: text("last_login_at").notNull().default(""),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`)
 });
 

@@ -1,5 +1,5 @@
 const app = document.querySelector("#app");
-const state = { home: null, profile: null };
+const state = { home: null, profile: null, session: null, sessionLoaded: false, navUpdates: null };
 let heroTimer = null;
 let pwaRegistered = false;
 const themeStorageKey = "websmakenpas-theme";
@@ -34,6 +34,38 @@ const mobileMoreNav = [
   ["Pengaduan", "/pengaduan", "report"],
   ["Kontak", "/kontak", "phone"],
   ["Login Admin", "/admin", "login"]
+];
+
+const navUpdateKeys = {
+  "/galeri": "galeri",
+  "/agenda": "agenda",
+  "/pengumuman": "pengumuman",
+  "/unduhan": "unduhan",
+  "/berita": "berita"
+};
+
+const lumajangDistrictFallback = [
+  { id: "3508010", name: "TEMPURSARI" },
+  { id: "3508020", name: "PRONOJIWO" },
+  { id: "3508030", name: "CANDIPURO" },
+  { id: "3508040", name: "PASIRIAN" },
+  { id: "3508050", name: "TEMPEH" },
+  { id: "3508060", name: "LUMAJANG" },
+  { id: "3508061", name: "SUMBERSUKO" },
+  { id: "3508070", name: "TEKUNG" },
+  { id: "3508080", name: "KUNIR" },
+  { id: "3508090", name: "YOSOWILANGUN" },
+  { id: "3508100", name: "ROWOKANGKUNG" },
+  { id: "3508110", name: "JATIROTO" },
+  { id: "3508120", name: "RANDUAGUNG" },
+  { id: "3508130", name: "SUKODONO" },
+  { id: "3508140", name: "PADANG" },
+  { id: "3508150", name: "PASRUJAMBE" },
+  { id: "3508160", name: "SENDURO" },
+  { id: "3508170", name: "GUCIALIT" },
+  { id: "3508180", name: "KEDUNGJAJANG" },
+  { id: "3508190", name: "KLAKAH" },
+  { id: "3508200", name: "RANUYOSO" }
 ];
 
 function getPreferredTheme() {
@@ -75,6 +107,8 @@ function navIcon(name) {
     sun: `<circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>`,
     arrowUp: `<path d="m12 19V5"/><path d="m5 12 7-7 7 7"/>`,
     login: `<path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><path d="m10 17 5-5-5-5"/><path d="M15 12H3"/>`,
+    logout: `<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/>`,
+    user: `<path d="M20 21a8 8 0 0 0-16 0"/><circle cx="12" cy="7" r="4"/>`,
     school: `<path d="m3 10 9-5 9 5-9 5-9-5Z"/><path d="M5 12v5c2 2 12 2 14 0v-5"/><path d="M12 15v5"/>`,
     users: `<path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>`,
     calendar: `<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/>`,
@@ -104,16 +138,20 @@ function isNavActive(url) {
 }
 
 function bottomNavigation() {
+  const authNav = state.session
+    ? [["Keluar", "#logout", "logout"]]
+    : [["Login", googleLoginHref(), "login"]];
+  const moreItems = [...mobileMoreNav, ...authNav];
   const moreActive = mobileMoreNav.some(([, url]) => isNavActive(url));
   return `<div class="mobile-more-backdrop" data-more-close hidden></div>
     <aside class="mobile-more-sheet" id="mobile-more-sheet" aria-hidden="true">
       <div class="mobile-more-handle"></div>
       <nav class="mobile-more-list" aria-label="Menu lainnya">
-        ${mobileMoreNav.map(([label, url, icon]) => `<a class="mobile-more-link ${isNavActive(url) ? "active" : ""}" href="${url}">${navIcon(icon)}<span>${label}</span></a>`).join("")}
+        ${moreItems.map(([label, url, icon]) => `<a class="mobile-more-link ${isNavActive(url) ? "active" : ""}" href="${url}" ${url === "#logout" ? "data-logout" : ""}>${navIcon(icon)}<span>${label}</span>${navUpdateKeys[url] ? `<i class="nav-new-dot" data-nav-badge="${navUpdateKeys[url]}" hidden></i>` : ""}</a>`).join("")}
       </nav>
     </aside>
     <nav class="bottom-nav" aria-label="Navigasi mobile">
-      ${mobilePrimaryNav.map(([label, url, icon]) => `<a class="bottom-nav-item ${isNavActive(url) ? "active" : ""}" href="${url}" aria-label="${label}">${navIcon(icon)}<span class="bottom-nav-label">${label}</span></a>`).join("")}
+      ${mobilePrimaryNav.map(([label, url, icon]) => `<a class="bottom-nav-item ${isNavActive(url) ? "active" : ""}" href="${url}" aria-label="${label}">${navIcon(icon)}<span class="bottom-nav-label">${label}</span>${navUpdateKeys[url] ? `<i class="nav-new-dot" data-nav-badge="${navUpdateKeys[url]}" hidden></i>` : ""}</a>`).join("")}
       <button class="bottom-nav-item ${moreActive ? "active" : ""}" type="button" data-more-toggle aria-label="More" aria-expanded="false">${navIcon("more")}<span class="bottom-nav-label">More</span></button>
     </nav>`;
 }
@@ -123,6 +161,49 @@ async function api(path, options) {
   const json = await res.json();
   if (!json.ok) throw new Error(json.error?.message || "Terjadi kesalahan");
   return json.data;
+}
+
+async function loadSession(force = false) {
+  if (state.sessionLoaded && !force) return state.session;
+  try {
+    state.session = await api("/api/auth/session");
+  } catch {
+    state.session = null;
+  }
+  state.sessionLoaded = true;
+  return state.session;
+}
+
+function googleLoginHref() {
+  const next = `${location.pathname}${location.search || ""}`;
+  return `/api/auth/google?context=public&next=${encodeURIComponent(next || "/")}`;
+}
+
+function navBadgeStorageKey(key) {
+  return `websmakenpas-seen-${key}`;
+}
+
+function markCurrentNavSeen() {
+  const key = navUpdateKeys[location.pathname];
+  const latest = key ? state.navUpdates?.[key] : "";
+  if (key && latest) localStorage.setItem(navBadgeStorageKey(key), latest);
+}
+
+async function refreshNavBadges() {
+  try {
+    state.navUpdates = await api("/api/public/nav-updates");
+    markCurrentNavSeen();
+    document.querySelectorAll("[data-nav-badge]").forEach((badge) => {
+      const key = badge.dataset.navBadge;
+      const latest = state.navUpdates?.[key] || "";
+      const seen = localStorage.getItem(navBadgeStorageKey(key)) || "";
+      badge.hidden = !latest || seen === latest;
+    });
+  } catch {
+    document.querySelectorAll("[data-nav-badge]").forEach((badge) => {
+      badge.hidden = true;
+    });
+  }
 }
 
 function esc(value) {
@@ -179,6 +260,9 @@ function dateKey(value) {
 
 function layout(content, data = state.home) {
   const school = data?.settings?.schoolName || "Website Sekolah";
+  const authControl = state.session
+    ? `<div class="nav-user"><span>${navIcon("user")}<b>${esc(state.session.name || state.session.email)}</b></span><button type="button" data-logout aria-label="Keluar" title="Keluar">${navIcon("logout")}</button></div>`
+    : `<a class="nav-login" href="${googleLoginHref()}">${navIcon("login")}<span>Login</span></a>`;
   const footerLinks = [
     ["Profil", "/profil"],
     ["Siswa", "/siswa"],
@@ -197,7 +281,8 @@ function layout(content, data = state.home) {
       <div class="container nav">
         <a class="brand" href="/"><img class="brand-mark brand-logo" src="/Logo_SMKNPasirian.png" alt="Logo ${esc(school)}"><span>${esc(school)}</span></a>
         <nav class="nav-links">
-          ${navItems.map(([label, url]) => `<a class="${isNavActive(url) ? "active" : ""}" href="${url}">${label}</a>`).join("")}
+          ${navItems.map(([label, url]) => `<a class="${isNavActive(url) ? "active" : ""}" href="${url}"><span>${label}</span>${navUpdateKeys[url] ? `<i class="nav-new-dot" data-nav-badge="${navUpdateKeys[url]}" hidden></i>` : ""}</a>`).join("")}
+          ${authControl}
           <button class="theme-toggle" data-theme-toggle type="button" aria-pressed="false" aria-label="Mode Gelap"></button>
         </nav>
       </div>
@@ -1209,11 +1294,21 @@ async function homePage() {
     }];
   const hero = banners[0];
   const heroImage = (hero.imageUrl || "https://images.unsplash.com/photo-1580582932707-520aed937b7b?auto=format&fit=crop&w=1800&q=80").replace(/"/g, "&quot;");
+  const heroLoginInfo = state.session ? `
+    <div class="hero-session-card">
+      <span>${navIcon("user")}</span>
+      <div>
+        <small>Login sebagai</small>
+        <strong>${esc(state.session.name || state.session.email)}</strong>
+      </div>
+      <button type="button" data-logout aria-label="Keluar" title="Keluar">${navIcon("logout")}</button>
+    </div>` : "";
 
   return layout(`
     <main>
       <section class="hero-wrap">
         <section class="hero hero-animate" id="hero-carousel" style="background-image: linear-gradient(100deg, rgba(6,31,28,.85), rgba(6,31,28,.48), rgba(6,31,28,.18)), url('${esc(heroImage)}');">
+          ${heroLoginInfo}
           <div class="container hero-inner">
             <div class="eyebrow">Website Resmi Sekolah</div>
             <h1 id="hero-title">${esc(hero.title || data.settings.schoolName)}</h1>
@@ -1767,6 +1862,133 @@ function setupAnnouncementModal() {
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && modal.classList.contains("open")) close();
   });
+}
+
+function ensureLottiePlayer() {
+  if (document.querySelector("script[data-lottie-player]")) return;
+  const script = document.createElement("script");
+  script.src = "https://unpkg.com/@dotlottie/player-component@2.7.12/dist/dotlottie-player.mjs";
+  script.type = "module";
+  script.dataset.lottiePlayer = "true";
+  document.head.appendChild(script);
+}
+
+async function fetchRegionList(url, fallback = []) {
+  try {
+    const response = await fetch(url, { cache: "force-cache" });
+    if (!response.ok) throw new Error("Wilayah tidak tersedia");
+    const rows = await response.json();
+    return Array.isArray(rows) && rows.length ? rows : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function profileModalMarkup() {
+  const user = state.session || {};
+  return `
+    <div class="profile-modal open" data-profile-modal>
+      <div class="profile-modal-backdrop"></div>
+      <form class="profile-modal-box" id="user-profile-form">
+        <span class="profile-modal-kicker">Profil Pengguna</span>
+        <h3>Lengkapi data terlebih dahulu</h3>
+        <p>Data ini digunakan untuk layanan siswa dan komunikasi sekolah.</p>
+        <div class="field"><label>Nama</label><input name="name" value="${esc(user.name || "")}" required></div>
+        <div class="field"><label>Kecamatan</label><select name="districtId" id="profile-district" required><option value="">Memuat kecamatan...</option></select></div>
+        <div class="field"><label>Desa/Kelurahan</label><select name="villageId" id="profile-village" required><option value="">Pilih kecamatan dahulu</option></select></div>
+        <div class="field"><label>Alamat detail</label><textarea name="address" required>${esc(user.address || "")}</textarea></div>
+        <div class="field"><label>Nomor WA</label><input name="whatsapp" value="${esc(user.whatsapp || "")}" inputmode="tel" placeholder="08xxxxxxxxxx" required></div>
+        <button class="btn">Simpan Profil</button>
+      </form>
+    </div>`;
+}
+
+async function openProfileModal() {
+  if (document.querySelector("[data-profile-modal]")) return;
+  document.body.insertAdjacentHTML("beforeend", profileModalMarkup());
+  const form = document.querySelector("#user-profile-form");
+  const districtSelect = document.querySelector("#profile-district");
+  const villageSelect = document.querySelector("#profile-village");
+  const current = state.session || {};
+  const districts = await fetchRegionList("https://emsifa.github.io/api-wilayah-indonesia/api/districts/3508.json", lumajangDistrictFallback);
+  districtSelect.innerHTML = `<option value="">Pilih kecamatan</option>${districts.map((item) => `<option value="${esc(item.id)}" data-name="${esc(item.name)}" ${item.id === current.districtId ? "selected" : ""}>${esc(item.name)}</option>`).join("")}`;
+
+  const loadVillages = async (districtId, selectedVillageId = "") => {
+    villageSelect.innerHTML = `<option value="">Memuat desa/kelurahan...</option>`;
+    const rows = districtId ? await fetchRegionList(`https://emsifa.github.io/api-wilayah-indonesia/api/villages/${districtId}.json`, []) : [];
+    villageSelect.innerHTML = rows.length
+      ? `<option value="">Pilih desa/kelurahan</option>${rows.map((item) => `<option value="${esc(item.id)}" data-name="${esc(item.name)}" ${item.id === selectedVillageId ? "selected" : ""}>${esc(item.name)}</option>`).join("")}`
+      : `<option value="${esc(districtId || "manual")}" data-name="Alamat Lumajang">Alamat Lumajang</option>`;
+  };
+  if (current.districtId) await loadVillages(current.districtId, current.villageId);
+  districtSelect.addEventListener("change", () => loadVillages(districtSelect.value));
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    try {
+      const selectedDistrict = districtSelect.selectedOptions[0];
+      const selectedVillage = villageSelect.selectedOptions[0];
+      const body = Object.fromEntries(new FormData(form));
+      body.districtName = selectedDistrict?.dataset.name || selectedDistrict?.textContent || "";
+      body.villageName = selectedVillage?.dataset.name || selectedVillage?.textContent || "";
+      state.session = await api("/api/auth/profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      });
+      document.querySelector("[data-profile-modal]")?.remove();
+      showWelcomeModal();
+      render();
+    } catch (error) {
+      notify(error.message || "Profil gagal disimpan.", "error");
+    }
+  });
+}
+
+function showWelcomeModal() {
+  ensureLottiePlayer();
+  document.querySelector("[data-welcome-modal]")?.remove();
+  document.body.insertAdjacentHTML("beforeend", `
+    <div class="welcome-modal open" data-welcome-modal>
+      <div class="welcome-modal-backdrop" data-welcome-close></div>
+      <div class="welcome-modal-box">
+        <button class="welcome-modal-close" type="button" data-welcome-close aria-label="Tutup">&times;</button>
+        <dotlottie-player src="https://lottie.host/8e3fdd68-2e15-45b7-bb1c-c1835adf4c20/8YlY2yJWnP.lottie" background="transparent" speed="1" autoplay></dotlottie-player>
+        <span>Selamat datang</span>
+        <h3>${esc(state.session?.name || "Pengguna")}</h3>
+        <p>Login berhasil. Anda dapat mengakses layanan sekolah yang tersedia.</p>
+      </div>
+    </div>`);
+  const close = () => document.querySelector("[data-welcome-modal]")?.remove();
+  document.querySelectorAll("[data-welcome-close]").forEach((button) => button.addEventListener("click", close));
+  setTimeout(close, 6500);
+}
+
+function setupAuthUi() {
+  document.querySelectorAll("[data-logout]").forEach((button) => {
+    button.addEventListener("click", async (event) => {
+      event.preventDefault();
+      await fetch("/api/auth/logout", { method: "POST" });
+      state.session = null;
+      state.sessionLoaded = true;
+      const url = new URL(location.href);
+      url.searchParams.delete("login");
+      url.searchParams.delete("oauth");
+      history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+      await render();
+    });
+  });
+  const params = new URLSearchParams(location.search);
+  if (params.get("oauth")) notify("Login Google gagal. Coba lagi atau hubungi admin.", "error");
+  if (!state.session) return;
+  if (!state.session.profileCompleted) {
+    openProfileModal();
+    return;
+  }
+  if (params.get("login") === "success" && !sessionStorage.getItem("websmakenpas-welcome-shown")) {
+    sessionStorage.setItem("websmakenpas-welcome-shown", "1");
+    showWelcomeModal();
+  }
 }
 
 function registerPwa() {
@@ -2379,6 +2601,7 @@ async function complaintPage() {
 async function render() {
   const path = location.pathname;
   try {
+    await loadSession();
     if (path === "/") app.innerHTML = await homePage();
     else if (path === "/profil") app.innerHTML = await profilePage();
     else if (path === "/program-keahlian") app.innerHTML = await majorsPage();
@@ -2433,6 +2656,8 @@ async function render() {
     setupTestimonialCarousel();
     setupManagementModal();
     setupAnnouncementModal();
+    setupAuthUi();
+    refreshNavBadges();
     document.querySelectorAll("[data-theme-toggle]").forEach((button) => button.addEventListener("click", toggleTheme));
     applyTheme(document.documentElement.dataset.theme || getPreferredTheme());
     registerPwa();
