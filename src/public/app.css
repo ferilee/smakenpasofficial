@@ -3060,6 +3060,28 @@ section { padding: 58px 0; }
   text-decoration: underline;
   text-underline-offset: 2px;
 }
+.md-pairs {
+  display: grid;
+  gap: 8px;
+  margin: 8px 0 12px;
+}
+.md-pair {
+  display: grid;
+  grid-template-columns: minmax(92px, auto) 12px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+}
+.md-pair-label {
+  font-weight: 700;
+  color: var(--ink);
+}
+.md-pair-sep {
+  text-align: center;
+  color: var(--muted);
+}
+.md-pair-value {
+  min-width: 0;
+}
 .md-align-left { text-align: left; }
 .md-align-center { text-align: center; }
 .md-align-right { text-align: right; }
@@ -3743,6 +3765,13 @@ td { color: var(--ink); }
     position: absolute;
     top: 9px;
     right: 12px;
+  }
+  .md-pair {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+  .md-pair-sep {
+    display: none;
   }
   @media (max-width: 380px) {
     .bottom-nav {

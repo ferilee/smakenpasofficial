@@ -1340,6 +1340,15 @@ function markdownInlinePreview(value) {
   return html;
 }
 
+function parseMarkdownPair(line) {
+  const match = String(line || "").match(/^([A-Za-z0-9][^:\/]{0,40}?)\s*:\s+(.+)$/);
+  if (!match) return null;
+  return {
+    label: match[1].trim(),
+    value: match[2].trim()
+  };
+}
+
 function markdownPreview(value) {
   const lines = String(value || "").replace(/\r\n?/g, "\n").split("\n");
   const blocks = [];
@@ -1356,6 +1365,19 @@ function markdownPreview(value) {
     const line = rawLine.trim();
     if (!line) {
       flushList();
+      continue;
+    }
+    const pair = parseMarkdownPair(line);
+    if (pair) {
+      flushList();
+      const pairs = [pair];
+      while (index + 1 < lines.length) {
+        const next = parseMarkdownPair(lines[index + 1].trim());
+        if (!next) break;
+        pairs.push(next);
+        index += 1;
+      }
+      blocks.push(`<div class="md-pairs">${pairs.map((item) => `<div class="md-pair"><span class="md-pair-label">${markdownInlinePreview(item.label)}</span><span class="md-pair-sep">:</span><span class="md-pair-value">${markdownInlinePreview(item.value)}</span></div>`).join("")}</div>`);
       continue;
     }
     const alignment = line.match(/^:::\s*(left|center|right|justify)\s*$/i);
