@@ -132,6 +132,15 @@ export function migrate() {
     sqlite.run("UPDATE messages SET status = lower(trim(status)) WHERE status IS NOT NULL");
     sqlite.run("UPDATE complaints SET status = lower(trim(status)) WHERE status IS NOT NULL");
     sqlite.run("UPDATE testimonials SET status = lower(trim(status)) WHERE status IS NOT NULL");
+    sqlite.run("UPDATE agendas SET status = 'scheduled' WHERE trim(coalesce(status, '')) = ''");
+    sqlite.run("UPDATE student_agendas SET status = 'scheduled' WHERE trim(coalesce(status, '')) = ''");
+    sqlite.run("UPDATE announcements SET status = 'active' WHERE trim(coalesce(status, '')) = ''");
+    sqlite.run("UPDATE student_announcements SET status = 'active' WHERE trim(coalesce(status, '')) = ''");
+    sqlite.run("UPDATE student_infos SET status = 'active' WHERE trim(coalesce(status, '')) = ''");
+    sqlite.run("UPDATE teachers SET status = 'active' WHERE trim(coalesce(status, '')) = ''");
+    sqlite.run("UPDATE messages SET status = 'new' WHERE trim(coalesce(status, '')) = ''");
+    sqlite.run("UPDATE complaints SET status = 'new' WHERE trim(coalesce(status, '')) = ''");
+    sqlite.run("UPDATE testimonials SET status = 'pending' WHERE trim(coalesce(status, '')) = ''");
   });
   transaction();
 }

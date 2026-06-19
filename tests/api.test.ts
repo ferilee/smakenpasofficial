@@ -602,6 +602,22 @@ describe("admin CRUD endpoints", () => {
     await adminRequest(`/agendas/${legacy.data.id}`, { method: "DELETE" });
   });
 
+  test("public agenda treats empty status as scheduled for legacy rows", async () => {
+    const legacy = await json(await adminRequest("/agendas", jsonInit("POST", {
+      title: "Agenda Status Kosong",
+      startDate: "2026-06-24",
+      endDate: "2026-06-24",
+      location: "Lab",
+      description: "Harus tetap muncul di publik.",
+      status: ""
+    })));
+
+    const publicResponse = await json(await request("/public/agendas"));
+    expect(publicResponse.data.some((item: any) => item.id === legacy.data.id)).toBe(true);
+
+    await adminRequest(`/agendas/${legacy.data.id}`, { method: "DELETE" });
+  });
+
   test("announcements list endpoint returns array", async () => {
     const body = await json(await request("/announcements"));
     expect(Array.isArray(body.data)).toBe(true);

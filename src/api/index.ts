@@ -444,11 +444,11 @@ function crud(app: Hono, path: string, table: AnyTable, resource: keyof typeof t
 
 export function apiRoutes() {
   const app = new Hono();
-  const isScheduledAgenda = sql`lower(${agendas.status}) = 'scheduled'`;
-  const isScheduledStudentAgenda = sql`lower(${studentAgendas.status}) = 'scheduled'`;
-  const isActiveAnnouncement = sql`lower(${announcements.status}) = 'active'`;
-  const isActiveStudentInfo = sql`lower(${studentInfos.status}) = 'active'`;
-  const isActiveStudentAnnouncement = sql`lower(${studentAnnouncements.status}) = 'active'`;
+  const isScheduledAgenda = sql`coalesce(nullif(lower(trim(${agendas.status})), ''), 'scheduled') = 'scheduled'`;
+  const isScheduledStudentAgenda = sql`coalesce(nullif(lower(trim(${studentAgendas.status})), ''), 'scheduled') = 'scheduled'`;
+  const isActiveAnnouncement = sql`coalesce(nullif(lower(trim(${announcements.status})), ''), 'active') = 'active'`;
+  const isActiveStudentInfo = sql`coalesce(nullif(lower(trim(${studentInfos.status})), ''), 'active') = 'active'`;
+  const isActiveStudentAnnouncement = sql`coalesce(nullif(lower(trim(${studentAnnouncements.status})), ''), 'active') = 'active'`;
 
   app.get("/health", (c) => c.json(ok({ status: "ok", port: 2005 })));
 
