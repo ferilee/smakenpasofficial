@@ -442,6 +442,28 @@ function markdownField(field, value, { rows = 8, hint = "", label = fieldLabel(f
 function formFields(config, item = {}) {
   return config.fields.map((field) => {
     const value = esc(item[field] ?? "");
+    if (field === "status") {
+      const selected = String(item[field] || "").trim().toLowerCase();
+      const statusOptions = config.path === "/api/agendas" || config.path === "/api/student-agendas"
+        ? [["scheduled", "Scheduled"], ["draft", "Draft"], ["cancelled", "Cancelled"]]
+        : config.path === "/api/announcements" || config.path === "/api/student-announcements" || config.path === "/api/student-infos"
+          ? [["active", "Active"], ["draft", "Draft"], ["archived", "Archived"]]
+          : config.path === "/api/teachers"
+            ? [["active", "Active"], ["inactive", "Inactive"]]
+            : config.path === "/api/messages"
+              ? [["new", "New"], ["read", "Read"], ["replied", "Replied"]]
+              : config.path === "/api/complaints"
+                ? [["new", "New"], ["reviewed", "Reviewed"], ["resolved", "Resolved"]]
+                : config.path === "/api/testimonials"
+                  ? [["pending", "Pending"], ["approved", "Approved"], ["rejected", "Rejected"]]
+                  : [];
+      if (statusOptions.length) {
+        const fallback = statusOptions[0][0];
+        return `<div class="field"><label>${fieldLabel(field)}</label><select name="${field}">
+          ${statusOptions.map(([optionValue, label]) => `<option value="${optionValue}" ${selected === optionValue || (!selected && optionValue === fallback) ? "selected" : ""}>${label}</option>`).join("")}
+        </select></div>`;
+      }
+    }
     if (field === "fieldCategory") {
       const options = [
         ["tkb", "Teknologi Konstruksi dan Bangunan"],

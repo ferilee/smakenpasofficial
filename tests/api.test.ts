@@ -586,6 +586,22 @@ describe("admin CRUD endpoints", () => {
     await adminRequest(`/agendas/${draft.data.id}`, { method: "DELETE" });
   });
 
+  test("public agenda accepts legacy mixed-case scheduled status", async () => {
+    const legacy = await json(await adminRequest("/agendas", jsonInit("POST", {
+      title: "Agenda Legacy",
+      startDate: "2026-06-22",
+      endDate: "2026-06-22",
+      location: "Aula",
+      description: "Masih harus tampil di publik.",
+      status: "Scheduled"
+    })));
+
+    const publicResponse = await json(await request("/public/agendas"));
+    expect(publicResponse.data.some((item: any) => item.id === legacy.data.id)).toBe(true);
+
+    await adminRequest(`/agendas/${legacy.data.id}`, { method: "DELETE" });
+  });
+
   test("announcements list endpoint returns array", async () => {
     const body = await json(await request("/announcements"));
     expect(Array.isArray(body.data)).toBe(true);

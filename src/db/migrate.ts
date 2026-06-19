@@ -122,6 +122,16 @@ export function migrate() {
     if (!complaintColumns.some((column) => column.name === "attachment_url")) {
       sqlite.run("ALTER TABLE complaints ADD COLUMN attachment_url TEXT NOT NULL DEFAULT ''");
     }
+
+    sqlite.run("UPDATE agendas SET status = lower(trim(status)) WHERE status IS NOT NULL");
+    sqlite.run("UPDATE student_agendas SET status = lower(trim(status)) WHERE status IS NOT NULL");
+    sqlite.run("UPDATE announcements SET status = lower(trim(status)) WHERE status IS NOT NULL");
+    sqlite.run("UPDATE student_announcements SET status = lower(trim(status)) WHERE status IS NOT NULL");
+    sqlite.run("UPDATE student_infos SET status = lower(trim(status)) WHERE status IS NOT NULL");
+    sqlite.run("UPDATE teachers SET status = lower(trim(status)) WHERE status IS NOT NULL");
+    sqlite.run("UPDATE messages SET status = lower(trim(status)) WHERE status IS NOT NULL");
+    sqlite.run("UPDATE complaints SET status = lower(trim(status)) WHERE status IS NOT NULL");
+    sqlite.run("UPDATE testimonials SET status = lower(trim(status)) WHERE status IS NOT NULL");
   });
   transaction();
 }

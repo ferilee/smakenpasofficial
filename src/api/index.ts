@@ -1,5 +1,5 @@
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { getCookie, setCookie } from "hono/cookie";
 import { db } from "../db/client";
@@ -254,6 +254,22 @@ function normalizeBody(resource: keyof typeof tableFields, body: Record<string, 
     data.facebook = socialProfileUrl("facebook", String(data.facebook || ""));
     data.youtube = socialProfileUrl("youtube", String(data.youtube || ""));
   }
+  if ("status" in data) {
+    const raw = String(data.status || "").trim().toLowerCase();
+    if (resource === "agendas" || resource === "studentAgendas") {
+      data.status = raw === "draft" || raw === "cancelled" ? raw : "scheduled";
+    } else if (resource === "announcements" || resource === "studentAnnouncements" || resource === "studentInfos") {
+      data.status = raw === "draft" || raw === "archived" ? raw : "active";
+    } else if (resource === "teachers") {
+      data.status = raw === "inactive" ? "inactive" : "active";
+    } else if (resource === "messages") {
+      data.status = raw === "read" || raw === "replied" ? raw : "new";
+    } else if (resource === "complaints") {
+      data.status = raw === "reviewed" || raw === "resolved" ? raw : "new";
+    } else if (resource === "testimonials") {
+      data.status = raw === "approved" || raw === "rejected" ? raw : "pending";
+    }
+  }
   return data;
 }
 
@@ -428,6 +444,11 @@ function crud(app: Hono, path: string, table: AnyTable, resource: keyof typeof t
 
 export function apiRoutes() {
   const app = new Hono();
+  const isScheduledAgenda = sql`lower(${agendas.status}) = 'scheduled'`;
+  const isScheduledStudentAgenda = sql`lower(${studentAgendas.status}) = 'scheduled'`;
+  const isActiveAnnouncement = sql`lower(${announcements.status}) = 'active'`;
+  const isActiveStudentInfo = sql`lower(${studentInfos.status}) = 'active'`;
+  const isActiveStudentAnnouncement = sql`lower(${studentAnnouncements.status}) = 'active'`;
 
   app.get("/health", (c) => c.json(ok({ status: "ok", port: 2005 })));
 
@@ -652,8 +673,8 @@ export function apiRoutes() {
       teachers: await db.select().from(teachers).where(eq(teachers.status, "active")).limit(999),
       majors: await db.select().from(majors).where(eq(majors.isFeatured, true)).limit(6),
       facilities: await db.select().from(facilities).where(eq(facilities.isFeatured, true)).limit(6),
-      agendas: await db.select().from(agendas).where(eq(agendas.status, "scheduled")).orderBy(asc(agendas.startDate)),
-      announcements: await db.select().from(announcements).where(and(eq(announcements.status, "active"), eq(announcements.isPriority, true))).orderBy(desc(announcements.publishedAt)).limit(5),
+      agendas: await db.select().from(agendas).where(isScheduledAgenda).orderBy(asc(agendas.startDate)),
+      announcements: await db.select().from(announcements).where(and(isActiveAnnouncement, eq(announcements.isPriority, true))).orderBy(desc(announcements.publishedAt)).limit(5),
       galleries: await db.select().from(galleries).where(eq(galleries.showOnHome, true)).orderBy(desc(galleries.createdAt)).limit(6),
       testimonials: await db.select().from(testimonials).where(eq(testimonials.status, "approved")).orderBy(desc(testimonials.createdAt)).limit(6)
     };
@@ -679,11 +700,11 @@ export function apiRoutes() {
   });
 
   app.get("/public/agendas", async (c) => c.json(ok(
-    await db.select().from(agendas).where(eq(agendas.status, "scheduled")).orderBy(asc(agendas.startDate))
+    await db.select().from(agendas).where(isScheduledAgenda).orderBy(asc(agendas.startDate))
   )));
 
   app.get("/public/student-infos", async (c) => c.json(ok(
-    await db.select().from(studentInfos).where(eq(studentInfos.status, "active")).orderBy(desc(studentInfos.publishedAt))
+    await db.select().from(studentInfos).where(isActiveStudentInfo).orderBy(desc(studentInfos.publishedAt))
   )));
 
   app.get("/public/student-services", async (c) => c.json(ok(
@@ -691,11 +712,11 @@ export function apiRoutes() {
   )));
 
   app.get("/public/student-announcements", async (c) => c.json(ok(
-    await db.select().from(studentAnnouncements).where(eq(studentAnnouncements.status, "active")).orderBy(desc(studentAnnouncements.publishedAt))
+    await db.select().from(studentAnnouncements).where(isActiveStudentAnnouncement).orderBy(desc(studentAnnouncements.publishedAt))
   )));
 
   app.get("/public/student-agendas", async (c) => c.json(ok(
-    await db.select().from(studentAgendas).where(eq(studentAgendas.status, "scheduled")).orderBy(asc(studentAgendas.startDate))
+    await db.select().from(studentAgendas).where(isScheduledStudentAgenda).orderBy(asc(studentAgendas.startDate))
   )));
 
   app.get("/public/wordpress", async (c) => {
@@ -768,8 +789,8 @@ export function apiRoutes() {
     }
     return c.json(ok({
       galeri: latest("SELECT MAX(created_at) as value FROM galleries"),
-      agenda: latest("SELECT MAX(created_at) as value FROM agendas WHERE status = 'scheduled'"),
-      pengumuman: latest("SELECT MAX(published_at) as value FROM announcements WHERE status = 'active'"),
+      agenda: latest("SELECT MAX(created_at) as value FROM agendas WHERE lower(status) = 'scheduled'"),
+      pengumuman: latest("SELECT MAX(published_at) as value FROM announcements WHERE lower(status) = 'active'"),
       unduhan: latest("SELECT MAX(created_at) as value FROM downloads"),
       berita
     }));
