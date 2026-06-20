@@ -1,7 +1,6 @@
 import { Hono } from "hono";
 import { serveStatic } from "hono/bun";
 import { migrate } from "./db/migrate";
-import { seed } from "./db/seed";
 import { apiRoutes } from "./api";
 import { adminShell, appShell } from "./ui/pages";
 
@@ -18,7 +17,6 @@ function publicRequestUrl(c: any) {
 }
 
 migrate();
-await seed();
 
 app.route("/api", apiRoutes());
 app.get("/assets/app.css", () => new Response(Bun.file("./src/public/app.css"), {
