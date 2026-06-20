@@ -816,9 +816,23 @@ export function apiRoutes() {
   app.put("/profile", requireFeature("profile"), async (c) => {
     const body = await c.req.json<Record<string, unknown>>();
     const current = await db.select().from(schoolProfile).get();
-    const data = pick(body, ["history", "vision", "mission", "principalName", "principalGreeting", "principalPhotoUrl", "profileSummaryImageUrl", "principalCtaLabel", "principalCtaUrl", "identity", "management", "organization", "accreditation", "location"]);
+    const data = pick(body, ["history", "vision", "mission", "principalName", "principalGreeting", "principalPhotoUrl", "profileSummaryImageUrl", "principalCtaLabel", "principalCtaUrl", "formerPrincipals", "identity", "management", "organization", "accreditation", "location"]);
     if ("mission" in data) {
       data.mission = normalizeBulletList(String(data.mission || ""));
+    }
+    if ("formerPrincipals" in data) {
+      data.formerPrincipals = Array.isArray(data.formerPrincipals)
+        ? data.formerPrincipals
+            .map((item, index) => ({
+              name: String((item as Record<string, unknown>)?.name || "").trim(),
+              period: String((item as Record<string, unknown>)?.period || "").trim(),
+              photoUrl: String((item as Record<string, unknown>)?.photoUrl || "").trim(),
+              order: Math.max(1, Number((item as Record<string, unknown>)?.order || index + 1) || index + 1)
+            }))
+            .filter((item) => item.name || item.period || item.photoUrl)
+            .sort((a, b) => a.order - b.order)
+            .slice(0, 6)
+        : [];
     }
     const [row] = current
       ? await db.update(schoolProfile).set(data as never).where(eq(schoolProfile.id, current.id)).returning()

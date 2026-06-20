@@ -57,7 +57,7 @@ function jsonInit(method: string, body: Record<string, unknown>): RequestInit {
 
 beforeAll(async () => {
   await seed();
-  adminCookie = `session=${testToken(2)}`;
+  adminCookie = `session=${testToken(1)}`;
   expect(adminCookie).toContain("session=");
 });
 
@@ -85,7 +85,7 @@ describe("utility response endpoints", () => {
 
 describe("auth endpoints", () => {
   test("password login is disabled", async () => {
-    const res = await request("/auth/login", jsonInit("POST", { username: "ferilee", password: "wrong" }));
+    const res = await request("/auth/login", jsonInit("POST", { username: "admin", password: "wrong" }));
     const body = await json(res);
     expect(res.status).toBe(410);
     expect(body.error.message).toContain("Google");
@@ -95,7 +95,7 @@ describe("auth endpoints", () => {
     const res = await adminRequest("/auth/me");
     const body = await json(res);
     expect(res.status).toBe(200);
-    expect(body.data.username).toBe("ferilee");
+    expect(body.data.username).toBe("admin");
     expect(body.data.role).toBe("admin");
   });
 
@@ -352,9 +352,14 @@ describe("settings and profile endpoints", () => {
 
   test("profile can be read and updated by admin", async () => {
     const before = await json(await request("/profile"));
+    const formerPrincipals = [
+      { name: "Drs. Ahmad", period: "2005 - 2010", photoUrl: "https://example.test/ahmad.jpg", order: 2 },
+      { name: "Dra. Siti", period: "2010 - 2015", photoUrl: "https://example.test/siti.jpg", order: 1 }
+    ];
     const res = await adminRequest("/profile", jsonInit("PUT", {
       ...before.data,
       location: "Lokasi Test",
+      formerPrincipals,
       identity: {
         ...(before.data.identity || {}),
         principalIdentityName: "Dermawan Triwahyono,ST,MM",
@@ -385,6 +390,10 @@ describe("settings and profile endpoints", () => {
     const body = await json(res);
     expect(res.status).toBe(200);
     expect(body.data.location).toBe("Lokasi Test");
+    expect(body.data.formerPrincipals).toEqual([
+      formerPrincipals[1],
+      formerPrincipals[0]
+    ]);
     expect(body.data.identity.principalIdentityName).toBe("Dermawan Triwahyono,ST,MM");
     expect(body.data.identity.committeeChair).toBe("Sugeng Ngabekti");
     expect(body.data.mission).toBe("Poin satu\nPoin dua\nPoin tiga\nPoin empat\nPoin lima");

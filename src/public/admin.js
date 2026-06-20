@@ -136,6 +136,7 @@ const statsLabels = {
 
 const settingsFields = ["schoolName", "tagline", "logoUrl", "faviconUrl", "themeColor", "address", "email", "phone", "whatsapp", "wordpressUrl", "ppdbUrl", "metaDescription", "footerText"];
 const profileFields = ["history", "vision", "mission", "principalName", "principalGreeting", "principalPhotoUrl", "profileSummaryImageUrl", "principalCtaLabel", "principalCtaUrl", "organization", "accreditation", "location"];
+const formerPrincipalSlots = 6;
 const markdownFields = new Set([
   "tagline", "metaDescription", "footerText", "history", "vision", "mission", "principalGreeting", "organization",
   "profileMarkdown", "description", "competencies", "careerProspects", "practiceFacilities", "productiveTeachers",
@@ -254,6 +255,18 @@ const identityEditorBlueprint = [
     ]
   }
 ];
+
+function sanitizeFormerPrincipals(items) {
+  return Array.from({ length: formerPrincipalSlots }, (_, index) => {
+    const current = Array.isArray(items) ? items[index] || {} : {};
+    return {
+      name: String(current?.name || "").trim(),
+      period: String(current?.period || "").trim(),
+      photoUrl: String(current?.photoUrl || "").trim(),
+      order: Math.max(1, Number(current?.order || index + 1) || index + 1)
+    };
+  });
+}
 
 function getPreferredTheme() {
   const saved = localStorage.getItem(themeStorageKey);
@@ -590,8 +603,54 @@ function identityEditor(data = {}) {
     </section>`;
 }
 
+function formerPrincipalsEditor(data = {}) {
+  const principals = sanitizeFormerPrincipals(data.formerPrincipals);
+  return `
+    <section class="management-admin">
+      <div class="toolbar">
+        <div>
+          <h2>Mantan Kepala Sekolah</h2>
+          <p>Kelola 6 foto dan nama yang tampil pada halaman profil sekolah.</p>
+        </div>
+      </div>
+      <div class="management-admin-grid">
+        ${principals.map((item, index) => `
+          <article class="management-admin-card">
+            <h3>Mantan Kepala Sekolah ${index + 1}</h3>
+            <div class="field">
+              <label>Urutan Tampil</label>
+              <input type="number" min="1" max="${formerPrincipalSlots}" name="formerPrincipal_${index}_order" value="${esc(item.order)}" placeholder="${index + 1}">
+            </div>
+            <div class="field">
+              <label>Nama</label>
+              <input name="formerPrincipal_${index}_name" value="${esc(item.name)}" placeholder="Nama lengkap">
+            </div>
+            <div class="field">
+              <label>Periode Jabatan</label>
+              <input name="formerPrincipal_${index}_period" value="${esc(item.period)}" placeholder="Contoh: 2018 - 2022">
+            </div>
+            <div class="field">
+              <label>URL Foto</label>
+              <input name="formerPrincipal_${index}_photoUrl" value="${esc(item.photoUrl)}" placeholder="https://...">
+            </div>
+          </article>`).join("")}
+      </div>
+    </section>`;
+}
+
 function buildIdentityPayload(form) {
   return Object.fromEntries(identityEditorBlueprint.flatMap((block) => block.fields.map(([name]) => [name, String(form.querySelector(`[name="${name}"]`)?.value || "").trim()])));
+}
+
+function buildFormerPrincipalsPayload(form) {
+  return sanitizeFormerPrincipals(Array.from({ length: formerPrincipalSlots }, (_, index) => ({
+    order: Number(form.querySelector(`[name="formerPrincipal_${index}_order"]`)?.value || index + 1),
+    name: String(form.querySelector(`[name="formerPrincipal_${index}_name"]`)?.value || "").trim(),
+    period: String(form.querySelector(`[name="formerPrincipal_${index}_period"]`)?.value || "").trim(),
+    photoUrl: String(form.querySelector(`[name="formerPrincipal_${index}_photoUrl"]`)?.value || "").trim()
+  })))
+    .filter((item) => item.name || item.period || item.photoUrl)
+    .sort((a, b) => a.order - b.order);
 }
 
 function splitManagementResources(value) {
@@ -996,16 +1055,29 @@ async function profileAdminPage() {
       ${formFields({ fields: profileFields }, data || {})}
       ${managementEditor(data || {})}
       ${identityEditor(data || {})}
+      ${formerPrincipalsEditor(data || {})}
       <button class="btn">Simpan</button>
     </form>`;
   const form = document.querySelector("#single-form");
   setupMarkdownEditors(form);
   wireKnownImageUploadFields(form, data || {});
+  sanitizeFormerPrincipals(data?.formerPrincipals).forEach((item, index) => {
+    const input = form.querySelector(`input[name="formerPrincipal_${index}_photoUrl"]`);
+    if (!input) return;
+    wireImageUploadField({
+      input,
+      initialValue: item.photoUrl,
+      title: `Upload foto mantan kepala sekolah ${index + 1}`,
+      description: "Unggah foto lalu URL diisi otomatis.",
+      successText: "Foto mantan kepala sekolah berhasil diupload."
+    });
+  });
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const body = formPayload(event.target, profileFields);
     body.management = buildManagementPayload(event.target);
     body.identity = buildIdentityPayload(event.target);
+    body.formerPrincipals = buildFormerPrincipalsPayload(event.target);
     await api("/api/profile", { method: "PUT", body: JSON.stringify(body) });
     notify("Data tersimpan.");
   });

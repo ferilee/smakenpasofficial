@@ -2119,6 +2119,42 @@ function identityReferenceSection(identity = {}) {
   </section>`;
 }
 
+function formerPrincipalsSection(rows = []) {
+  const principals = Array.isArray(rows)
+    ? rows
+        .map((item, index) => ({
+          name: String(item?.name || "").trim(),
+          period: String(item?.period || "").trim(),
+          photoUrl: String(item?.photoUrl || "").trim(),
+          order: Math.max(1, Number(item?.order || index + 1) || index + 1)
+        }))
+        .filter((item) => item.name || item.period || item.photoUrl)
+        .sort((a, b) => a.order - b.order)
+        .slice(0, 6)
+    : [];
+  if (!principals.length) return "";
+  return `<section class="soft former-principals-section">
+    <div class="container">
+      ${sectionHead("Mantan Kepala Sekolah", "Riwayat kepemimpinan sekolah dari masa ke masa.")}
+      <div class="former-principals-grid">
+        ${principals.map((item, index) => `
+          <article class="former-principal-card">
+            <div class="former-principal-photo-wrap">
+              ${item.photoUrl
+                ? `<img class="former-principal-photo" src="${esc(item.photoUrl)}" alt="${esc(item.name || `Mantan Kepala Sekolah ${item.order}`)}" loading="lazy">`
+                : `<div class="former-principal-photo former-principal-photo-placeholder" aria-hidden="true">${item.order}</div>`}
+            </div>
+            <div class="former-principal-meta">
+              <span class="former-principal-order">Urutan ${item.order}</span>
+              <h3>${esc(item.name || `Belum diisi`)}</h3>
+              ${item.period ? `<p class="former-principal-period">${esc(item.period)}</p>` : ""}
+            </div>
+          </article>`).join("")}
+      </div>
+    </div>
+  </section>`;
+}
+
 async function profilePage() {
   const data = await loadProfile();
   const missionItems = splitLines(data.profile.mission);
@@ -2168,6 +2204,7 @@ async function profilePage() {
           </div>
         </div>
       </div></section>
+      ${formerPrincipalsSection(data.profile.formerPrincipals || [])}
       ${identityReferenceSection(data.profile.identity || {})}
     </main>`, data);
 }

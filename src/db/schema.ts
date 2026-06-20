@@ -31,6 +31,7 @@ export const schoolProfile = sqliteTable("school_profile", {
   profileSummaryImageUrl: text("profile_summary_image_url").notNull().default(""),
   principalCtaLabel: text("principal_cta_label").notNull().default("Selengkapnya"),
   principalCtaUrl: text("principal_cta_url").notNull().default("/profil"),
+  formerPrincipals: text("former_principals", { mode: "json" }).$type<Array<{ name: string; period: string; photoUrl: string; order: number }>>().notNull().default([]),
   identity: text("identity", { mode: "json" }).$type<Record<string, string>>().notNull().default({}),
   management: text("management", { mode: "json" }).$type<Record<string, unknown>>().notNull().default({}),
   organization: text("organization").notNull().default(""),
