@@ -2135,7 +2135,7 @@ function formerPrincipalsSection(rows = []) {
   if (!principals.length) return "";
   return `<section class="soft former-principals-section">
     <div class="container">
-      ${sectionHead("Mantan Kepala Sekolah", "Riwayat kepemimpinan sekolah dari masa ke masa.")}
+      ${sectionHead("Kepala SMKN Pasirian Sebelumnya", "Riwayat kepemimpinan sekolah dari masa ke masa.")}
       <div class="former-principals-grid">
         ${principals.map((item, index) => `
           <article class="former-principal-card">
@@ -2204,8 +2204,8 @@ async function profilePage() {
           </div>
         </div>
       </div></section>
-      ${formerPrincipalsSection(data.profile.formerPrincipals || [])}
       ${identityReferenceSection(data.profile.identity || {})}
+      ${formerPrincipalsSection(data.profile.formerPrincipals || [])}
     </main>`, data);
 }
 
