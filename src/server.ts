@@ -45,10 +45,24 @@ app.get("/sw.js", () => new Response(Bun.file("./src/public/sw.js"), {
 }));
 app.use("/uploads/*", serveStatic({ root: "./" }));
 
+app.get("/robots.txt", (c) => c.text(`User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /api/
+
+Sitemap: https://web.smkpasirian-lmj.sch.id/sitemap.xml
+`));
+app.get("/sitemap.xml", (c) => {
+  const origin = "https://web.smkpasirian-lmj.sch.id";
+  const paths = ["/", "/profil", "/ppdb", "/siswa", "/program-keahlian", "/guru-tendik", "/galeri", "/agenda", "/pengumuman", "/unduhan", "/berita", "/kontak", "/pengaduan"];
+  const body = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${paths.map((path) => `  <url><loc>${origin}${path}</loc></url>`).join("\n")}\n</urlset>\n`;
+  return c.body(body, 200, { "content-type": "application/xml; charset=utf-8" });
+});
+
 app.get("/admin/login", (c) => c.html(adminShell("Login Admin")));
 app.get("/admin", (c) => c.html(adminShell("Dashboard Admin")));
 
-app.get("*", (c) => c.html(appShell("Website Profil Sekolah", publicRequestUrl(c))));
+app.get("*", (c) => c.html(appShell("SMK Negeri Pasirian — Website Resmi", publicRequestUrl(c))));
 
 export default {
   port,

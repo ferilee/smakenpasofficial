@@ -26,6 +26,7 @@ const mobilePrimaryNav = [
 ];
 
 const mobileMoreNav = [
+  ["PPDB", "/ppdb", "graduation"],
   ["Profil", "/profil", "school"],
   ["Siswa", "/siswa", "book"],
   ["Guru & Tendik", "/guru-tendik", "users"],
@@ -116,7 +117,8 @@ function navIcon(name) {
     globe: `<circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a15 15 0 0 1 0 18"/><path d="M12 3a15 15 0 0 0 0 18"/>`,
     book: `<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/>`,
     link: `<path d="M10 13a5 5 0 0 0 7.07 0l1.41-1.41a5 5 0 0 0-7.07-7.07L10 5"/><path d="M14 11a5 5 0 0 0-7.07 0L5.5 12.41a5 5 0 1 0 7.07 7.07L14 19"/>`,
-    phone: `<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.33 1.77.63 2.6a2 2 0 0 1-.45 2.11L8 9.7a16 16 0 0 0 6.3 6.3l1.27-1.27a2 2 0 0 1 2.11-.45c.83.3 1.7.51 2.6.63A2 2 0 0 1 22 16.92Z"/>`
+    phone: `<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.33 1.77.63 2.6a2 2 0 0 1-.45 2.11L8 9.7a16 16 0 0 0 6.3 6.3l1.27-1.27a2 2 0 0 1 2.11-.45c.83.3 1.7.51 2.6.63A2 2 0 0 1 22 16.92Z"/>`,
+    graduation: `<path d="m2 9 10-5 10 5-10 5L2 9Z"/><path d="M6 11.5V16c0 1.7 2.7 3 6 3s6-1.3 6-3v-4.5"/><path d="M22 9v5"/>`
   };
   return `<svg viewBox="0 0 24 24" aria-hidden="true">${icons[name] || icons.more}</svg>`;
 }
@@ -147,11 +149,11 @@ function bottomNavigation() {
     <aside class="mobile-more-sheet" id="mobile-more-sheet" aria-hidden="true">
       <div class="mobile-more-handle"></div>
       <nav class="mobile-more-list" aria-label="Menu lainnya">
-        ${moreItems.map(([label, url, icon]) => `<a class="mobile-more-link ${isNavActive(url) ? "active" : ""}" href="${url}" ${url === "#logout" ? "data-logout" : ""}>${navIcon(icon)}<span>${label}</span>${navUpdateKeys[url] ? `<i class="nav-new-dot" data-nav-badge="${navUpdateKeys[url]}" hidden></i>` : ""}</a>`).join("")}
+        ${moreItems.map(([label, url, icon]) => `<a class="mobile-more-link ${isNavActive(url) ? "active" : ""}" href="${url}" ${url === "#logout" ? "data-logout" : ""}>${navIcon(icon)}<span>${label}</span>${navUpdateKeys[url] ? `<i class="nav-new-dot" data-nav-badge="${navUpdateKeys[url]}" hidden title="Ada konten baru" role="img" aria-label="Ada konten baru"></i>` : ""}</a>`).join("")}
       </nav>
     </aside>
     <nav class="bottom-nav" aria-label="Navigasi mobile">
-      ${mobilePrimaryNav.map(([label, url, icon]) => `<a class="bottom-nav-item ${isNavActive(url) ? "active" : ""}" href="${url}" aria-label="${label}">${navIcon(icon)}<span class="bottom-nav-label">${label}</span>${navUpdateKeys[url] ? `<i class="nav-new-dot" data-nav-badge="${navUpdateKeys[url]}" hidden></i>` : ""}</a>`).join("")}
+      ${mobilePrimaryNav.map(([label, url, icon]) => `<a class="bottom-nav-item ${isNavActive(url) ? "active" : ""}" href="${url}" aria-label="${label}">${navIcon(icon)}<span class="bottom-nav-label">${label}</span>${navUpdateKeys[url] ? `<i class="nav-new-dot" data-nav-badge="${navUpdateKeys[url]}" hidden title="Ada konten baru" role="img" aria-label="Ada konten baru"></i>` : ""}</a>`).join("")}
       <button class="bottom-nav-item ${moreActive ? "active" : ""}" type="button" data-more-toggle aria-label="More" aria-expanded="false">${navIcon("more")}<span class="bottom-nav-label">More</span></button>
     </nav>`;
 }
@@ -205,6 +207,33 @@ async function refreshNavBadges() {
     });
   }
 }
+
+const blockedImageHosts = ["example.com", "ibb.co.com", "i.ibb.co.com", "imgbb.com"];
+function validImageUrl(value) {
+  const url = String(value || "").trim();
+  if (!url) return "";
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    if (blockedImageHosts.some((blocked) => host === blocked || host.endsWith(`.${blocked}`))) return "";
+  } catch { /* url relatif tetap dipakai */ }
+  return url;
+}
+function sanitizeCtaUrl(value, label = "") {
+  const url = String(value || "").trim();
+  const isPpdb = /ppdb/i.test(url) || /ppdb/i.test(String(label || ""));
+  if (isPpdb) {
+    if (!url || url === "#" || /domainsekolah/i.test(url)) return "/ppdb";
+    return url;
+  }
+  return url || "/profil";
+}
+// Gambar apa pun yang gagal dimuat diganti ilustrasi inisial agar tidak tampil pecah.
+document.addEventListener("error", (event) => {
+  const img = event.target;
+  if (!(img instanceof HTMLImageElement) || img.dataset.fallbackApplied) return;
+  img.dataset.fallbackApplied = "1";
+  img.src = makeMajorIllustration(img.alt || "Sekolah", img.alt ? img.alt.length : 0);
+}, true);
 
 function esc(value) {
   return String(value ?? "").replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
@@ -266,7 +295,8 @@ function layout(content, data = state.home) {
   const footerLinks = [
     ["Profil", "/profil"],
     ["Siswa", "/siswa"],
-    ["Jurusan", "/program-keahlian"],
+    ["Program Keahlian", "/program-keahlian"],
+    ["PPDB", "/ppdb"],
     ["Agenda", "/agenda"],
     ["Pengaduan", "/pengaduan"],
     ["Kontak", "/kontak"]
@@ -281,7 +311,7 @@ function layout(content, data = state.home) {
       <div class="container nav">
         <a class="brand" href="/"><img class="brand-mark brand-logo" src="/Logo_SMKNPasirian.png" alt="Logo ${esc(school)}"><span>${esc(school)}</span></a>
         <nav class="nav-links">
-          ${navItems.map(([label, url]) => `<a class="${isNavActive(url) ? "active" : ""}" href="${url}"><span>${label}</span>${navUpdateKeys[url] ? `<i class="nav-new-dot" data-nav-badge="${navUpdateKeys[url]}" hidden></i>` : ""}</a>`).join("")}
+          ${navItems.map(([label, url]) => `<a class="${isNavActive(url) ? "active" : ""}" href="${url}"><span>${label}</span>${navUpdateKeys[url] ? `<i class="nav-new-dot" data-nav-badge="${navUpdateKeys[url]}" hidden title="Ada konten baru" role="img" aria-label="Ada konten baru"></i>` : ""}</a>`).join("")}
           ${authControl}
           <button class="theme-toggle" data-theme-toggle type="button" aria-pressed="false" aria-label="Mode Gelap"></button>
         </nav>
@@ -306,6 +336,8 @@ function layout(content, data = state.home) {
               <a href="mailto:${esc(support)}" aria-label="Email">${footerSocialIcon("email")}</a>
             </div>
             <p>Email: <a href="mailto:${esc(support)}">${esc(support)}</a></p>
+            ${data?.settings?.address ? `<p>${esc(data.settings.address)}</p>` : ""}
+            ${data?.settings?.phone ? `<p>Telepon: <a href="tel:${esc(String(data.settings.phone).replace(/[^0-9+]/g, ""))}">${esc(data.settings.phone)}</a></p>` : ""}
           </div>
         </div>
       </div>
@@ -365,6 +397,8 @@ function majorCard(item) {
     </a>
     <div class="major-body">
       <h3><a href="${detailUrl}">${esc(item.name)}</a></h3>
+      ${item.description ? `<p class="major-desc">${esc(item.description)}</p>` : ""}
+      ${item.competencies ? `<p class="major-competencies">${esc(item.competencies)}</p>` : ""}
       ${socials ? `<div class="major-socials" aria-label="Media sosial ${esc(item.name)}">${socials}</div>` : ""}
       <a class="major-btn" href="${detailUrl}">LIHAT PROFIL KONSENTRASI &#8594;</a>
     </div>
@@ -685,10 +719,18 @@ function quickAccessSection(settings = {}) {
         <span>Pintasan informasi dan layanan utama</span>
       </div>
       <div class="quick-grid">
-        ${normalized.map((item) => `<a class="quick-card ${item.tone}" href="${esc(item.url)}" ${/^https?:\/\//i.test(item.url) ? 'target="_blank" rel="noopener noreferrer"' : ""} aria-label="${esc(item.label)}">
+        ${normalized.map((item) => {
+          const isDead = !item.url || item.url === "#";
+          if (isDead) return `<div class="quick-card ${item.tone} is-disabled" aria-disabled="true" title="Tautan belum tersedia">
           <span class="quick-icon">${navIcon(item.icon)}</span>
           <strong>${esc(item.label)}</strong>
-        </a>`).join("")}
+          <small>Segera hadir</small>
+        </div>`;
+          return `<a class="quick-card ${item.tone}" href="${esc(item.url)}" ${/^https?:\/\//i.test(item.url) ? 'target="_blank" rel="noopener noreferrer"' : ""} aria-label="${esc(item.label)}">
+          <span class="quick-icon">${navIcon(item.icon)}</span>
+          <strong>${esc(item.label)}</strong>
+        </a>`;
+        }).join("")}
       </div>
     </div>
   </section>`;
@@ -820,7 +862,7 @@ function agendaCalendarSection(agendas = [], options = {}) {
     .filter((item) => !Number.isNaN(item.date.getTime()))
     .sort((a, b) => a.date - b.date)
     .find((item) => dateKey(item.date) >= dateKey(today));
-  const base = upcoming?.date || (validAgendas[0]?.startDate ? new Date(validAgendas[0].startDate) : today);
+  const base = upcoming?.date || today;
   const year = base.getFullYear();
   const month = base.getMonth();
   const firstDay = new Date(year, month, 1);
@@ -1050,7 +1092,7 @@ function testimonialsSection(testimonials = []) {
               ${item.youtube ? `<a href="${esc(item.youtube)}" target="_blank" rel="noopener noreferrer" aria-label="YouTube">${socialIcon("youtube")}</a>` : ""}
             </div>
             <div class="testimonial-author">
-              ${item.photoUrl ? `<img src="${esc(item.photoUrl)}" alt="${esc(item.name)}">` : `<span>${esc(initials(item.name))}</span>`}
+              ${validImageUrl(item.photoUrl) ? `<img src="${esc(validImageUrl(item.photoUrl))}" alt="${esc(item.name)}">` : `<span>${esc(initials(item.name))}</span>`}
               <div>
                 <h3>${esc(item.name || "Alumni")}</h3>
                 <small>${esc([item.occupation, item.graduationYear ? `Angkatan ${item.graduationYear}` : ""].filter(Boolean).join(" - ") || "Alumni")}</small>
@@ -1093,7 +1135,7 @@ function testimonialsSection(testimonials = []) {
 }
 
 function teacherCard(item) {
-  const image = item.photoUrl || makeMajorIllustration(item.name, Number(item.id || 0));
+  const image = validImageUrl(item.photoUrl) || makeMajorIllustration(item.name, Number(item.id || 0));
   const detailUrl = `/guru-tendik/${encodeURIComponent(item.id || "")}`;
   return `<article class="major-card teacher-card">
     <div class="major-image-wrap">
@@ -1117,7 +1159,7 @@ function teacherCategory(item) {
 }
 
 function teacherSpotlight(item, title, note = "") {
-  const image = item.photoUrl || makeMajorIllustration(item.name, Number(item.id || 0));
+  const image = validImageUrl(item.photoUrl) || makeMajorIllustration(item.name, Number(item.id || 0));
   const detailUrl = `/guru-tendik/${encodeURIComponent(item.id || "")}`;
   return `<article class="teacher-spotlight-card">
     <div class="teacher-spotlight-image">
@@ -1138,7 +1180,7 @@ function teacherSpotlight(item, title, note = "") {
 }
 
 function teacherPrincipalSpotlight(item) {
-  const image = item.photoUrl || makeMajorIllustration(item.name, Number(item.id || 0));
+  const image = validImageUrl(item.photoUrl) || makeMajorIllustration(item.name, Number(item.id || 0));
   const detailUrl = `/guru-tendik/${encodeURIComponent(item.id || "")}`;
   return `<article class="teacher-principal-card">
     <div class="teacher-principal-image">
@@ -1305,6 +1347,13 @@ async function loadProfile() {
 
 async function homePage() {
   const data = await loadHome();
+  let totalMajors = data.majors?.length ?? 0;
+  try {
+    const allMajors = await api("/api/majors");
+    if (Array.isArray(allMajors) && allMajors.length) totalMajors = allMajors.length;
+  } catch { /* pakai jumlah unggulan bila daftar penuh gagal dimuat */ }
+  const todayKey = dateKey(new Date());
+  const upcomingAgendas = (data.agendas || []).filter((item) => dateKey(item.endDate || item.startDate) >= todayKey).length;
   const banners = data.banners?.length
     ? data.banners
     : [{
@@ -1336,7 +1385,7 @@ async function homePage() {
             <h1 id="hero-title">${esc(hero.title || data.settings.schoolName)}</h1>
             <div id="hero-subtitle" class="hero-subtitle markdown-content">${renderMarkdownBlock(hero.subtitle || data.settings.tagline)}</div>
             <div class="actions">
-              <a class="btn" id="hero-cta" href="${esc(hero.ctaUrl || "/profil")}">${esc(hero.ctaLabel || "Lihat Profil")}</a>
+              <a class="btn" id="hero-cta" href="${esc(sanitizeCtaUrl(hero.ctaUrl, hero.ctaLabel))}">${esc(hero.ctaLabel || "Lihat Profil")}</a>
               <a class="btn secondary" href="https://www.smkpasirian-lmj.sch.id/blog/category/berita">Baca Berita</a>
             </div>
             <div class="hero-nav">
@@ -1359,7 +1408,7 @@ async function homePage() {
             <article>
               <h3>Sambutan Kepala Sekolah</h3>
               <div class="principal-block">
-                <img class="principal-photo" src="${esc(data.profile.principalPhotoUrl || "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=500&q=80")}" alt="${esc(data.profile.principalName || "Kepala Sekolah")}">
+                <img class="principal-photo" src="${esc(validImageUrl(data.profile.principalPhotoUrl) || makeMajorIllustration(data.profile.principalName || "Kepala Sekolah", 3))}" alt="${esc(data.profile.principalName || "Kepala Sekolah")}">
                 <div class="principal-copy">
                   <h4>${esc(data.profile.principalName)}</h4>
                   <div class="prose markdown-content">${renderMarkdownBlock(data.profile.principalGreeting)}</div>
@@ -1371,8 +1420,8 @@ async function homePage() {
               <h3>Statistik Data Sekolah</h3>
               <div class="hero-stats">
                 <div><strong>${data.teachers?.length ?? 0}</strong><span>Guru & Staf</span></div>
-                <div><strong>${data.majors?.length ?? 0}</strong><span>Program</span></div>
-                <div><strong>${data.agendas?.length ?? 0}</strong><span>Agenda</span></div>
+                <div><strong>${totalMajors}</strong><span>Konsentrasi Keahlian</span></div>
+                <div><strong>${upcomingAgendas}</strong><span>Agenda Mendatang</span></div>
               </div>
             </article>
           </section>
@@ -1440,7 +1489,7 @@ function setupHeroCarousel() {
     if (subtitle) subtitle.innerHTML = renderMarkdownBlock(item.subtitle || "");
     if (cta) {
       cta.textContent = item.ctaLabel || "Lihat Profil";
-      cta.href = item.ctaUrl || "/profil";
+      cta.href = sanitizeCtaUrl(item.ctaUrl, item.ctaLabel);
     }
     if (progressCurrent) progressCurrent.textContent = String(index + 1).padStart(2, "0");
     carousel.classList.remove("hero-animate");
@@ -1449,21 +1498,35 @@ function setupHeroCarousel() {
     restartProgress();
   };
 
+  const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  const startAutoplay = () => {
+    if (reduceMotion) return;
+    if (heroTimer) clearInterval(heroTimer);
+    heroTimer = setInterval(() => {
+      index = (index + 1) % banners.length;
+      applySlide();
+    }, autoplayDelay);
+  };
+  const stopAutoplay = () => {
+    if (heroTimer) clearInterval(heroTimer);
+    heroTimer = null;
+  };
   prev?.addEventListener("click", () => {
     index = (index - 1 + banners.length) % banners.length;
     applySlide();
+    startAutoplay();
   });
   next?.addEventListener("click", () => {
     index = (index + 1) % banners.length;
     applySlide();
+    startAutoplay();
   });
+  carousel.addEventListener("pointerenter", stopAutoplay);
+  carousel.addEventListener("pointerleave", startAutoplay);
+  carousel.addEventListener("focusin", stopAutoplay);
+  carousel.addEventListener("focusout", startAutoplay);
 
-  if (heroTimer) clearInterval(heroTimer);
-  heroTimer = setInterval(() => {
-    index = (index + 1) % banners.length;
-    applySlide();
-  }, autoplayDelay);
-
+  startAutoplay();
   restartProgress();
 }
 
@@ -1871,9 +1934,11 @@ function setupAnnouncementModal() {
         ? new Intl.DateTimeFormat("id-ID", { dateStyle: "long" }).format(publishedDate)
         : "";
       content.innerHTML = renderMarkdownBlock(item.content || "-");
-      actions.innerHTML = item.attachmentUrl
-        ? `<a class="btn" href="${esc(item.attachmentUrl)}" target="_blank" rel="noopener noreferrer">Lihat Lampiran</a>`
-        : "";
+      const isPpdb = /ppdb|peserta didik baru/i.test(`${item.title || ""} ${item.content || ""}`);
+      actions.innerHTML = [
+        item.attachmentUrl ? `<a class="btn secondary" href="${esc(item.attachmentUrl)}" target="_blank" rel="noopener noreferrer">Lihat Lampiran</a>` : "",
+        isPpdb ? '<a class="btn" href="/ppdb">Ke Halaman PPDB</a>' : ""
+      ].join("");
       modal.hidden = false;
       requestAnimationFrame(() => modal.classList.add("open"));
       document.body.classList.add("modal-open");
@@ -2061,10 +2126,7 @@ function identityValue(identity = {}, keys = [], fallback = "") {
 
 function identityReferenceSection(identity = {}) {
   const principal = {
-    name: identityValue(identity, ["principalIdentityName", "Nama Lengkap"], "Dermawan Triwahyono,ST,MM"),
-    birth: identityValue(identity, ["principalIdentityBirth", "Tempat & Tanggal Lahir"], "Lumajang,03 Maret 1976"),
-    address: identityValue(identity, ["principalIdentityAddress", "Alamat"], "Dsn. Krajan RT.18/ RW.05\nDesa Yosowilangun Lor\nKec. Yosowilangun, Kab. Lumajang"),
-    phone: identityValue(identity, ["principalIdentityPhone", "Telepon Rumah/HP"], "085236083132"),
+    name: identityValue(identity, ["principalIdentityName", "Nama Lengkap"], "Dermawan Triwahyono, S.T., M.M."),
     decreeNumber: identityValue(identity, ["principalIdentityDecreeNumber", "Nomor SK"], "800/9767/204/2025"),
     decreeDate: identityValue(identity, ["principalIdentityDecreeDate", "Tanggal SK"], "09 Mei 2025"),
     appointingOfficial: identityValue(identity, ["principalIdentityAppointingOfficial", "Pejabat yang mengangkat"], "Dra. Hj. Khofifah Indar Parawansa, M.Si\nGubernur Jawa Timur")
@@ -2092,13 +2154,10 @@ function identityReferenceSection(identity = {}) {
       <div class="identity-reference-grid">
         ${card("Identitas Kepala Sekolah", `
           <div class="identity-reference-list">
-            ${row("a. Nama Lengkap", principal.name)}
-            ${row("b. Tempat & Tanggal Lahir", principal.birth)}
-            ${row("c. Alamat", principal.address)}
-            ${row("d. Telepon Rumah/HP", principal.phone)}
+            ${row("Nama Lengkap", principal.name)}
             <div class="identity-reference-block">
               <div class="identity-reference-row">
-                <span class="identity-reference-label">e. SK pengangkatan terakhir</span>
+                <span class="identity-reference-label">SK pengangkatan terakhir</span>
                 <span class="identity-reference-separator">:</span>
                 <span class="identity-reference-value"></span>
               </div>
@@ -2555,7 +2614,7 @@ async function teacherDetailPage(id) {
   if (!teacher) {
     return layout(`<main>${pageHero("Guru & Tendik", "Data tidak ditemukan.")}<section><div class="container"><p class="empty">Data guru/tendik tidak ditemukan.</p><a class="btn" href="/guru-tendik">Kembali ke Guru & Tendik</a></div></section></main>`, data);
   }
-  const image = teacher.photoUrl || makeMajorIllustration(teacher.name, Number(teacher.id || 0));
+  const image = validImageUrl(teacher.photoUrl) || makeMajorIllustration(teacher.name, Number(teacher.id || 0));
   return layout(`
     <main>
       ${pageHero(teacher.name, "Detail profil guru dan tenaga kependidikan.")}
@@ -2584,6 +2643,64 @@ async function teacherDetailPage(id) {
           </div>
           <div class="card">
             <img src="${esc(image)}" alt="${esc(teacher.name)}" style="width:100%;border-radius:8px;object-fit:cover;aspect-ratio:4/5;">
+          </div>
+        </div>
+      </section>
+    </main>`, data);
+}
+
+async function ppdbPage() {
+  const data = await loadHome();
+  const settings = data.settings || {};
+  let majors = data.majors || [];
+  try {
+    const allMajors = await api("/api/majors");
+    if (Array.isArray(allMajors) && allMajors.length) majors = allMajors;
+  } catch { /* tampilkan konsentrasi unggulan */ }
+  let announcements = data.announcements || [];
+  try {
+    const allAnnouncements = await api("/api/announcements");
+    if (Array.isArray(allAnnouncements) && allAnnouncements.length) announcements = allAnnouncements;
+  } catch { /* pakai pengumuman beranda */ }
+  const ppdbAnnouncements = announcements.filter((item) => /ppdb|peserta didik baru/i.test(`${item.title || ""} ${item.content || ""}`));
+  const rawPpdbUrl = String(settings.ppdbUrl || "").trim();
+  const externalPpdbUrl = /^https?:\/\//i.test(rawPpdbUrl) && !/domainsekolah/i.test(rawPpdbUrl) ? rawPpdbUrl : "";
+  const waDigits = String(settings.whatsapp || "").replace(/[^0-9]/g, "");
+  const waUrl = waDigits ? `https://wa.me/${waDigits}?text=${encodeURIComponent("Halo, saya ingin bertanya tentang PPDB SMK Negeri Pasirian.")}` : "";
+  const steps = [
+    ["1. Kenali Konsentrasi Keahlian", "Pelajari 10 konsentrasi keahlian yang tersedia dan pilih yang paling sesuai dengan minat dan rencana kariermu."],
+    ["2. Siapkan Berkas", "Siapkan berkas pendaftaran sesuai pengumuman resmi PPDB yang berlaku, misalnya kartu keluarga, ijazah atau surat keterangan lulus, dan pas foto."],
+    ["3. Daftar dan Pantau Pengumuman", "Isi formulir pendaftaran melalui tautan resmi, lalu pantau halaman Pengumuman dan Agenda untuk jadwal serta hasil seleksi."]
+  ];
+  return layout(`
+    <main>
+      ${pageHero("PPDB — Penerimaan Peserta Didik Baru", "Informasi pendaftaran siswa baru SMK Negeri Pasirian: alur, pilihan konsentrasi keahlian, dan kanal resmi panitia.")}
+      <section>
+        <div class="container">
+          ${sectionHead("Alur Pendaftaran", "Tiga langkah menuju SMK Negeri Pasirian.")}
+          <div class="grid three">
+            ${steps.map(([title, text]) => card(title, text)).join("")}
+          </div>
+          <div class="actions" style="margin-top:24px">
+            ${externalPpdbUrl ? `<a class="btn" href="${esc(externalPpdbUrl)}" target="_blank" rel="noopener noreferrer">Daftar PPDB Online</a>` : ""}
+            <a class="btn ${externalPpdbUrl ? "secondary" : ""}" href="/program-keahlian">Lihat Konsentrasi Keahlian</a>
+            ${waUrl ? `<a class="btn secondary" href="${esc(waUrl)}" target="_blank" rel="noopener noreferrer">Tanya via WhatsApp</a>` : `<a class="btn secondary" href="/kontak">Hubungi Sekolah</a>`}
+          </div>
+          ${!externalPpdbUrl ? '<p class="empty" style="margin-top:16px">Tautan formulir pendaftaran online akan muncul di halaman ini begitu panitia PPDB mengaktifkannya. Sementara itu, silakan hubungi sekolah melalui WhatsApp atau halaman Kontak.</p>' : ""}
+        </div>
+      </section>
+      ${ppdbAnnouncements.length ? `<section class="soft">
+        <div class="container">
+          ${sectionHead("Pengumuman PPDB", "Informasi resmi seputar penerimaan peserta didik baru.")}
+          <div class="grid two">${ppdbAnnouncements.map(announcementCard).join("")}</div>
+        </div>
+      </section>
+      ${announcementModal(ppdbAnnouncements)}` : ""}
+      <section>
+        <div class="container">
+          ${sectionHead("Pilihan Konsentrasi Keahlian", "Sepuluh konsentrasi keahlian dalam lima bidang keahlian.")}
+          <div class="grid three">
+            ${majors.map((item) => `<article class="card"><h3><a href="/program-keahlian/${encodeURIComponent(item.slug || item.id || "")}">${esc(item.name)}</a></h3><p>${esc(item.description || item.competencies || "Lihat profil lengkap konsentrasi keahlian ini.")}</p></article>`).join("")}
           </div>
         </div>
       </section>
@@ -2663,6 +2780,7 @@ async function render() {
   try {
     await loadSession();
     if (path === "/") app.innerHTML = await homePage();
+    else if (path === "/ppdb") app.innerHTML = await ppdbPage();
     else if (path === "/profil") app.innerHTML = await profilePage();
     else if (path === "/program-keahlian") app.innerHTML = await majorsPage();
     else if (path.startsWith("/program-keahlian/")) app.innerHTML = await majorDetailPage(decodeURIComponent(path.replace("/program-keahlian/", "")));
@@ -2706,6 +2824,9 @@ async function render() {
         }
       });
     }
+    const pageTitles = { "/": "Beranda", "/ppdb": "PPDB", "/profil": "Profil Sekolah", "/program-keahlian": "Program Keahlian", "/guru-tendik": "Guru & Tendik", "/siswa": "Portal Siswa", "/galeri": "Galeri", "/agenda": "Agenda", "/pengumuman": "Pengumuman", "/unduhan": "Unduhan", "/berita": "Berita", "/kontak": "Kontak", "/pengaduan": "Pengaduan" };
+    const titleKey = Object.keys(pageTitles).find((key) => key !== "/" && path.startsWith(key)) || "/";
+    document.title = `${pageTitles[titleKey]} | SMK Negeri Pasirian`;
     setupHeroCarousel();
     setupMobileNavigation();
     setupBackToTop();

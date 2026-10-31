@@ -195,6 +195,18 @@ async function fetchWilayah(path: string, fallback: Array<Record<string, string>
   }
 }
 
+// Data pribadi pimpinan tidak boleh ikut terkirim ke endpoint publik.
+const privateIdentityKeys = [
+  "principalIdentityBirth", "principalIdentityAddress", "principalIdentityPhone",
+  "Tempat & Tanggal Lahir", "Alamat", "Telepon Rumah/HP", "Telepon", "No. HP", "Nomor HP"
+];
+function publicProfile(profile: any) {
+  if (!profile) return profile;
+  const identity = { ...(profile.identity || {}) };
+  privateIdentityKeys.forEach((key) => { delete identity[key]; });
+  return { ...profile, identity };
+}
+
 function stripHtml(value: unknown) {
   return String(value || "")
     .replace(/<[^>]+>/g, " ")
@@ -668,7 +680,7 @@ export function apiRoutes() {
     ]);
     const payload = {
       settings,
-      profile,
+      profile: publicProfile(profile),
       banners: await db.select().from(banners).where(eq(banners.isActive, true)).orderBy(asc(banners.sortOrder)),
       teachers: await db.select().from(teachers).where(eq(teachers.status, "active")).limit(999),
       majors: await db.select().from(majors).where(eq(majors.isFeatured, true)).limit(6),
@@ -683,7 +695,7 @@ export function apiRoutes() {
 
   app.get("/public/profile", async (c) => c.json(ok({
     settings: await db.select().from(schoolSettings).get(),
-    profile: await db.select().from(schoolProfile).get(),
+    profile: publicProfile(await db.select().from(schoolProfile).get()),
     facilities: await db.select().from(facilities).orderBy(asc(facilities.name))
   })));
 

@@ -2475,6 +2475,8 @@ section { padding: 58px 0; }
   height: 100%;
   aspect-ratio: auto;
   min-height: 320px;
+  object-fit: contain;
+  background: var(--soft);
 }
 .news-card.featured .news-card-body {
   align-content: center;
@@ -2709,9 +2711,14 @@ section { padding: 58px 0; }
   color: var(--muted);
   font-size: 15px;
 }
+.testimonials-section { overflow: hidden; }
 .testimonial-message {
   color: var(--muted);
   font-size: 15px;
+  display: -webkit-box;
+  -webkit-line-clamp: 7;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 .testimonial-message p {
   color: inherit;
@@ -4137,4 +4144,26 @@ td { color: var(--ink); }
     padding: 14px 16px;
   }
   .hamburger-btn { display: grid; }
+}
+
+/* === Perbaikan UX hasil audit (fitur/perbaikan-ux-audit) === */
+.major-desc { color: var(--muted); line-height: 1.6; margin: 0; }
+.major-competencies { color: var(--muted); font-size: 13px; line-height: 1.55; margin: 0; opacity: .85; }
+.quick-card.is-disabled { cursor: not-allowed; opacity: .72; }
+.quick-card small { font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; opacity: .85; }
+.principal-photo { background: var(--soft); object-fit: cover; }
+@media (min-width: 861px) and (max-width: 1280px) {
+  .nav { gap: 10px; }
+  .nav-links { gap: 2px; }
+  .nav-links a { font-size: 13px; padding: 7px 7px; }
+  .brand { font-size: 15px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .hero-progress-bar { animation: none !important; }
 }
