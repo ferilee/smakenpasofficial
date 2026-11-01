@@ -52,11 +52,22 @@ export function appShell(title = "Website Sekolah", requestUrl?: string) {
       document.documentElement.dataset.theme = theme;
     })();
   </script>
-  <link rel="stylesheet" href="/assets/app.css?v=69">
+  <link rel="stylesheet" href="/assets/app.css?v=70">
 </head>
 <body>
-  <div id="app"></div>
-  <script src="/assets/app.js?v=69"></script>
+  <div id="app">
+    <div class="boot-skeleton" role="status" aria-label="Memuat halaman">
+      <div class="boot-skeleton-bar">
+        <img src="/Logo_SMKNPasirian.png" alt="" width="40" height="40">
+        <strong>SMK Negeri Pasirian</strong>
+      </div>
+      <div class="boot-skeleton-hero"></div>
+      <div class="boot-skeleton-lines"><span></span><span></span><span></span></div>
+      <p class="boot-skeleton-text">Memuat halaman\u2026</p>
+    </div>
+    <noscript><p style="padding:16px;text-align:center">Website ini membutuhkan JavaScript aktif untuk menampilkan konten.</p></noscript>
+  </div>
+  <script src="/assets/app.js?v=70"></script>
 </body>
 </html>`;
 }
@@ -81,7 +92,7 @@ export function adminShell(title = "Dashboard Admin") {
       document.documentElement.dataset.theme = theme;
     })();
   </script>
-  <link rel="stylesheet" href="/assets/app.css?v=69">
+  <link rel="stylesheet" href="/assets/app.css?v=70">
 </head>
 <body class="admin-body">
   <div id="admin"></div>
