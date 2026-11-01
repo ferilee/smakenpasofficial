@@ -531,7 +531,9 @@ export function apiRoutes() {
       const token = createToken(user.id);
       setCookie(c, "session", token, { httpOnly: true, sameSite: "Lax", path: "/", maxAge: 60 * 60 * 8 });
       const isStaff = user.role === "admin" || user.role === "editor";
-      return c.redirect(context === "admin" || isStaff ? "/admin" : `${next}${next.includes("?") ? "&" : "?"}login=success`, 302);
+      if (context === "admin" || isStaff) return c.redirect("/admin", 302);
+      const target = next && next !== "/" ? next : "/siswa";
+      return c.redirect(`${target}${target.includes("?") ? "&" : "?"}login=success`, 302);
     } catch {
       return c.redirect(failureRedirect("failed"), 302);
     }
