@@ -353,6 +353,37 @@ function card(title, text, extra = "") {
   return `<article class="card">${extra}<h3>${esc(title)}</h3><p>${esc(text)}</p></article>`;
 }
 
+function mapEmbedSrc(settings = {}) {
+  const raw = String(settings.mapEmbed || "").trim();
+  if (raw) {
+    if (/^https?:\/\//i.test(raw)) return raw;
+    const match = raw.match(/src=["'](https?:\/\/[^"']+)["']/i);
+    if (match) return match[1];
+  }
+  const query = encodeURIComponent("SMK Negeri Pasirian, Pasirian, Lumajang");
+  return `https://www.google.com/maps?q=${query}&output=embed`;
+}
+
+function locationSection(settings = {}) {
+  const src = mapEmbedSrc(settings);
+  const directions = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent("SMK Negeri Pasirian, Pasirian, Lumajang")}`;
+  return `<section class="location-section">
+    <div class="container">
+      ${sectionHead("Peta Lokasi", "Kunjungi kampus SMK Negeri Pasirian.")}
+      <div class="location-layout">
+        <div class="location-map"><iframe title="Peta lokasi SMK Negeri Pasirian" src="${esc(src)}" loading="lazy" allowfullscreen referrerpolicy="no-referrer-when-downgrade"></iframe></div>
+        <div class="location-info">
+          <h3>${esc(settings.schoolName || "SMK Negeri Pasirian")}</h3>
+          ${settings.address ? `<p>${esc(settings.address)}</p>` : ""}
+          ${settings.phone ? `<p>Telepon: ${esc(settings.phone)}</p>` : ""}
+          ${settings.email ? `<p>Email: ${esc(settings.email)}</p>` : ""}
+          <a class="btn" href="${directions}" target="_blank" rel="noopener noreferrer">Buka di Google Maps</a>
+        </div>
+      </div>
+    </div>
+  </section>`;
+}
+
 function makeMajorIllustration(title, index) {
   const initials = (title || "JR")
     .split(" ")
@@ -1451,6 +1482,7 @@ async function homePage() {
       </section>
       ${announcementModal(data.announcements || [])}
       ${testimonialsSection(data.testimonials || [])}
+      ${locationSection(data.settings || {})}
       <button class="back-to-top" type="button" data-back-to-top aria-label="Kembali ke atas">${navIcon("arrowUp")}</button>
     </main>`, data);
 }
