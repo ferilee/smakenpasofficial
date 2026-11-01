@@ -18,6 +18,24 @@ const navItems = [
   ["Kontak", "/kontak"]
 ];
 
+const navGroups = [
+  { label: "Akademik", items: [["Program Keahlian", "/program-keahlian"], ["Guru & Tendik", "/guru-tendik"], ["Siswa", "/siswa"]] },
+  { label: "Informasi", items: [["Berita", "/berita"], ["Pengumuman", "/pengumuman"], ["Agenda", "/agenda"], ["Galeri", "/galeri"], ["Unduhan", "/unduhan"]] }
+];
+
+function navLink([label, url]) {
+  return `<a class="${isNavActive(url) ? "active" : ""}" href="${url}"><span>${label}</span>${navUpdateKeys[url] ? `<i class="nav-new-dot" data-nav-badge="${navUpdateKeys[url]}" hidden title="Ada konten baru" role="img" aria-label="Ada konten baru"></i>` : ""}</a>`;
+}
+
+function navGroup(group) {
+  const anyActive = group.items.some(([, url]) => isNavActive(url));
+  const anyBadge = group.items.find(([, url]) => navUpdateKeys[url]);
+  return `<div class="nav-group">
+    <button type="button" class="nav-group-toggle ${anyActive ? "active" : ""}" aria-haspopup="true" aria-expanded="false"><span>${group.label}</span>${anyBadge ? `<i class="nav-new-dot" data-nav-badge="${navUpdateKeys[anyBadge[1]]}" hidden title="Ada konten baru" role="img" aria-label="Ada konten baru"></i>` : ""}<span class="nav-caret" aria-hidden="true">&#9662;</span></button>
+    <div class="nav-dropdown">${group.items.map(navLink).join("")}</div>
+  </div>`;
+}
+
 const mobilePrimaryNav = [
   ["Beranda", "/", "home"],
   ["Jurusan", "/program-keahlian", "layers"],
@@ -311,7 +329,11 @@ function layout(content, data = state.home) {
       <div class="container nav">
         <a class="brand" href="/"><img class="brand-mark brand-logo" src="/Logo_SMKNPasirian.png" alt="Logo ${esc(school)}"><span>${esc(school)}</span></a>
         <nav class="nav-links">
-          ${navItems.map(([label, url]) => `<a class="${isNavActive(url) ? "active" : ""}" href="${url}"><span>${label}</span>${navUpdateKeys[url] ? `<i class="nav-new-dot" data-nav-badge="${navUpdateKeys[url]}" hidden title="Ada konten baru" role="img" aria-label="Ada konten baru"></i>` : ""}</a>`).join("")}
+          ${navLink(navItems[0])}
+          ${navLink(navItems[1])}
+          ${navGroups.map(navGroup).join("")}
+          <a class="nav-cta ${isNavActive("/ppdb") ? "active" : ""}" href="/ppdb"><span>PPDB</span></a>
+          ${navLink(navItems[10])}
           ${authControl}
           <button class="theme-toggle" data-theme-toggle type="button" aria-pressed="false" aria-label="Mode Gelap"></button>
         </nav>
@@ -1560,6 +1582,38 @@ function setupHeroCarousel() {
 
   startAutoplay();
   restartProgress();
+}
+
+let navGroupsBound = false;
+function setupNavGroups() {
+  document.querySelectorAll(".nav-group").forEach((group) => {
+    const toggle = group.querySelector(".nav-group-toggle");
+    if (!toggle || toggle.dataset.bound) return;
+    toggle.dataset.bound = "1";
+    toggle.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const willOpen = !group.classList.contains("open");
+      document.querySelectorAll(".nav-group.open").forEach((other) => {
+        other.classList.remove("open");
+        other.querySelector(".nav-group-toggle")?.setAttribute("aria-expanded", "false");
+      });
+      if (willOpen) {
+        group.classList.add("open");
+        toggle.setAttribute("aria-expanded", "true");
+      }
+    });
+  });
+  if (navGroupsBound) return;
+  navGroupsBound = true;
+  document.addEventListener("click", () => {
+    document.querySelectorAll(".nav-group.open").forEach((group) => {
+      group.classList.remove("open");
+      group.querySelector(".nav-group-toggle")?.setAttribute("aria-expanded", "false");
+    });
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") document.querySelectorAll(".nav-group.open").forEach((group) => group.classList.remove("open"));
+  });
 }
 
 function setupMobileNavigation() {
@@ -2860,6 +2914,7 @@ async function render() {
     const titleKey = Object.keys(pageTitles).find((key) => key !== "/" && path.startsWith(key)) || "/";
     document.title = `${pageTitles[titleKey]} | SMK Negeri Pasirian`;
     setupHeroCarousel();
+    setupNavGroups();
     setupMobileNavigation();
     setupBackToTop();
     setupAgendaCalendar();
