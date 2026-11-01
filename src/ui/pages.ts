@@ -52,7 +52,7 @@ export function appShell(title = "Website Sekolah", requestUrl?: string) {
       document.documentElement.dataset.theme = theme;
     })();
   </script>
-  <link rel="stylesheet" href="/assets/app.css?v=74">
+  <link rel="stylesheet" href="/assets/app.css?v=75">
 </head>
 <body>
   <div id="app">
@@ -67,7 +67,7 @@ export function appShell(title = "Website Sekolah", requestUrl?: string) {
     </div>
     <noscript><p style="padding:16px;text-align:center">Website ini membutuhkan JavaScript aktif untuk menampilkan konten.</p></noscript>
   </div>
-  <script src="/assets/app.js?v=74"></script>
+  <script src="/assets/app.js?v=75"></script>
 </body>
 </html>`;
 }
@@ -92,11 +92,11 @@ export function adminShell(title = "Dashboard Admin") {
       document.documentElement.dataset.theme = theme;
     })();
   </script>
-  <link rel="stylesheet" href="/assets/app.css?v=74">
+  <link rel="stylesheet" href="/assets/app.css?v=75">
 </head>
 <body class="admin-body">
   <div id="admin"></div>
-  <script src="/assets/admin.js?v=65"></script>
+  <script src="/assets/admin.js?v=66"></script>
 </body>
 </html>`;
 }

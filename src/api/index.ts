@@ -7,6 +7,7 @@ import { sqlite } from "../db/client";
 import {
   agendas,
   announcements,
+  articles,
   banners,
   complaints,
   downloads,
@@ -62,7 +63,7 @@ const lumajangDistrictFallback = [
 ];
 const editorFeatureKeys = [
   "settings", "profile", "banners", "majors", "teachers", "facilities", "galleries", "galleryItems",
-  "agendas", "announcements", "studentInfos", "studentServices", "studentAnnouncements", "studentAgendas",
+  "agendas", "announcements", "articles", "studentInfos", "studentServices", "studentAnnouncements", "studentAgendas",
   "downloads", "messages", "complaints", "testimonials", "upload"
 ] as const;
 
@@ -74,6 +75,7 @@ const tableFields = {
   galleryItems: ["galleryId", "type", "title", "fileUrl", "youtubeUrl", "isFeatured"],
   agendas: ["title", "startDate", "endDate", "location", "description", "status"],
   announcements: ["title", "content", "isPriority", "attachmentUrl", "status", "publishedAt"],
+  articles: ["title", "slug", "excerpt", "content", "coverUrl", "status", "publishedAt"],
   studentInfos: ["title", "category", "content", "isPriority", "attachmentUrl", "status", "publishedAt"],
   studentServices: ["title", "description", "url", "icon", "sortOrder", "isActive"],
   studentAnnouncements: ["title", "content", "isPriority", "attachmentUrl", "status", "publishedAt"],
@@ -252,6 +254,7 @@ function normalizeBody(resource: keyof typeof tableFields, body: Record<string, 
   const data = pick(body, [...tableFields[resource]]);
   if ("name" in data && !("slug" in data) && (resource === "majors")) data.slug = slugify(String(data.name));
   if ("title" in data && !("slug" in data) && resource === "galleries") data.slug = slugify(String(data.title));
+  if ("title" in data && resource === "articles" && !String(data.slug || "").trim()) data.slug = slugify(String(data.title));
   if (resource === "majors") {
     if ("instagram" in data) data.instagram = socialProfileUrl("instagram", String(data.instagram || ""));
     if ("tiktok" in data) data.tiktok = socialProfileUrl("tiktok", String(data.tiktok || ""));
@@ -272,6 +275,8 @@ function normalizeBody(resource: keyof typeof tableFields, body: Record<string, 
       data.status = raw === "draft" || raw === "cancelled" ? raw : "scheduled";
     } else if (resource === "announcements" || resource === "studentAnnouncements" || resource === "studentInfos") {
       data.status = raw === "draft" || raw === "archived" ? raw : "active";
+    } else if (resource === "articles") {
+      data.status = raw === "published" || raw === "archived" ? raw : "draft";
     } else if (resource === "teachers") {
       data.status = raw === "inactive" ? "inactive" : "active";
     } else if (resource === "messages") {
@@ -734,6 +739,16 @@ export function apiRoutes() {
     await db.select().from(studentAgendas).where(isScheduledStudentAgenda).orderBy(asc(studentAgendas.startDate))
   )));
 
+  const isPublishedArticle = sql`coalesce(nullif(lower(trim(${articles.status})), ''), 'draft') = 'published'`;
+  app.get("/public/articles", async (c) => c.json(ok(
+    await db.select().from(articles).where(isPublishedArticle).orderBy(desc(articles.publishedAt)).limit(50)
+  )));
+  app.get("/public/articles/:slug", async (c) => {
+    const row = await db.select().from(articles).where(and(eq(articles.slug, String(c.req.param("slug") || "")), isPublishedArticle)).get();
+    if (!row) return c.json(fail("Artikel tidak ditemukan.", 404), 404);
+    return c.json(ok(row));
+  });
+
   app.get("/public/wordpress", async (c) => {
     const settings = await db.select().from(schoolSettings).get();
     try {
@@ -917,6 +932,7 @@ export function apiRoutes() {
   crud(app, "/gallery-items", galleryItems as never, "galleryItems", true);
   crud(app, "/agendas", agendas as never, "agendas", true);
   crud(app, "/announcements", announcements as never, "announcements", true);
+  crud(app, "/articles", articles as never, "articles", true);
   crud(app, "/student-infos", studentInfos as never, "studentInfos", true);
   crud(app, "/student-services", studentServices as never, "studentServices", true);
   crud(app, "/student-announcements", studentAnnouncements as never, "studentAnnouncements", true);

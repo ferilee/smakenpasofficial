@@ -8,6 +8,7 @@ const resources = {
   galleries: { title: "Galeri", path: "/api/galleries", fields: ["title", "slug", "category", "description", "coverUrl", "albumUrl", "showOnHome"] },
   agendas: { title: "Agenda", path: "/api/agendas", fields: ["title", "startDate", "endDate", "location", "description", "status"] },
   announcements: { title: "Pengumuman", path: "/api/announcements", fields: ["title", "content", "isPriority", "attachmentUrl", "status", "publishedAt"] },
+  articles: { title: "Berita", path: "/api/articles", fields: ["title", "slug", "excerpt", "content", "coverUrl", "status", "publishedAt"] },
   studentInfos: { title: "Info Siswa", path: "/api/student-infos", fields: ["title", "category", "content", "isPriority", "attachmentUrl", "status", "publishedAt"] },
   studentServices: { title: "Layanan Siswa", path: "/api/student-services", fields: ["title", "description", "url", "icon", "sortOrder", "isActive"] },
   studentAnnouncements: { title: "Pengumuman Siswa", path: "/api/student-announcements", fields: ["title", "content", "isPriority", "attachmentUrl", "status", "publishedAt"] },
@@ -48,6 +49,7 @@ const adminMenuGroups = [
   {
     title: "Informasi Umum",
     items: [
+      ["articles", resources.articles.title],
       ["agendas", resources.agendas.title],
       ["announcements", resources.announcements.title],
       ["downloads", resources.downloads.title],
@@ -103,6 +105,7 @@ const editorFeatureLabels = {
   galleryItems: "Item Galeri",
   agendas: "Agenda Umum",
   announcements: "Pengumuman Umum",
+  articles: "Berita",
   downloads: "File Unduhan",
   studentInfos: "Info Siswa",
   studentServices: "Layanan Siswa",
@@ -457,7 +460,9 @@ function formFields(config, item = {}) {
     const value = esc(item[field] ?? "");
     if (field === "status") {
       const selected = String(item[field] || "").trim().toLowerCase();
-      const statusOptions = config.path === "/api/agendas" || config.path === "/api/student-agendas"
+      const statusOptions = config.path === "/api/articles"
+        ? [["published", "Terbit"], ["draft", "Draf"], ["archived", "Arsip"]]
+        : config.path === "/api/agendas" || config.path === "/api/student-agendas"
         ? [["scheduled", "Scheduled"], ["draft", "Draft"], ["cancelled", "Cancelled"]]
         : config.path === "/api/announcements" || config.path === "/api/student-announcements" || config.path === "/api/student-infos"
           ? [["active", "Active"], ["draft", "Draft"], ["archived", "Archived"]]

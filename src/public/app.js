@@ -1447,11 +1447,7 @@ async function homePage() {
     const allMajors = await api("/api/majors");
     if (Array.isArray(allMajors) && allMajors.length) totalMajors = allMajors.length;
   } catch { /* pakai jumlah unggulan bila daftar penuh gagal dimuat */ }
-  let latestNews = [];
-  try {
-    const rows = await api("/api/public/wordpress");
-    if (Array.isArray(rows)) latestNews = rows.slice().sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0)).slice(0, 3);
-  } catch { /* cuplikan berita dilewati bila sumber blog tak terjangkau */ }
+  const latestNews = (await loadMergedNews()).slice(0, 3);
   const todayKey = dateKey(new Date());
   const upcomingAgendas = (data.agendas || []).filter((item) => dateKey(item.endDate || item.startDate) >= todayKey).length;
   const banners = data.banners?.length
@@ -2617,25 +2613,68 @@ async function siswaAgendaPage() {
 
 function newsCard(item, variant = "") {
   const image = item.image || "/Logo_SMKNPasirian.png";
+  const href = item.link || "#";
+  const external = /^https?:\/\//i.test(href);
+  const targetAttrs = external ? ' target="_blank" rel="noopener noreferrer"' : "";
   return `<article class="news-card ${variant}">
-    <a class="news-card-cover" href="${esc(item.link || "#")}" target="_blank" rel="noopener noreferrer">
+    <a class="news-card-cover" href="${esc(href)}"${targetAttrs}>
       <img src="${esc(image)}" alt="${esc(item.title || "Berita Sekolah")}">
     </a>
     <div class="news-card-body">
       <span class="badge">${esc(dateId(item.date))}</span>
       <h3>${esc(item.title || "Berita Sekolah")}</h3>
       <p>${esc(item.excerpt || "Informasi terbaru dari sekolah.")}</p>
-      <a class="btn ghost" href="${esc(item.link || "#")}" target="_blank" rel="noopener noreferrer">Baca Berita</a>
+      <a class="btn ghost" href="${esc(href)}"${targetAttrs}>Baca Berita</a>
     </div>
   </article>`;
 }
 
+function localArticleCardItem(article) {
+  return {
+    title: article.title,
+    date: article.publishedAt,
+    excerpt: article.excerpt || "",
+    image: article.coverUrl || "",
+    link: `/berita/${encodeURIComponent(article.slug || "")}`
+  };
+}
+
+async function loadMergedNews() {
+  const [wpResult, localResult] = await Promise.allSettled([
+    api("/api/public/wordpress"),
+    api("/api/public/articles")
+  ]);
+  const wpItems = wpResult.status === "fulfilled" && Array.isArray(wpResult.value) ? wpResult.value : [];
+  const localItems = localResult.status === "fulfilled" && Array.isArray(localResult.value)
+    ? localResult.value.map(localArticleCardItem)
+    : [];
+  return [...localItems, ...wpItems].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+}
+
+async function articlePage(slug) {
+  const data = await loadHome();
+  let article = null;
+  try {
+    article = await api(`/api/public/articles/${encodeURIComponent(slug)}`);
+  } catch { article = null; }
+  if (!article) {
+    return layout(`<main>${pageHero("Berita Tidak Ditemukan", "Artikel ini tidak tersedia atau belum diterbitkan.")}
+      <section><div class="container"><p class="empty">Silakan kembali ke daftar berita.</p><a class="btn" href="/berita">Semua Berita</a></div></section></main>`, data);
+  }
+  const cover = validImageUrl(article.coverUrl) || "";
+  return layout(`<main>
+    ${pageHero(article.title, `Berita Sekolah · ${dateId(article.publishedAt)}`)}
+    <section><div class="container article-container">
+      ${cover ? `<img class="article-cover" src="${esc(cover)}" alt="${esc(article.title)}">` : ""}
+      <article class="prose markdown-content article-body">${renderMarkdownBlock(article.content || "")}</article>
+      <p class="article-back"><a class="btn ghost" href="/berita">&larr; Semua Berita</a></p>
+    </div></section>
+  </main>`, data);
+}
+
 async function beritaPage() {
   const data = await loadHome();
-  const rows = await api("/api/public/wordpress");
-  const items = Array.isArray(rows)
-    ? rows.slice().sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
-    : [];
+  const items = await loadMergedNews();
   const latest = items[0];
   const otherNews = items.slice(1, 5);
   const archiveNews = items.slice(5);
@@ -2932,6 +2971,7 @@ async function render() {
     else if (path === "/pengumuman") app.innerHTML = await announcementsPage();
     else if (path === "/unduhan") app.innerHTML = await collectionPage("/api/downloads", "Unduhan", "Dokumen resmi sekolah yang dapat diunduh.", (item) => `<article class="card"><span class="badge">${esc(item.category)}</span><h3>${esc(item.title)}</h3><div class="markdown-content">${renderMarkdownBlock(item.description)}</div><p>${esc(item.fileType)} - ${esc(item.fileSize)}</p><a class="btn ghost" href="${esc(item.fileUrl)}">Download</a></article>`);
     else if (path === "/berita") app.innerHTML = await beritaPage();
+    else if (path.startsWith("/berita/")) app.innerHTML = await articlePage(decodeURIComponent(path.replace("/berita/", "")));
     else if (path === "/kontak") app.innerHTML = await contactPage();
     else if (path === "/pengaduan") app.innerHTML = await complaintPage();
     else app.innerHTML = await homePage();

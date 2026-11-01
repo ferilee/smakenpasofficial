@@ -145,6 +145,18 @@ export const announcements = sqliteTable("announcements", {
   publishedAt: text("published_at").notNull().default(sql`CURRENT_TIMESTAMP`)
 });
 
+export const articles = sqliteTable("articles", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  title: text("title").notNull(),
+  slug: text("slug").notNull().unique(),
+  excerpt: text("excerpt").notNull().default(""),
+  content: text("content").notNull().default(""),
+  coverUrl: text("cover_url").notNull().default(""),
+  status: text("status").notNull().default("draft"),
+  publishedAt: text("published_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`)
+});
+
 export const studentInfos = sqliteTable("student_infos", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   title: text("title").notNull(),
