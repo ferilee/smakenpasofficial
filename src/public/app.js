@@ -3,6 +3,7 @@ const state = { home: null, profile: null, session: null, sessionLoaded: false, 
 let heroTimer = null;
 let pwaRegistered = false;
 const themeStorageKey = "websmakenpas-theme";
+const DEFAULT_HERO_IMAGE = "https://s3.gemastika.or.id/websmakenpas-assets/uploads/1781584867146-1e5eb930-e1e2-439e-af0a-8e27d6e8873d.webp";
 
 const navItems = [
   ["Beranda", "/"],
@@ -472,6 +473,47 @@ function galleryCard(item) {
       ${albumButton}
     </div>
   </article>`;
+}
+
+function facilityCard(item) {
+  const image = validImageUrl(item.imageUrl) || "";
+  return `<article class="card facility-card">
+    ${image ? `<img class="facility-image" src="${esc(image)}" alt="${esc(item.name)}">` : ""}
+    <h3>${esc(item.name)}</h3>
+    ${item.description ? `<div class="markdown-content">${renderMarkdownBlock(item.description)}</div>` : ""}
+  </article>`;
+}
+
+function facilitiesSection(facilities = []) {
+  if (!facilities.length) return "";
+  return `<section><div class="container">
+    ${sectionHead("Fasilitas Sekolah", "Sarana praktik dan penunjang pembelajaran di SMK Negeri Pasirian.")}
+    <div class="grid">${facilities.map(facilityCard).join("")}</div>
+  </div></section>`;
+}
+
+function majorsHomeSection(majors = []) {
+  if (!majors.length) return "";
+  return `<section><div class="container">
+    ${sectionHead("Program Keahlian Unggulan", "Pilihan konsentrasi keahlian yang bisa dipilih di SMK Negeri Pasirian.", `<a class="btn ghost" href="/program-keahlian">Lihat Semua Program</a>`)}
+    <div class="grid">${majors.map(majorCard).join("")}</div>
+  </div></section>`;
+}
+
+function galleryHomeSection(galleries = []) {
+  if (!galleries.length) return "";
+  return `<section class="soft"><div class="container">
+    ${sectionHead("Galeri Kegiatan", "Dokumentasi kegiatan dan kehidupan sekolah.", `<a class="btn ghost" href="/galeri">Lihat Galeri</a>`)}
+    <div class="grid">${galleries.map(galleryCard).join("")}</div>
+  </div></section>`;
+}
+
+function newsHomeSection(news = []) {
+  if (!news.length) return "";
+  return `<section><div class="container">
+    ${sectionHead("Berita Terbaru", "Kabar dan publikasi terbaru dari sekolah.", `<a class="btn ghost" href="/berita">Semua Berita</a>`)}
+    <div class="news-card-grid">${news.map((item) => newsCard(item)).join("")}</div>
+  </div></section>`;
 }
 
 function announcementCard(item) {
@@ -1405,6 +1447,11 @@ async function homePage() {
     const allMajors = await api("/api/majors");
     if (Array.isArray(allMajors) && allMajors.length) totalMajors = allMajors.length;
   } catch { /* pakai jumlah unggulan bila daftar penuh gagal dimuat */ }
+  let latestNews = [];
+  try {
+    const rows = await api("/api/public/wordpress");
+    if (Array.isArray(rows)) latestNews = rows.slice().sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0)).slice(0, 3);
+  } catch { /* cuplikan berita dilewati bila sumber blog tak terjangkau */ }
   const todayKey = dateKey(new Date());
   const upcomingAgendas = (data.agendas || []).filter((item) => dateKey(item.endDate || item.startDate) >= todayKey).length;
   const banners = data.banners?.length
@@ -1417,7 +1464,7 @@ async function homePage() {
       imageUrl: ""
     }];
   const hero = banners[0];
-  const heroImage = (hero.imageUrl || "https://images.unsplash.com/photo-1580582932707-520aed937b7b?auto=format&fit=crop&w=1800&q=80").replace(/"/g, "&quot;");
+  const heroImage = (hero.imageUrl || DEFAULT_HERO_IMAGE).replace(/"/g, "&quot;");
   const heroLoginInfo = state.session ? `
     <div class="hero-session-card">
       <span>${navIcon("user")}</span>
@@ -1494,6 +1541,7 @@ async function homePage() {
           ${managementSchoolSection(data.profile.management || {})}
         </div>
       </section>
+      ${majorsHomeSection(data.majors || [])}
       ${quickAccessSection(data.settings || {})}
       ${agendaCalendarSection(data.agendas || [])}
       <section class="soft">
@@ -1503,6 +1551,8 @@ async function homePage() {
         </div>
       </section>
       ${announcementModal(data.announcements || [])}
+      ${newsHomeSection(latestNews)}
+      ${galleryHomeSection(data.galleries || [])}
       ${testimonialsSection(data.testimonials || [])}
       ${locationSection(data.settings || {})}
       <button class="back-to-top" type="button" data-back-to-top aria-label="Kembali ke atas">${navIcon("arrowUp")}</button>
@@ -1537,7 +1587,7 @@ function setupHeroCarousel() {
 
   const applySlide = () => {
     const item = banners[index];
-    const image = item.imageUrl || "https://images.unsplash.com/photo-1580582932707-520aed937b7b?auto=format&fit=crop&w=1800&q=80";
+    const image = item.imageUrl || DEFAULT_HERO_IMAGE;
     carousel.style.backgroundImage = `linear-gradient(100deg, rgba(6,31,28,.85), rgba(6,31,28,.48), rgba(6,31,28,.18)), url('${image}')`;
     if (title) title.textContent = item.title || "";
     if (subtitle) subtitle.innerHTML = renderMarkdownBlock(item.subtitle || "");
@@ -2310,7 +2360,7 @@ async function profilePage() {
     ["Status Akreditasi", data.profile.identity?.["Status Akreditasi"] || data.profile.accreditation || "Negeri"],
     ["Alamat Sekolah", data.profile.identity?.["Alamat Sekolah"] || data.settings?.address || "Jalan Raya Condro – Pasirian/ 67372"],
     ["Kabupaten", data.profile.identity?.Kabupaten || "Lumajang"],
-    ["Propinsi", data.profile.identity?.Propinsi || "Jawa Timur"],
+    ["Provinsi", data.profile.identity?.Provinsi || data.profile.identity?.Propinsi || "Jawa Timur"],
     ["Telepon/Fax", data.profile.identity?.["Telepon/Fax"] || data.settings?.phone || "(0334) 574253"],
     ["SK Pendirian Pejabat", data.profile.identity?.["SK Pendirian Pejabat"] || "Bupati Lumajang"],
     ["Nomor", data.profile.identity?.Nomor || "188.45/656/427.12/2003"],
@@ -2351,6 +2401,8 @@ async function profilePage() {
       </div></section>
       ${identityReferenceSection(data.profile.identity || {})}
       ${formerPrincipalsSection(data.profile.formerPrincipals || [])}
+      ${facilitiesSection(data.facilities || [])}
+      ${locationSection(data.settings || {})}
     </main>`, data);
 }
 
