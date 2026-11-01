@@ -961,12 +961,34 @@ async function overview() {
     key === "storageMode" ||
     currentAdminUser?.permissions?.includes(statPermissionKey[key] || key)
   ));
+  const shortcuts = [
+    ["announcements", "Tambah Pengumuman"],
+    ["agendas", "Tambah Agenda"],
+    ["galleries", "Tambah Galeri"],
+    ["banners", "Tambah Banner"]
+  ].filter(([page]) => canAccessAdminPage(page));
   document.querySelector("#main").innerHTML = `
     <div class="toolbar"><div><h1>Dashboard</h1><p>Ringkasan konten website sekolah.</p></div><a class="btn secondary" href="/" target="_blank">Lihat Website</a></div>
     <div class="grid four">
       ${visibleStats.map(([key, value]) => `<div class="card"><h3>${esc(value)}</h3><p>${esc(statsLabels[key] || resources[key]?.title || key)}</p></div>`).join("")}
-    </div>`;
+    </div>
+    <div class="card attention-card">
+      <h2>Perlu Perhatian</h2>
+      <div data-attention-list><p class="hint">Memeriksa kondisi website…</p></div>
+    </div>
+    ${shortcuts.length ? `<div class="shortcut-row">${shortcuts.map(([page, label]) => `<button class="btn ghost" type="button" data-shortcut-add="${page}">${label}</button>`).join("")}</div>` : ""}`;
+  document.querySelectorAll("[data-shortcut-add]").forEach((btn) =>
+    btn.addEventListener("click", () => gotoAdminAdd(btn.dataset.shortcutAdd)));
   await updateMenuBadges();
+  const attention = await adminAttentionItems(stats);
+  const list = document.querySelector("[data-attention-list]");
+  if (list) {
+    list.innerHTML = attention.length
+      ? `<ul class="attention-list">${attention.map((item) => `<li><span>${esc(item.text)}</span><button class="btn ghost" type="button" data-attention-page="${item.page}">${esc(item.cta)}</button></li>`).join("")}</ul>`
+      : '<p class="hint">Semua beres — tidak ada yang menunggu perhatian.</p>';
+    list.querySelectorAll("[data-attention-page]").forEach((btn) =>
+      btn.addEventListener("click", () => gotoAdminPage(btn.dataset.attentionPage)));
+  }
 }
 
 async function singleton(title, path, fields) {
@@ -1025,6 +1047,118 @@ async function editorAccessPage() {
   });
 }
 
+function gotoAdminPage(page) {
+  const button = document.querySelector(`.menu button[data-page="${page}"]`);
+  if (button) { button.click(); return; }
+  active = page;
+  renderPage(page);
+}
+
+async function gotoAdminAdd(page) {
+  active = page;
+  await renderPage(page);
+  closeAdminDrawer();
+  document.querySelector("#add")?.click();
+}
+
+function wizardize(form, steps) {
+  if (!form || !steps.length) return;
+  const panels = steps.map((step, index) => {
+    const panel = document.createElement("section");
+    panel.className = "wizard-panel";
+    panel.hidden = index > 0;
+    const heading = document.createElement("h2");
+    heading.className = "wizard-panel-title";
+    heading.textContent = step.title;
+    panel.appendChild(heading);
+    (step.fields || []).forEach((name) => {
+      const field = form.querySelector(`[name="${name}"]`)?.closest(".field");
+      if (field) panel.appendChild(field);
+    });
+    (step.blocks || []).forEach((title) => {
+      const block = [...form.querySelectorAll("section.management-admin")]
+        .find((el) => el.querySelector("h2")?.textContent.trim() === title);
+      if (block) panel.appendChild(block);
+    });
+    return panel;
+  });
+  const stepper = document.createElement("ol");
+  stepper.className = "wizard-steps";
+  stepper.innerHTML = steps.map((step, index) =>
+    `<li><button type="button" data-wizard-goto="${index}" ${index === 0 ? 'aria-current="step"' : ""}><span>${index + 1}</span>${esc(step.title)}</button></li>`
+  ).join("");
+  const nav = document.createElement("div");
+  nav.className = "wizard-nav";
+  nav.innerHTML = `
+    <button class="btn ghost" type="button" data-wizard-prev disabled>Sebelumnya</button>
+    <span class="wizard-progress" data-wizard-progress>Langkah 1 dari ${steps.length}</span>
+    <button class="btn ghost" type="button" data-wizard-next>Lanjut</button>`;
+  const submit = [...form.children].find((el) => el.tagName === "BUTTON");
+  form.prepend(stepper);
+  panels.forEach((panel) => form.appendChild(panel));
+  form.appendChild(nav);
+  if (submit) nav.appendChild(submit);
+  let current = 0;
+  const show = (index) => {
+    current = Math.max(0, Math.min(index, steps.length - 1));
+    panels.forEach((panel, i) => { panel.hidden = i !== current; });
+    stepper.querySelectorAll("[data-wizard-goto]").forEach((btn, i) => {
+      btn.toggleAttribute("aria-current", i === current);
+      btn.classList.toggle("done", i < current);
+    });
+    nav.querySelector("[data-wizard-prev]").disabled = current === 0;
+    nav.querySelector("[data-wizard-next]").disabled = current === steps.length - 1;
+    nav.querySelector("[data-wizard-progress]").textContent = `Langkah ${current + 1} dari ${steps.length}`;
+  };
+  stepper.addEventListener("click", (event) => {
+    const btn = event.target.closest("[data-wizard-goto]");
+    if (btn) show(Number(btn.dataset.wizardGoto));
+  });
+  nav.querySelector("[data-wizard-prev]").addEventListener("click", () => show(current - 1));
+  nav.querySelector("[data-wizard-next]").addEventListener("click", () => show(current + 1));
+}
+
+async function adminAttentionItems(stats) {
+  const items = [];
+  const can = (page) => canAccessAdminPage(page);
+  if (stats) {
+    if (can("messages") && Number(stats.newMessages || 0) > 0)
+      items.push({ text: `${stats.newMessages} pesan masuk belum dibaca.`, page: "messages", cta: "Buka Pesan" });
+    if (can("complaints") && Number(stats.newComplaints || 0) > 0)
+      items.push({ text: `${stats.newComplaints} pengaduan baru menunggu ditinjau.`, page: "complaints", cta: "Buka Pengaduan" });
+    if (can("testimonials") && Number(stats.pendingTestimonials || 0) > 0)
+      items.push({ text: `${stats.pendingTestimonials} testimoni menunggu persetujuan.`, page: "testimonials", cta: "Tinjau Testimoni" });
+  }
+  try {
+    const agendas = await api("/api/agendas");
+    if (can("agendas") && Array.isArray(agendas)) {
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      const upcoming = agendas.filter((a) => a.status === "scheduled" && new Date(a.startDate) >= today).length;
+      if (!upcoming) items.push({ text: "Belum ada agenda mendatang — beranda menampilkan 0 Agenda Mendatang.", page: "agendas", cta: "Tambah Agenda" });
+    }
+  } catch { /* lewati bila gagal */ }
+  try {
+    const settings = await api("/api/settings");
+    if (can("settings") && settings && !String(settings.ppdbUrl || "").trim())
+      items.push({ text: "URL pendaftaran PPDB belum diisi — tombol Daftar PPDB Online belum tampil di website.", page: "settings", cta: "Isi di Pengaturan" });
+  } catch { /* lewati bila gagal */ }
+  try {
+    const teachers = await api("/api/teachers");
+    if (can("teachers") && Array.isArray(teachers)) {
+      const noPhoto = teachers.filter((t) => { const u = String(t.photoUrl || ""); return !u || u.includes("example.com"); }).length;
+      if (noPhoto) items.push({ text: `${noPhoto} dari ${teachers.length} guru & tendik belum memiliki foto asli.`, page: "teachers", cta: "Kelola Guru" });
+    }
+  } catch { /* lewati bila gagal */ }
+  try {
+    const banners = await api("/api/banners");
+    if (can("banners") && Array.isArray(banners)) {
+      const empty = banners.filter((b) => b.isActive && !String(b.imageUrl || "").trim()).length;
+      if (empty) items.push({ text: `${empty} banner aktif belum memiliki gambar.`, page: "banners", cta: "Kelola Banner" });
+    }
+  } catch { /* lewati bila gagal */ }
+  return items;
+}
+
 async function settingsAdminPage() {
   const data = await api("/api/settings");
   document.querySelector("#main").innerHTML = `
@@ -1035,6 +1169,12 @@ async function settingsAdminPage() {
       <button class="btn">Simpan</button>
     </form>`;
   const form = document.querySelector("#single-form");
+  wizardize(form, [
+    { title: "Umum", fields: ["schoolName", "tagline", "logoUrl", "faviconUrl", "themeColor", "metaDescription", "footerText"] },
+    { title: "Kontak", fields: ["address", "email", "phone", "whatsapp"] },
+    { title: "Tautan Layanan", fields: ["wordpressUrl", "ppdbUrl"] },
+    { title: "Akses Cepat", blocks: ["Layanan Sekolah"] }
+  ]);
   setupMarkdownEditors(form);
   bindQuickLinkEditor(form);
   wireKnownImageUploadFields(form, data || {});
@@ -1059,6 +1199,12 @@ async function profileAdminPage() {
       <button class="btn">Simpan</button>
     </form>`;
   const form = document.querySelector("#single-form");
+  wizardize(form, [
+    { title: "Sejarah & Visi Misi", fields: ["history", "vision", "mission", "organization"] },
+    { title: "Kepala Sekolah", fields: ["principalName", "principalGreeting", "principalPhotoUrl", "principalCtaLabel", "principalCtaUrl", "profileSummaryImageUrl"] },
+    { title: "Identitas Resmi", fields: ["accreditation", "location"], blocks: ["Identitas Kepala Sekolah dan Komite"] },
+    { title: "Struktur & Pimpinan", blocks: ["Manajemen Sekolah", "Mantan Kepala Sekolah"] }
+  ]);
   setupMarkdownEditors(form);
   wireKnownImageUploadFields(form, data || {});
   sanitizeFormerPrincipals(data?.formerPrincipals).forEach((item, index) => {

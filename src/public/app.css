@@ -1197,6 +1197,20 @@ section { padding: 58px 0; }
 .boot-skeleton-lines span:nth-child(3) { width: 48%; }
 .boot-skeleton-text { color: var(--muted); margin-top: 18px; }
 @keyframes boot-shimmer { to { background-position: -200% 0; } }
+.wizard-steps { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; margin: 0 0 18px; padding: 0; counter-reset: wizard; }
+.wizard-steps button { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); border-radius: 999px; padding: 7px 14px 7px 8px; font: inherit; font-size: 14px; cursor: pointer; }
+.wizard-steps button span { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--soft); color: var(--muted); font-weight: 700; font-size: 13px; }
+.wizard-steps button[aria-current] { border-color: var(--brand); color: var(--brand); font-weight: 600; }
+.wizard-steps button[aria-current] span { background: var(--brand); color: #fff; }
+.wizard-steps button.done span { background: var(--brand); color: #fff; }
+.wizard-panel-title { margin: 0 0 14px; font-size: 19px; }
+.wizard-nav { display: flex; align-items: center; gap: 12px; margin-top: 20px; flex-wrap: wrap; }
+.wizard-nav .wizard-progress { color: var(--muted); font-size: 14px; margin-inline: auto; }
+.attention-card { margin-top: 16px; }
+.attention-card h2 { margin: 0 0 10px; font-size: 18px; }
+.attention-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.attention-list li { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.shortcut-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
 .facility-card { overflow: hidden; }
 .facility-image { width: 100%; height: 180px; object-fit: cover; display: block; border-radius: 10px; margin-bottom: 12px; }
 .location-section { padding: 72px 0; }
