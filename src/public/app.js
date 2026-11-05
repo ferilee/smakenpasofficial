@@ -2673,6 +2673,20 @@ async function articlePage(slug) {
           ${REACTION_KINDS.map((item) => `<button type="button" class="reaction-btn" data-reaction="${item.kind}" aria-pressed="false"><span class="reaction-emoji" aria-hidden="true">${item.emoji}</span> ${item.label} <span class="reaction-count" data-count="${item.kind}">0</span></button>`).join("")}
         </div>
       </div>
+      <section class="comments-section" data-comments data-slug="${esc(article.slug)}">
+        <h2 class="comments-title">Komentar</h2>
+        <div class="comments-list" data-comments-list><p class="empty">Memuat komentar…</p></div>
+        <div class="comment-login" data-comment-login hidden>
+          <p>Silakan masuk dengan akun Google untuk ikut berkomentar. Komentar akan tampil setelah disetujui admin.</p>
+          <a class="btn" data-comment-login-link href="#">Masuk dengan Google</a>
+        </div>
+        <form class="comment-form" data-comment-form hidden>
+          <p class="comment-as">Berkomentar sebagai <strong data-comment-name></strong>. Komentar tampil setelah disetujui admin.</p>
+          <textarea name="body" rows="4" maxlength="1000" required placeholder="Tulis komentar yang santun dan relevan…"></textarea>
+          <button class="btn" type="submit">Kirim Komentar</button>
+        </form>
+        <p class="comment-sent" data-comment-sent hidden>Terima kasih! Komentarmu sudah terkirim dan menunggu persetujuan admin.</p>
+      </section>
       <p class="article-back"><a class="btn ghost" href="/berita">&larr; Semua Berita</a></p>
     </div></section>
   </main>`, data);
@@ -2735,6 +2749,61 @@ async function setupReactions() {
       buttons.forEach((item) => { item.disabled = false; });
     }
   }));
+}
+
+async function setupComments() {
+  const section = document.querySelector("[data-comments]");
+  if (!section) return;
+  const slug = section.dataset.slug || "";
+  const listEl = section.querySelector("[data-comments-list]");
+  const loginBox = section.querySelector("[data-comment-login]");
+  const form = section.querySelector("[data-comment-form]");
+  const sentNote = section.querySelector("[data-comment-sent]");
+  try {
+    const comments = await api(`/api/public/articles/${encodeURIComponent(slug)}/comments`);
+    if (listEl) {
+      listEl.innerHTML = Array.isArray(comments) && comments.length
+        ? comments.map((comment) => `<article class="comment-item">
+            <p class="comment-meta"><strong>${esc(comment.name || "Pengguna")}</strong> <span>${esc(dateId(comment.createdAt))}</span></p>
+            <p class="comment-body">${esc(comment.body || "").replace(/\n/g, "<br>")}</p>
+          </article>`).join("")
+        : '<p class="empty">Belum ada komentar. Jadilah yang pertama berkomentar.</p>';
+    }
+  } catch {
+    if (listEl) listEl.innerHTML = '<p class="empty">Komentar gagal dimuat.</p>';
+  }
+  const session = await loadSession();
+  if (session?.name || session?.email) {
+    if (form) {
+      form.hidden = false;
+      const nameEl = form.querySelector("[data-comment-name]");
+      if (nameEl) nameEl.textContent = session.name || session.email;
+    }
+  } else if (loginBox) {
+    loginBox.hidden = false;
+    const link = loginBox.querySelector("[data-comment-login-link]");
+    if (link) link.setAttribute("href", googleLoginHref());
+  }
+  form?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const body = String(new FormData(form).get("body") || "").trim();
+    if (body.length < 2) { notify("Komentar terlalu pendek.", "error"); return; }
+    const button = form.querySelector("button[type=submit]");
+    if (button) button.disabled = true;
+    try {
+      await api(`/api/public/articles/${encodeURIComponent(slug)}/comments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ body })
+      });
+      form.reset();
+      form.hidden = true;
+      if (sentNote) sentNote.hidden = false;
+    } catch (error) {
+      notify(error.message || "Komentar gagal dikirim.", "error");
+      if (button) button.disabled = false;
+    }
+  });
 }
 
 async function beritaPage() {
@@ -3082,6 +3151,7 @@ async function render() {
     setupManagementModal();
     setupAnnouncementModal();
     setupReactions();
+    setupComments();
     setupAuthUi();
     refreshNavBadges();
     document.querySelectorAll("[data-theme-toggle]").forEach((button) => button.addEventListener("click", toggleTheme));

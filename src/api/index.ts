@@ -7,6 +7,7 @@ import { sqlite } from "../db/client";
 import {
   agendas,
   announcements,
+  articleComments,
   articleReactions,
   articles,
   banners,
@@ -64,7 +65,7 @@ const lumajangDistrictFallback = [
 ];
 const editorFeatureKeys = [
   "settings", "profile", "banners", "majors", "teachers", "facilities", "galleries", "galleryItems",
-  "agendas", "announcements", "articles", "studentInfos", "studentServices", "studentAnnouncements", "studentAgendas",
+  "agendas", "announcements", "articles", "comments", "studentInfos", "studentServices", "studentAnnouncements", "studentAgendas",
   "downloads", "messages", "complaints", "testimonials", "upload"
 ] as const;
 
@@ -77,6 +78,7 @@ const tableFields = {
   agendas: ["title", "startDate", "endDate", "location", "description", "status"],
   announcements: ["title", "content", "isPriority", "attachmentUrl", "status", "publishedAt"],
   articles: ["title", "slug", "excerpt", "content", "coverUrl", "status", "publishedAt"],
+  comments: ["articleId", "userId", "name", "body", "status"],
   studentInfos: ["title", "category", "content", "isPriority", "attachmentUrl", "status", "publishedAt"],
   studentServices: ["title", "description", "url", "icon", "sortOrder", "isActive"],
   studentAnnouncements: ["title", "content", "isPriority", "attachmentUrl", "status", "publishedAt"],
@@ -797,6 +799,41 @@ export function apiRoutes() {
     return c.json(ok(await reactionSummary(article.id, visitorHash)));
   });
 
+  app.get("/public/articles/:slug/comments", async (c) => {
+    const article = await publishedArticleBySlug(String(c.req.param("slug") || ""));
+    if (!article) return c.json(fail("Artikel tidak ditemukan.", 404), 404);
+    const rows = await db.select({
+      id: articleComments.id,
+      name: articleComments.name,
+      body: articleComments.body,
+      createdAt: articleComments.createdAt
+    }).from(articleComments)
+      .where(and(eq(articleComments.articleId, article.id), eq(articleComments.status, "approved")))
+      .orderBy(asc(articleComments.id));
+    return c.json(ok(rows));
+  });
+  app.post("/public/articles/:slug/comments", requireLoggedIn, async (c) => {
+    const article = await publishedArticleBySlug(String(c.req.param("slug") || ""));
+    if (!article) return c.json(fail("Artikel tidak ditemukan.", 404), 404);
+    const user = (c as any).get("user");
+    const body = await c.req.json().catch(() => ({})) as Record<string, unknown>;
+    const text = String(body.body || "").trim();
+    if (text.length < 2) return c.json(fail("Komentar terlalu pendek.", 400), 400);
+    if (text.length > 1000) return c.json(fail("Komentar terlalu panjang (maksimal 1000 karakter).", 400), 400);
+    const recent = await db.select({ total: sql<number>`count(*)` }).from(articleComments)
+      .where(and(eq(articleComments.userId, Number(user.id)), sql`${articleComments.createdAt} >= datetime('now', '-10 minutes')`)).get();
+    if (Number(recent?.total || 0) >= 5) return c.json(fail("Terlalu banyak komentar dalam waktu singkat. Coba lagi nanti.", 429), 429);
+    const name = String(user.name || user.username || String(user.email || "").split("@")[0] || "Pengguna").trim().slice(0, 120);
+    const row = ((await db.insert(articleComments).values({
+      articleId: article.id,
+      userId: Number(user.id),
+      name,
+      body: text,
+      status: "pending"
+    }).returning()) as unknown as any[])[0];
+    return c.json(ok({ id: row?.id, status: "pending" }), 201);
+  });
+
   app.get("/public/wordpress", async (c) => {
     const settings = await db.select().from(schoolSettings).get();
     try {
@@ -981,6 +1018,7 @@ export function apiRoutes() {
   crud(app, "/agendas", agendas as never, "agendas", true);
   crud(app, "/announcements", announcements as never, "announcements", true);
   crud(app, "/articles", articles as never, "articles", true);
+  crud(app, "/comments", articleComments as never, "comments", true);
   crud(app, "/student-infos", studentInfos as never, "studentInfos", true);
   crud(app, "/student-services", studentServices as never, "studentServices", true);
   crud(app, "/student-announcements", studentAnnouncements as never, "studentAnnouncements", true);
@@ -1107,13 +1145,14 @@ export function apiRoutes() {
       newMessages: countWhere("messages", "status", "new"),
       newComplaints: countWhere("complaints", "status", "new"),
       pendingTestimonials: countWhere("testimonials", "status", "pending"),
+      pendingComments: countWhere("article_comments", "status", "pending"),
       users: count("users"),
       storageMode: storageMode()
     };
     const user = (c as any).get("user");
     if (user?.role === "admin") return c.json(ok(stats));
     const permissions = new Set((c as any).get("editorPermissions") || []);
-    const aliases: Record<string, string> = { newMessages: "messages", newComplaints: "complaints", pendingTestimonials: "testimonials" };
+    const aliases: Record<string, string> = { newMessages: "messages", newComplaints: "complaints", pendingTestimonials: "testimonials", pendingComments: "comments" };
     return c.json(ok(Object.fromEntries(Object.entries(stats).filter(([key]) => key === "storageMode" || permissions.has(aliases[key] || key)))));
   });
 

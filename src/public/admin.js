@@ -9,6 +9,7 @@ const resources = {
   agendas: { title: "Agenda", path: "/api/agendas", fields: ["title", "startDate", "endDate", "location", "description", "status"] },
   announcements: { title: "Pengumuman", path: "/api/announcements", fields: ["title", "content", "isPriority", "attachmentUrl", "status", "publishedAt"] },
   articles: { title: "Berita", path: "/api/articles", fields: ["title", "slug", "excerpt", "content", "coverUrl", "status", "publishedAt"] },
+  comments: { title: "Komentar Berita", path: "/api/comments", fields: ["name", "body", "status", "articleId"] },
   studentInfos: { title: "Info Siswa", path: "/api/student-infos", fields: ["title", "category", "content", "isPriority", "attachmentUrl", "status", "publishedAt"] },
   studentServices: { title: "Layanan Siswa", path: "/api/student-services", fields: ["title", "description", "url", "icon", "sortOrder", "isActive"] },
   studentAnnouncements: { title: "Pengumuman Siswa", path: "/api/student-announcements", fields: ["title", "content", "isPriority", "attachmentUrl", "status", "publishedAt"] },
@@ -50,6 +51,7 @@ const adminMenuGroups = [
     title: "Informasi Umum",
     items: [
       ["articles", resources.articles.title],
+      ["comments", resources.comments.title],
       ["agendas", resources.agendas.title],
       ["announcements", resources.announcements.title],
       ["downloads", resources.downloads.title],
@@ -106,6 +108,7 @@ const editorFeatureLabels = {
   agendas: "Agenda Umum",
   announcements: "Pengumuman Umum",
   articles: "Berita",
+  comments: "Komentar Berita",
   downloads: "File Unduhan",
   studentInfos: "Info Siswa",
   studentServices: "Layanan Siswa",
@@ -134,6 +137,7 @@ const statsLabels = {
   newMessages: "Pesan Baru",
   newComplaints: "Pengaduan Baru",
   pendingTestimonials: "Testimoni Baru",
+  pendingComments: "Komentar Menunggu",
   users: "User & Login"
 };
 
@@ -388,6 +392,8 @@ async function api(path, options = {}) {
 }
 
 function fieldLabel(field) {
+  if (field === "body") return "Isi Komentar";
+  if (field === "articleId") return "ID Artikel";
   if (field === "profileCompleted") return "Profil Lengkap";
   if (field === "lastLoginAt") return "Login Terakhir";
   if (field === "districtName") return "Kecamatan";
@@ -472,7 +478,7 @@ function formFields(config, item = {}) {
               ? [["new", "New"], ["read", "Read"], ["replied", "Replied"]]
               : config.path === "/api/complaints"
                 ? [["new", "New"], ["reviewed", "Reviewed"], ["resolved", "Resolved"]]
-                : config.path === "/api/testimonials"
+                : config.path === "/api/testimonials" || config.path === "/api/comments"
                   ? [["pending", "Pending"], ["approved", "Approved"], ["rejected", "Rejected"]]
                   : [];
       if (statusOptions.length) {
@@ -527,6 +533,9 @@ function formFields(config, item = {}) {
       };
       const placeholder = placeholders[field];
       return `<div class="field"><label>${fieldLabel(field)}</label><input name="${field}" value="${value}" placeholder="${placeholder}"></div>`;
+    }
+    if (field === "body") {
+      return `<div class="field"><label>${fieldLabel(field)}</label><textarea name="${field}" rows="4">${value}</textarea></div>`;
     }
     if (["description", "content", "competencies", "careerProspects", "practiceFacilities", "achievements", "message", "subtitle", "complaint", "expectation", "mission"].includes(field)) {
       const hint = field === "mission" ? '<p class="hint">Satu poin per baris. Contoh: 1. ... lalu baris baru untuk poin berikutnya.</p>' : "";
@@ -828,7 +837,8 @@ async function updateMenuBadges() {
     const badges = {
       messages: Number(stats.newMessages || 0),
       complaints: Number(stats.newComplaints || 0),
-      testimonials: Number(stats.pendingTestimonials || 0)
+      testimonials: Number(stats.pendingTestimonials || 0),
+      comments: Number(stats.pendingComments || 0)
     };
     Object.entries(badges).forEach(([key, value]) => {
       const badge = document.querySelector(`[data-menu-badge="${key}"]`);
@@ -960,7 +970,7 @@ async function renderPage(page) {
 
 async function overview() {
   const stats = await api("/api/stats");
-  const statPermissionKey = { newMessages: "messages", newComplaints: "complaints", pendingTestimonials: "testimonials" };
+  const statPermissionKey = { newMessages: "messages", newComplaints: "complaints", pendingTestimonials: "testimonials", pendingComments: "comments" };
   const visibleStats = Object.entries(stats).filter(([key]) => (
     currentAdminUser?.role === "admin" ||
     key === "storageMode" ||
@@ -1133,6 +1143,8 @@ async function adminAttentionItems(stats) {
       items.push({ text: `${stats.newComplaints} pengaduan baru menunggu ditinjau.`, page: "complaints", cta: "Buka Pengaduan" });
     if (can("testimonials") && Number(stats.pendingTestimonials || 0) > 0)
       items.push({ text: `${stats.pendingTestimonials} testimoni menunggu persetujuan.`, page: "testimonials", cta: "Tinjau Testimoni" });
+    if (can("comments") && Number(stats.pendingComments || 0) > 0)
+      items.push({ text: `${stats.pendingComments} komentar berita menunggu moderasi.`, page: "comments", cta: "Moderasi Komentar" });
   }
   try {
     const agendas = await api("/api/agendas");
@@ -1246,7 +1258,7 @@ async function resourcePage(key) {
       : row.name || row.title || row.username || row.subject || "-";
     const info = key === "users"
       ? userProfileInfo(row)
-      : String(row.description || row.content || row.position || row.category || row.email || row.status || "").slice(0, 120);
+      : String(row.description || row.content || row.body || row.position || row.category || row.email || row.status || "").slice(0, 120);
     return `
           <tr data-resource-row data-search="${esc([row.name, row.position, row.subject, row.expertise, row.status, row.email, row.whatsapp, row.districtName, row.villageName].filter(Boolean).join(" ").toLowerCase())}">
             <td>${row.id}</td>
@@ -1254,7 +1266,7 @@ async function resourcePage(key) {
             <td>${esc(info)}</td>
             <td>
               ${key === "testimonials" ? `<button class="btn ghost" type="button" data-view="${row.id}">View</button>` : ""}
-              ${key === "testimonials" && row.status !== "approved" ? `<button class="btn" type="button" data-approve="${row.id}">Approve</button>` : ""}
+              ${(key === "testimonials" || key === "comments") && row.status !== "approved" ? `<button class="btn" type="button" data-approve="${row.id}">Approve</button>` : ""}
               ${key === "messages" && row.status === "new" ? `<button class="btn" type="button" data-read="${row.id}">Tandai Dibaca</button>` : ""}
               ${key === "users" ? `<button class="btn ghost" type="button" data-view="${row.id}">Detail</button>` : ""}
               <button class="btn ghost" type="button" data-edit="${row.id}">Edit</button>
@@ -1344,7 +1356,7 @@ function setupAdminActions() {
         await api(`${config.path}/${target.dataset.approve}`, { method: "PUT", body: JSON.stringify({ status: "approved" }) });
         await resourcePage(key);
         await updateMenuBadges();
-        notify("Testimoni berhasil di-approve.");
+        notify(`${config.title} berhasil di-approve.`);
       } catch (error) {
         notify(error.message || "Gagal approve testimoni.", "error");
       }
