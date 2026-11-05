@@ -7,6 +7,7 @@ import { sqlite } from "../db/client";
 import {
   agendas,
   announcements,
+  articleReactions,
   articles,
   banners,
   complaints,
@@ -747,6 +748,53 @@ export function apiRoutes() {
     const row = await db.select().from(articles).where(and(eq(articles.slug, String(c.req.param("slug") || "")), isPublishedArticle)).get();
     if (!row) return c.json(fail("Artikel tidak ditemukan.", 404), 404);
     return c.json(ok(row));
+  });
+
+  const REACTION_KINDS = ["suka", "bangga", "hebat"];
+  function reactionVisitorHash(value: unknown) {
+    const raw = String(value || "").trim();
+    if (!/^[A-Za-z0-9-]{16,80}$/.test(raw)) return "";
+    return sign(`visitor:${raw}`);
+  }
+  async function reactionSummary(articleId: number, visitorHash: string) {
+    const rows = await db.select({ kind: articleReactions.kind, total: sql<number>`count(*)` })
+      .from(articleReactions).where(eq(articleReactions.articleId, articleId)).groupBy(articleReactions.kind);
+    const counts: Record<string, number> = { suka: 0, bangga: 0, hebat: 0 };
+    for (const row of rows) if (row.kind in counts) counts[row.kind] = Number(row.total) || 0;
+    let mine: string | null = null;
+    if (visitorHash) {
+      const own = await db.select().from(articleReactions)
+        .where(and(eq(articleReactions.articleId, articleId), eq(articleReactions.visitorHash, visitorHash))).get();
+      mine = own?.kind || null;
+    }
+    return { counts, mine, total: counts.suka + counts.bangga + counts.hebat };
+  }
+  async function publishedArticleBySlug(slug: string) {
+    return db.select().from(articles).where(and(eq(articles.slug, slug), isPublishedArticle)).get();
+  }
+  app.get("/public/articles/:slug/reactions", async (c) => {
+    const article = await publishedArticleBySlug(String(c.req.param("slug") || ""));
+    if (!article) return c.json(fail("Artikel tidak ditemukan.", 404), 404);
+    return c.json(ok(await reactionSummary(article.id, reactionVisitorHash(c.req.query("visitor")))));
+  });
+  app.post("/public/articles/:slug/reactions", async (c) => {
+    const article = await publishedArticleBySlug(String(c.req.param("slug") || ""));
+    if (!article) return c.json(fail("Artikel tidak ditemukan.", 404), 404);
+    const body = await c.req.json().catch(() => ({})) as Record<string, unknown>;
+    const kind = String(body.kind || "");
+    if (!REACTION_KINDS.includes(kind)) return c.json(fail("Jenis reaksi tidak dikenal.", 400), 400);
+    const visitorHash = reactionVisitorHash(body.visitor);
+    if (!visitorHash) return c.json(fail("Identitas pengunjung tidak valid.", 400), 400);
+    const existing = await db.select().from(articleReactions)
+      .where(and(eq(articleReactions.articleId, article.id), eq(articleReactions.visitorHash, visitorHash))).get();
+    if (existing && existing.kind === kind) {
+      await db.delete(articleReactions).where(eq(articleReactions.id, existing.id));
+    } else if (existing) {
+      await db.update(articleReactions).set({ kind }).where(eq(articleReactions.id, existing.id));
+    } else {
+      await db.insert(articleReactions).values({ articleId: article.id, kind, visitorHash });
+    }
+    return c.json(ok(await reactionSummary(article.id, visitorHash)));
   });
 
   app.get("/public/wordpress", async (c) => {

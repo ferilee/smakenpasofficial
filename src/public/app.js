@@ -2667,9 +2667,74 @@ async function articlePage(slug) {
     <section><div class="container article-container">
       ${cover ? `<img class="article-cover" src="${esc(cover)}" alt="${esc(article.title)}">` : ""}
       <article class="prose markdown-content article-body">${renderMarkdownBlock(article.content || "")}</article>
+      <div class="reaction-bar" data-reactions data-slug="${esc(article.slug)}">
+        <p class="reaction-title">Berikan reaksimu untuk berita ini</p>
+        <div class="reaction-buttons">
+          ${REACTION_KINDS.map((item) => `<button type="button" class="reaction-btn" data-reaction="${item.kind}" aria-pressed="false"><span class="reaction-emoji" aria-hidden="true">${item.emoji}</span> ${item.label} <span class="reaction-count" data-count="${item.kind}">0</span></button>`).join("")}
+        </div>
+      </div>
       <p class="article-back"><a class="btn ghost" href="/berita">&larr; Semua Berita</a></p>
     </div></section>
   </main>`, data);
+}
+
+const REACTION_KINDS = [
+  { kind: "suka", emoji: "👍", label: "Suka" },
+  { kind: "bangga", emoji: "❤️", label: "Bangga" },
+  { kind: "hebat", emoji: "👏", label: "Hebat" }
+];
+
+function reactionVisitorId() {
+  const key = "websmakenpas-visitor";
+  let value = "";
+  try { value = localStorage.getItem(key) || ""; } catch { value = ""; }
+  if (!/^[A-Za-z0-9-]{16,80}$/.test(value)) {
+    value = typeof crypto !== "undefined" && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `v-${Date.now()}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
+    try { localStorage.setItem(key, value); } catch { /* penyimpanan tidak tersedia */ }
+  }
+  return value;
+}
+
+async function setupReactions() {
+  const bar = document.querySelector("[data-reactions]");
+  if (!bar) return;
+  const slug = bar.dataset.slug || "";
+  const visitor = reactionVisitorId();
+  const buttons = [...bar.querySelectorAll("[data-reaction]")];
+  const apply = (summary) => {
+    if (!summary) return;
+    buttons.forEach((button) => {
+      const kind = button.dataset.reaction;
+      const countEl = button.querySelector(`[data-count="${kind}"]`);
+      if (countEl) countEl.textContent = String(summary.counts?.[kind] ?? 0);
+      const active = summary.mine === kind;
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-pressed", active ? "true" : "false");
+    });
+  };
+  try {
+    apply(await api(`/api/public/articles/${encodeURIComponent(slug)}/reactions?visitor=${encodeURIComponent(visitor)}`));
+  } catch { /* hitungan reaksi gagal dimuat; tombol tetap bisa dipakai */ }
+  let busy = false;
+  buttons.forEach((button) => button.addEventListener("click", async () => {
+    if (busy) return;
+    busy = true;
+    buttons.forEach((item) => { item.disabled = true; });
+    try {
+      apply(await api(`/api/public/articles/${encodeURIComponent(slug)}/reactions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ kind: button.dataset.reaction, visitor })
+      }));
+    } catch (error) {
+      notify(error.message || "Reaksi gagal disimpan.", "error");
+    } finally {
+      busy = false;
+      buttons.forEach((item) => { item.disabled = false; });
+    }
+  }));
 }
 
 async function beritaPage() {
@@ -3016,6 +3081,7 @@ async function render() {
     setupTestimonialCarousel();
     setupManagementModal();
     setupAnnouncementModal();
+    setupReactions();
     setupAuthUi();
     refreshNavBadges();
     document.querySelectorAll("[data-theme-toggle]").forEach((button) => button.addEventListener("click", toggleTheme));

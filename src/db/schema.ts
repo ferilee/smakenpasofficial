@@ -157,6 +157,14 @@ export const articles = sqliteTable("articles", {
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`)
 });
 
+export const articleReactions = sqliteTable("article_reactions", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  articleId: integer("article_id").notNull().references(() => articles.id, { onDelete: "cascade" }),
+  kind: text("kind").notNull(),
+  visitorHash: text("visitor_hash").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`)
+});
+
 export const studentInfos = sqliteTable("student_infos", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   title: text("title").notNull(),
