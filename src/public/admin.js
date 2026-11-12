@@ -6,7 +6,8 @@ const resources = {
   teachers: { title: "Guru & Tendik", path: "/api/teachers", fields: ["name", "photoUrl", "position", "subject", "expertise", "status"] },
   facilities: { title: "Fasilitas", path: "/api/facilities", fields: ["name", "description", "imageUrl", "isFeatured"] },
   galleries: { title: "Galeri", path: "/api/galleries", fields: ["title", "slug", "category", "description", "coverUrl", "albumUrl", "showOnHome"] },
-  agendas: { title: "Agenda", path: "/api/agendas", fields: ["title", "startDate", "endDate", "location", "description", "status"] },
+  agendas: { title: "Agenda", path: "/api/agendas", fields: ["title", "startDate", "endDate", "location", "description", "status", "registrationEnabled", "registrationSchools"] },
+  agendaRegistrations: { title: "Pendaftar Agenda", path: "/api/agenda-registrations", fields: ["agendaId", "schoolName", "participantName"] },
   announcements: { title: "Pengumuman", path: "/api/announcements", fields: ["title", "content", "isPriority", "attachmentUrl", "status", "publishedAt"] },
   articles: { title: "Berita", path: "/api/articles", fields: ["title", "slug", "excerpt", "content", "coverUrl", "status", "publishedAt"] },
   comments: { title: "Komentar Berita", path: "/api/comments", fields: ["name", "body", "status", "articleId"] },
@@ -53,6 +54,7 @@ const adminMenuGroups = [
       ["articles", resources.articles.title],
       ["comments", resources.comments.title],
       ["agendas", resources.agendas.title],
+      ["agendaRegistrations", resources.agendaRegistrations.title],
       ["announcements", resources.announcements.title],
       ["downloads", resources.downloads.title],
       ["upload", "Upload File"]
@@ -109,6 +111,7 @@ const editorFeatureLabels = {
   announcements: "Pengumuman Umum",
   articles: "Berita",
   comments: "Komentar Berita",
+  agendaRegistrations: "Pendaftar Agenda",
   downloads: "File Unduhan",
   studentInfos: "Info Siswa",
   studentServices: "Layanan Siswa",
@@ -394,6 +397,11 @@ async function api(path, options = {}) {
 function fieldLabel(field) {
   if (field === "body") return "Isi Komentar";
   if (field === "articleId") return "ID Artikel";
+  if (field === "agendaId") return "ID Agenda";
+  if (field === "schoolName") return "Nama Sekolah";
+  if (field === "participantName") return "Nama Peserta";
+  if (field === "registrationEnabled") return "Aktifkan Pendaftaran Delegasi Peserta";
+  if (field === "registrationSchools") return "Daftar Sekolah Pilihan (satu per baris)";
   if (field === "profileCompleted") return "Profil Lengkap";
   if (field === "lastLoginAt") return "Login Terakhir";
   if (field === "districtName") return "Kecamatan";
@@ -431,7 +439,7 @@ function userProfileInfo(row) {
 }
 
 function isBooleanField(field) {
-  return ["isFeatured", "showOnHome", "isPriority", "isActive"].includes(field);
+  return ["isFeatured", "showOnHome", "isPriority", "isActive", "registrationEnabled"].includes(field);
 }
 
 function markdownField(field, value, { rows = 8, hint = "", label = fieldLabel(field) } = {}) {
@@ -536,6 +544,9 @@ function formFields(config, item = {}) {
     }
     if (field === "body") {
       return `<div class="field"><label>${fieldLabel(field)}</label><textarea name="${field}" rows="4">${value}</textarea></div>`;
+    }
+    if (field === "registrationSchools") {
+      return `<div class="field"><label>${fieldLabel(field)}</label><textarea name="${field}" rows="7" placeholder="Satu nama sekolah per baris">${value}</textarea><p class="hint">Nama sekolah pada daftar ini menjadi pilihan dropdown formulir delegasi peserta di halaman agenda.</p></div>`;
     }
     if (["description", "content", "competencies", "careerProspects", "practiceFacilities", "achievements", "message", "subtitle", "complaint", "expectation", "mission"].includes(field)) {
       const hint = field === "mission" ? '<p class="hint">Satu poin per baris. Contoh: 1. ... lalu baris baru untuk poin berikutnya.</p>' : "";
@@ -1255,10 +1266,10 @@ async function resourcePage(key) {
   const rowMarkup = (row) => {
     const title = key === "users"
       ? `${row.name || row.username || "-"} (${row.role || "-"})`
-      : row.name || row.title || row.username || row.subject || "-";
+      : row.name || row.title || row.participantName || row.username || row.subject || "-";
     const info = key === "users"
       ? userProfileInfo(row)
-      : String(row.description || row.content || row.body || row.position || row.category || row.email || row.status || "").slice(0, 120);
+      : String(row.description || row.content || row.body || row.schoolName || row.position || row.category || row.email || row.status || "").slice(0, 120);
     return `
           <tr data-resource-row data-search="${esc([row.name, row.position, row.subject, row.expertise, row.status, row.email, row.whatsapp, row.districtName, row.villageName].filter(Boolean).join(" ").toLowerCase())}">
             <td>${row.id}</td>
@@ -1280,6 +1291,7 @@ async function resourcePage(key) {
       <div class="toolbar-actions">
         ${key === "teachers" ? '<button class="btn ghost" id="open-template-sheet">Template Google Sheets</button><button class="btn secondary" id="import-sheet">Import Google Sheets</button>' : ""}
         ${key === "complaints" ? `<select id="complaint-status-filter" class="admin-filter"><option value="all" ${complaintStatusFilter === "all" ? "selected" : ""}>Semua Status</option><option value="new" ${complaintStatusFilter === "new" ? "selected" : ""}>Baru</option><option value="reviewed" ${complaintStatusFilter === "reviewed" ? "selected" : ""}>Ditinjau</option><option value="resolved" ${complaintStatusFilter === "resolved" ? "selected" : ""}>Selesai</option></select>` : ""}
+        ${key === "agendaRegistrations" ? '<button class="btn ghost" type="button" data-export-registrations>Unduh CSV</button>' : ""}
         <button class="btn" id="add">Tambah</button>
       </div>
     </div>
@@ -1332,6 +1344,24 @@ function setupAdminActions() {
   if (adminActionsBound) return;
   adminActionsBound = true;
   document.addEventListener("click", async (event) => {
+    const exportButton = event.target instanceof Element ? event.target.closest("button[data-export-registrations]") : null;
+    if (exportButton) {
+      try {
+        const res = await fetch("/api/agenda-registrations/export");
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "pendaftar-agenda.csv";
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(url), 4000);
+        notify("CSV pendaftar berhasil diunduh.");
+      } catch (error) {
+        notify(error.message || "Gagal mengunduh CSV.", "error");
+      }
+      return;
+    }
     const target = event.target instanceof Element ? event.target.closest("button[data-edit], button[data-view], button[data-approve], button[data-read], button[data-delete], #add") : null;
     if (!target) return;
     const key = active;

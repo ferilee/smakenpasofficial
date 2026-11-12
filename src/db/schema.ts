@@ -132,6 +132,16 @@ export const agendas = sqliteTable("agendas", {
   location: text("location").notNull().default(""),
   description: text("description").notNull().default(""),
   status: text("status").notNull().default("scheduled"),
+  registrationEnabled: integer("registration_enabled", { mode: "boolean" }).notNull().default(false),
+  registrationSchools: text("registration_schools").notNull().default(""),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`)
+});
+
+export const agendaRegistrations = sqliteTable("agenda_registrations", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  agendaId: integer("agenda_id").notNull().references(() => agendas.id, { onDelete: "cascade" }),
+  schoolName: text("school_name").notNull().default(""),
+  participantName: text("participant_name").notNull().default(""),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`)
 });
 

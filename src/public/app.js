@@ -1128,6 +1128,28 @@ function agendaListSection(agendas = []) {
         <div class="agenda-modal-list" data-agenda-list-content></div>
       </article>
     </div>
+    <div class="agenda-modal registration-modal" data-registration-modal hidden>
+      <div class="agenda-modal-backdrop" data-registration-close></div>
+      <article class="agenda-modal-box" role="dialog" aria-modal="true" aria-labelledby="registration-modal-title">
+        <button class="agenda-modal-close" type="button" data-registration-close aria-label="Tutup">&times;</button>
+        <p class="agenda-modal-date">Formulir Delegasi Peserta</p>
+        <h3 id="registration-modal-title" data-registration-title>Daftar Delegasi Peserta</h3>
+        <form data-registration-form>
+          <div class="field">
+            <label for="registration-school">Nama Sekolah</label>
+            <select id="registration-school" name="schoolName" required data-registration-school>
+              <option value="">— Pilih sekolah —</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="registration-name">Nama Peserta</label>
+            <input id="registration-name" name="participantName" required minlength="3" maxlength="80" placeholder="Nama lengkap peserta" autocomplete="name">
+          </div>
+          <p class="hint">Nama peserta yang terdaftar akan tampil pada daftar Peserta Terdaftar di detail agenda ini.</p>
+          <button class="btn" type="submit">Kirim Pendaftaran</button>
+        </form>
+      </article>
+    </div>
     <script type="application/json" id="agenda-list-data">${JSON.stringify(items).replace(/</g, "\\u003c")}</script>
   </section>`;
 }
@@ -1808,7 +1830,47 @@ function setupAgendaList() {
 
   const agendas = JSON.parse(payload.textContent || "[]");
   const byId = new Map(agendas.map((item) => [String(item.id), item]));
+  const regModal = document.querySelector("[data-registration-modal]");
+  const regForm = regModal?.querySelector("[data-registration-form]");
+  const regSchool = regModal?.querySelector("[data-registration-school]");
+  const regTitle = regModal?.querySelector("[data-registration-title]");
+  let currentAgendaId = null;
+  let refreshTimer = null;
+
+  const renderRegistrations = (data) => {
+    const summaryEl = modalContent.querySelector("[data-registration-summary]");
+    const listEl = modalContent.querySelector("[data-registration-list]");
+    if (!summaryEl || !listEl || !data) return;
+    summaryEl.textContent = `${data.totalParticipants} peserta terdaftar dari ${data.totalSchools} sekolah. Daftar diperbarui otomatis.`;
+    if (!data.items?.length) {
+      listEl.innerHTML = '<p class="empty">Belum ada peserta yang terdaftar.</p>';
+      return;
+    }
+    const groups = new Map();
+    data.items.forEach((row) => {
+      if (!groups.has(row.schoolName)) groups.set(row.schoolName, []);
+      groups.get(row.schoolName).push(row.participantName);
+    });
+    listEl.innerHTML = [...groups.entries()].map(([school, names]) => `
+      <div class="registration-group">
+        <p class="registration-school"><strong>${esc(school)}</strong> <span>${names.length} peserta</span></p>
+        <ul>${names.map((name) => `<li>${esc(name)}</li>`).join("")}</ul>
+      </div>`).join("");
+  };
+  const loadRegistrations = async () => {
+    if (!currentAgendaId) return;
+    try {
+      renderRegistrations(await api(`/api/public/agendas/${encodeURIComponent(currentAgendaId)}/registrations`));
+    } catch {
+      const summaryEl = modalContent.querySelector("[data-registration-summary]");
+      if (summaryEl) summaryEl.textContent = "Daftar peserta gagal dimuat.";
+    }
+  };
+  const stopRefresh = () => {
+    if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
+  };
   const closeModal = () => {
+    stopRefresh();
     modal.classList.remove("open");
     setTimeout(() => {
       if (!modal.classList.contains("open")) modal.hidden = true;
@@ -1817,6 +1879,7 @@ function setupAgendaList() {
   const openModal = (id) => {
     const item = byId.get(String(id));
     if (!item) return;
+    currentAgendaId = item.id;
     const start = dateId(item.startDate);
     const end = item.endDate ? dateId(item.endDate) : "";
     modalDate.textContent = end ? `${start} - ${end}` : start;
@@ -1830,10 +1893,64 @@ function setupAgendaList() {
         <h4>Deskripsi</h4>
         <div class="markdown-content">${renderMarkdownBlock(item.description || "-")}</div>
       </div>
-      ${item.status ? `<div class="agenda-modal-item"><h4>Status</h4><p><span class="badge">${esc(item.status)}</span></p></div>` : ""}`;
+      ${item.status ? `<div class="agenda-modal-item"><h4>Status</h4><p><span class="badge">${esc(item.status)}</span></p></div>` : ""}
+      ${item.registrationEnabled ? `
+      <div class="agenda-modal-item registration-block">
+        <h4>Peserta Terdaftar</h4>
+        <p data-registration-summary>Memuat daftar peserta…</p>
+        <div data-registration-list></div>
+        <button class="btn" type="button" data-registration-open>Daftar sebagai Delegasi Peserta</button>
+      </div>` : ""}`;
     modal.hidden = false;
     requestAnimationFrame(() => modal.classList.add("open"));
+    if (item.registrationEnabled) {
+      loadRegistrations();
+      stopRefresh();
+      refreshTimer = setInterval(loadRegistrations, 30000);
+    }
   };
+
+  const closeRegModal = () => {
+    if (!regModal) return;
+    regModal.classList.remove("open");
+    setTimeout(() => {
+      if (!regModal.classList.contains("open")) regModal.hidden = true;
+    }, 220);
+  };
+  const openRegModal = () => {
+    const item = byId.get(String(currentAgendaId));
+    if (!item || !regModal || !regSchool) return;
+    if (regTitle) regTitle.textContent = `Daftar Delegasi Peserta — ${item.title || "Agenda"}`;
+    const schools = String(item.registrationSchools || "").split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+    regSchool.innerHTML = '<option value="">— Pilih sekolah —</option>' + schools.map((name) => `<option value="${esc(name)}">${esc(name)}</option>`).join("");
+    regModal.hidden = false;
+    requestAnimationFrame(() => regModal.classList.add("open"));
+  };
+  modalContent.addEventListener("click", (event) => {
+    if (event.target instanceof Element && event.target.closest("[data-registration-open]")) openRegModal();
+  });
+  regModal?.querySelectorAll("[data-registration-close]").forEach((button) => button.addEventListener("click", closeRegModal));
+  regForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const data = Object.fromEntries(new FormData(regForm));
+    const submitButton = regForm.querySelector('button[type="submit"]');
+    if (submitButton) submitButton.disabled = true;
+    try {
+      await api(`/api/public/agendas/${encodeURIComponent(currentAgendaId)}/registrations`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data)
+      });
+      regForm.reset();
+      closeRegModal();
+      await loadRegistrations();
+      notify("Pendaftaran berhasil. Nama peserta sudah tampil pada daftar peserta terdaftar.");
+    } catch (error) {
+      notify(error.message || "Pendaftaran gagal dikirim.", "error");
+    } finally {
+      if (submitButton) submitButton.disabled = false;
+    }
+  });
 
   document.querySelectorAll("[data-agenda-open]").forEach((button) => {
     button.addEventListener("click", () => openModal(button.dataset.agendaOpen));
@@ -1850,7 +1967,9 @@ function setupAgendaList() {
   });
   modal.querySelectorAll("[data-agenda-list-close]").forEach((button) => button.addEventListener("click", closeModal));
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape" && modal.classList.contains("open")) closeModal();
+    if (event.key !== "Escape") return;
+    if (regModal && !regModal.hidden && regModal.classList.contains("open")) closeRegModal();
+    else if (modal.classList.contains("open")) closeModal();
   });
 }
 

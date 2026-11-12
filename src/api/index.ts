@@ -5,6 +5,7 @@ import { getCookie, setCookie } from "hono/cookie";
 import { db } from "../db/client";
 import { sqlite } from "../db/client";
 import {
+  agendaRegistrations,
   agendas,
   announcements,
   articleComments,
@@ -65,7 +66,7 @@ const lumajangDistrictFallback = [
 ];
 const editorFeatureKeys = [
   "settings", "profile", "banners", "majors", "teachers", "facilities", "galleries", "galleryItems",
-  "agendas", "announcements", "articles", "comments", "studentInfos", "studentServices", "studentAnnouncements", "studentAgendas",
+  "agendas", "announcements", "articles", "comments", "agendaRegistrations", "studentInfos", "studentServices", "studentAnnouncements", "studentAgendas",
   "downloads", "messages", "complaints", "testimonials", "upload"
 ] as const;
 
@@ -75,7 +76,8 @@ const tableFields = {
   facilities: ["name", "description", "imageUrl", "isFeatured"],
   galleries: ["title", "slug", "category", "description", "coverUrl", "albumUrl", "showOnHome"],
   galleryItems: ["galleryId", "type", "title", "fileUrl", "youtubeUrl", "isFeatured"],
-  agendas: ["title", "startDate", "endDate", "location", "description", "status"],
+  agendas: ["title", "startDate", "endDate", "location", "description", "status", "registrationEnabled", "registrationSchools"],
+  agendaRegistrations: ["agendaId", "schoolName", "participantName"],
   announcements: ["title", "content", "isPriority", "attachmentUrl", "status", "publishedAt"],
   articles: ["title", "slug", "excerpt", "content", "coverUrl", "status", "publishedAt"],
   comments: ["articleId", "userId", "name", "body", "status"],
@@ -726,6 +728,59 @@ export function apiRoutes() {
     await db.select().from(agendas).where(isScheduledAgenda).orderBy(asc(agendas.startDate))
   )));
 
+  function registrationSchoolsList(agenda: any) {
+    return String(agenda?.registrationSchools || "").split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  }
+  async function registrationAgenda(id: number) {
+    const agenda = await db.select().from(agendas).where(and(eq(agendas.id, id), isScheduledAgenda)).get();
+    if (!agenda || !agenda.registrationEnabled) return null;
+    return agenda;
+  }
+  app.get("/public/agendas/:id/registrations", async (c) => {
+    const agenda = await registrationAgenda(Number(c.req.param("id") || 0));
+    if (!agenda) return c.json(fail("Pendaftaran tidak tersedia untuk agenda ini.", 404), 404);
+    const rows = await db.select({
+      id: agendaRegistrations.id,
+      schoolName: agendaRegistrations.schoolName,
+      participantName: agendaRegistrations.participantName,
+      createdAt: agendaRegistrations.createdAt
+    }).from(agendaRegistrations).where(eq(agendaRegistrations.agendaId, agenda.id))
+      .orderBy(asc(agendaRegistrations.schoolName), asc(agendaRegistrations.participantName));
+    return c.json(ok({
+      agendaId: agenda.id,
+      schools: registrationSchoolsList(agenda),
+      totalParticipants: rows.length,
+      totalSchools: new Set(rows.map((row) => row.schoolName)).size,
+      items: rows
+    }));
+  });
+  app.post("/public/agendas/:id/registrations", async (c) => {
+    const agenda = await registrationAgenda(Number(c.req.param("id") || 0));
+    if (!agenda) return c.json(fail("Pendaftaran tidak tersedia untuk agenda ini.", 404), 404);
+    const body = await c.req.json().catch(() => ({})) as Record<string, unknown>;
+    const schools = registrationSchoolsList(agenda);
+    const schoolInput = String(body.schoolName || "").trim();
+    const school = schools.find((name) => name.toLowerCase() === schoolInput.toLowerCase());
+    if (!school) return c.json(fail("Nama sekolah harus dipilih dari daftar yang tersedia.", 400), 400);
+    const participant = String(body.participantName || "").trim().replace(/\s+/g, " ");
+    if (participant.length < 3 || participant.length > 80 || !/[A-Za-z]/.test(participant)) {
+      return c.json(fail("Nama peserta tidak valid (3-80 karakter).", 400), 400);
+    }
+    const existing = await db.select().from(agendaRegistrations).where(eq(agendaRegistrations.agendaId, agenda.id));
+    if (existing.some((row) => row.schoolName.toLowerCase() === school.toLowerCase() && row.participantName.toLowerCase() === participant.toLowerCase())) {
+      return c.json(fail("Nama peserta ini sudah terdaftar dari sekolah tersebut.", 409), 409);
+    }
+    if (existing.filter((row) => row.schoolName === school).length >= 50) {
+      return c.json(fail("Kuota pendaftaran dari sekolah ini sudah penuh.", 400), 400);
+    }
+    const row = ((await db.insert(agendaRegistrations).values({
+      agendaId: agenda.id,
+      schoolName: school,
+      participantName: participant
+    }).returning()) as unknown as any[])[0];
+    return c.json(ok({ id: row?.id, schoolName: school, participantName: participant }), 201);
+  });
+
   app.get("/public/student-infos", async (c) => c.json(ok(
     await db.select().from(studentInfos).where(isActiveStudentInfo).orderBy(desc(studentInfos.publishedAt))
   )));
@@ -1019,6 +1074,23 @@ export function apiRoutes() {
   crud(app, "/announcements", announcements as never, "announcements", true);
   crud(app, "/articles", articles as never, "articles", true);
   crud(app, "/comments", articleComments as never, "comments", true);
+  app.get("/agenda-registrations/export", requireFeature("agendaRegistrations"), async (c) => {
+    const agendaId = Number(c.req.query("agendaId") || 0);
+    const allAgendas = await db.select().from(agendas);
+    const titleById = new Map(allAgendas.map((agenda) => [agenda.id, agenda.title]));
+    let rows = await db.select().from(agendaRegistrations).orderBy(asc(agendaRegistrations.agendaId), asc(agendaRegistrations.schoolName), asc(agendaRegistrations.participantName));
+    if (agendaId) rows = rows.filter((row) => row.agendaId === agendaId);
+    const cell = (value: unknown) => `"${String(value ?? "").replace(/"/g, '""')}"`;
+    const csv = ["Agenda,Nama Sekolah,Nama Peserta,Waktu Daftar",
+      ...rows.map((row) => [cell(titleById.get(row.agendaId) || row.agendaId), cell(row.schoolName), cell(row.participantName), cell(row.createdAt)].join(","))].join("\r\n");
+    return new Response(`\ufeff${csv}`, {
+      headers: {
+        "Content-Type": "text/csv; charset=utf-8",
+        "Content-Disposition": `attachment; filename="pendaftar-agenda${agendaId ? `-${agendaId}` : ""}.csv"`
+      }
+    });
+  });
+  crud(app, "/agenda-registrations", agendaRegistrations as never, "agendaRegistrations", true);
   crud(app, "/student-infos", studentInfos as never, "studentInfos", true);
   crud(app, "/student-services", studentServices as never, "studentServices", true);
   crud(app, "/student-announcements", studentAnnouncements as never, "studentAnnouncements", true);

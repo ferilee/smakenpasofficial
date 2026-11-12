@@ -1233,6 +1233,17 @@ section { padding: 58px 0; }
 .comment-form textarea { width: 100%; padding: 12px 14px; border: 1px solid var(--line, #e2e8f0); border-radius: 10px; font: inherit; margin-bottom: 12px; }
 .comment-as { color: var(--muted, #64748b); font-size: 14px; }
 .comment-sent { padding: 14px 18px; border-radius: 12px; background: #ecfdf5; border: 1px solid #a7f3d0; }
+.registration-modal { z-index: 80; }
+.registration-block [data-registration-open] { margin-top: 14px; }
+.registration-group { padding: 10px 0; border-top: 1px solid var(--line, #e2e8f0); }
+.registration-school { margin: 0 0 6px; }
+.registration-school span { color: var(--muted, #64748b); font-size: 13px; font-weight: 400; }
+.registration-group ul { margin: 0; padding-left: 20px; line-height: 1.6; }
+.registration-modal .field { margin-bottom: 14px; display: grid; gap: 6px; }
+.registration-modal .field label { font-weight: 600; }
+.registration-modal .field select,
+.registration-modal .field input { padding: 11px 13px; border: 1px solid var(--line, #e2e8f0); border-radius: 10px; font: inherit; width: 100%; }
+.registration-modal .hint { color: var(--muted, #64748b); font-size: 13.5px; }
 .article-back { margin-top: 28px; }
 .facility-card { overflow: hidden; }
 .facility-image { width: 100%; height: 180px; object-fit: cover; display: block; border-radius: 10px; margin-bottom: 12px; }

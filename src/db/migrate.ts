@@ -9,7 +9,8 @@ const statements = [
   `CREATE TABLE IF NOT EXISTS facilities (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, description TEXT NOT NULL DEFAULT '', image_url TEXT NOT NULL DEFAULT '', is_featured INTEGER NOT NULL DEFAULT 0)`,
   `CREATE TABLE IF NOT EXISTS galleries (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, slug TEXT NOT NULL UNIQUE, category TEXT NOT NULL DEFAULT 'Kegiatan', description TEXT NOT NULL DEFAULT '', cover_url TEXT NOT NULL DEFAULT '', album_url TEXT NOT NULL DEFAULT '', show_on_home INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`,
   `CREATE TABLE IF NOT EXISTS gallery_items (id INTEGER PRIMARY KEY AUTOINCREMENT, gallery_id INTEGER NOT NULL REFERENCES galleries(id) ON DELETE CASCADE, type TEXT NOT NULL DEFAULT 'image', title TEXT NOT NULL DEFAULT '', file_url TEXT NOT NULL DEFAULT '', youtube_url TEXT NOT NULL DEFAULT '', is_featured INTEGER NOT NULL DEFAULT 0)`,
-  `CREATE TABLE IF NOT EXISTS agendas (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, start_date TEXT NOT NULL, end_date TEXT NOT NULL DEFAULT '', location TEXT NOT NULL DEFAULT '', description TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'scheduled', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`,
+  `CREATE TABLE IF NOT EXISTS agendas (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, start_date TEXT NOT NULL, end_date TEXT NOT NULL DEFAULT '', location TEXT NOT NULL DEFAULT '', description TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'scheduled', registration_enabled INTEGER NOT NULL DEFAULT 0, registration_schools TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`,
+  `CREATE TABLE IF NOT EXISTS agenda_registrations (id INTEGER PRIMARY KEY AUTOINCREMENT, agenda_id INTEGER NOT NULL REFERENCES agendas(id) ON DELETE CASCADE, school_name TEXT NOT NULL DEFAULT '', participant_name TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`,
   `CREATE TABLE IF NOT EXISTS announcements (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, content TEXT NOT NULL DEFAULT '', is_priority INTEGER NOT NULL DEFAULT 0, attachment_url TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'active', published_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`,
   `CREATE TABLE IF NOT EXISTS articles (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, slug TEXT NOT NULL UNIQUE, excerpt TEXT NOT NULL DEFAULT '', content TEXT NOT NULL DEFAULT '', cover_url TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'draft', published_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`,
   `CREATE TABLE IF NOT EXISTS article_reactions (id INTEGER PRIMARY KEY AUTOINCREMENT, article_id INTEGER NOT NULL REFERENCES articles(id) ON DELETE CASCADE, kind TEXT NOT NULL, visitor_hash TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, UNIQUE(article_id, visitor_hash))`,
@@ -29,6 +30,13 @@ const statements = [
 export function migrate() {
   const transaction = sqlite.transaction(() => {
     for (const statement of statements) sqlite.run(statement);
+    const agendaColumns = sqlite.prepare("PRAGMA table_info(agendas)").all() as { name: string }[];
+    if (!agendaColumns.some((column) => column.name === "registration_enabled")) {
+      sqlite.run("ALTER TABLE agendas ADD COLUMN registration_enabled INTEGER NOT NULL DEFAULT 0");
+    }
+    if (!agendaColumns.some((column) => column.name === "registration_schools")) {
+      sqlite.run("ALTER TABLE agendas ADD COLUMN registration_schools TEXT NOT NULL DEFAULT ''");
+    }
     const columns = sqlite.prepare("PRAGMA table_info(users)").all() as { name: string }[];
     if (!columns.some((column) => column.name === "username")) {
       sqlite.run("ALTER TABLE users ADD COLUMN username TEXT NOT NULL DEFAULT ''");
