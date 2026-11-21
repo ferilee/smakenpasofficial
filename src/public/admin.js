@@ -123,6 +123,23 @@ const editorFeatureLabels = {
   upload: "Upload File"
 };
 
+const editorGroups = [
+  { key: "humas", label: "Waka Humas" },
+  { key: "kurikulum", label: "Waka Kurikulum" },
+  { key: "kesiswaan", label: "Waka Kesiswaan" },
+  { key: "sarpras", label: "Waka Sarpras" },
+  { key: "konsentrasi", label: "Ketua Konsentrasi Keahlian" },
+  { key: "tu", label: "Tata Usaha" }
+];
+
+const editorGroupLabels = Object.fromEntries(editorGroups.map((group) => [group.key, group.label]));
+
+// Resource berstatus publikasi yang bagi editor terkunci ke Draf.
+const editorDraftLockedPaths = new Set([
+  "/api/articles", "/api/announcements", "/api/student-infos",
+  "/api/student-announcements", "/api/agendas", "/api/student-agendas"
+]);
+
 const statsLabels = {
   majors: "Program Keahlian",
   teachers: "Guru & Tendik",
@@ -490,6 +507,11 @@ function formFields(config, item = {}) {
                   ? [["pending", "Pending"], ["approved", "Approved"], ["rejected", "Rejected"]]
                   : [];
       if (statusOptions.length) {
+        if (currentAdminUser?.role === "editor" && editorDraftLockedPaths.has(config.path)) {
+          return `<div class="field"><label>${fieldLabel(field)}</label><select name="${field}" disabled>
+            <option value="draft" selected>Draf</option>
+          </select><p class="hint">Editor hanya dapat menyimpan Draf — penerbitan dilakukan Admin.</p></div>`;
+        }
         const fallback = statusOptions[0][0];
         return `<div class="field"><label>${fieldLabel(field)}</label><select name="${field}">
           ${statusOptions.map(([optionValue, label]) => `<option value="${optionValue}" ${selected === optionValue || (!selected && optionValue === fallback) ? "selected" : ""}>${label}</option>`).join("")}
@@ -521,11 +543,21 @@ function formFields(config, item = {}) {
     }
     if (field === "role") {
       const selected = String(item[field] || "admin");
+      const groupSelected = String(item.editorGroup || "");
+      const majorSelected = Number(item.majorId || 0);
+      const editorHidden = selected === "editor" ? "" : " hidden";
       return `<div class="field"><label>${fieldLabel(field)}</label><select name="${field}">
         <option value="admin" ${selected === "admin" ? "selected" : ""}>Admin</option>
         <option value="editor" ${selected === "editor" ? "selected" : ""}>Editor</option>
         <option value="user" ${selected === "user" ? "selected" : ""}>User Publik</option>
-      </select><p class="hint">Admin dan Editor dapat masuk panel admin. User Publik hanya untuk login website.</p></div>`;
+      </select><p class="hint">Admin dan Editor dapat masuk panel admin. User Publik hanya untuk login website.</p></div>
+      <div class="field" data-editor-group-field${editorHidden}><label>Kelompok Editor</label><select name="editorGroup">
+        <option value="" ${groupSelected === "" ? "selected" : ""}>Tanpa kelompok (izin umum)</option>
+        ${editorGroups.map((group) => `<option value="${group.key}" ${groupSelected === group.key ? "selected" : ""}>${group.label}</option>`).join("")}
+      </select><p class="hint">Izin fitur editor mengikuti kelompoknya. Tanpa kelompok, editor memakai izin umum di menu Akses Editor.</p></div>
+      <div class="field" data-editor-major-field${editorHidden}><label>Konsentrasi Keahlian</label><select name="majorId" data-major-select data-selected="${majorSelected}">
+        <option value="0" ${majorSelected === 0 ? "selected" : ""}>Tidak dibatasi</option>
+      </select><p class="hint">Khusus Ketua Konsentrasi Keahlian: editor hanya dapat melihat dan menyunting jurusan ini.</p></div>`;
     }
     if (isBooleanField(field)) {
       return `<div class="field"><label><input type="checkbox" name="${field}" ${item[field] ? "checked" : ""}> ${fieldLabel(field)}</label></div>`;
@@ -886,7 +918,7 @@ async function dashboardView() {
           </button>
           <div>
             <strong>Dashboard Admin</strong>
-            <span>${currentAdminUser.role === "editor" ? "Editor - akses terbatas" : "Admin - akses penuh"}</span>
+            <span>${currentAdminUser.role === "editor" ? `Editor${editorGroupLabels[currentAdminUser.editorGroup] ? ` ${editorGroupLabels[currentAdminUser.editorGroup]}` : ""} - akses terbatas` : "Admin - akses penuh"}</span>
           </div>
         </header>
         <section id="main"></section>
@@ -1046,29 +1078,61 @@ function editorPermissionGroups() {
 
 async function editorAccessPage() {
   const data = await api("/api/editor-permissions");
-  const selected = new Set(data.permissions || []);
+  const groups = Array.isArray(data.groups) && data.groups.length ? data.groups : editorGroups;
+  const state = {
+    permissions: [...(data.permissions || [])],
+    groupPermissions: JSON.parse(JSON.stringify(data.groupPermissions || {}))
+  };
+  let scope = "";
   document.querySelector("#main").innerHTML = `
     <div class="toolbar"><div><h1>Akses Editor</h1><p>Pilih fitur admin yang dapat dibuka dan dikelola oleh user dengan role Editor.</p></div></div>
     <form class="card form" id="editor-access-form">
-      <div class="editor-access-grid">
-        ${editorPermissionGroups().map((group) => `
-          <fieldset class="editor-access-group">
-            <legend>${esc(group.title)}</legend>
-            ${group.items.map(([key, label]) => `
-              <label class="editor-access-option">
-                <input type="checkbox" name="permissions" value="${esc(key)}" ${selected.has(key) ? "checked" : ""}>
-                <span>${esc(label)}</span>
-              </label>
-            `).join("")}
-          </fieldset>
-        `).join("")}
+      <div class="field">
+        <label>Cakupan Izin</label>
+        <select id="editor-access-scope">
+          <option value="">Umum (editor tanpa kelompok)</option>
+          ${groups.map((group) => `<option value="${esc(group.key)}">${esc(group.label)}</option>`).join("")}
+        </select>
+        <p class="hint">Editor yang tergabung dalam kelompok memakai izin kelompoknya. Editor tanpa kelompok memakai izin umum.</p>
       </div>
+      <div class="editor-access-grid" id="editor-access-grid"></div>
       <button class="btn">Simpan Akses Editor</button>
     </form>`;
-  document.querySelector("#editor-access-form").addEventListener("submit", async (event) => {
+  const form = document.querySelector("#editor-access-form");
+  const grid = document.querySelector("#editor-access-grid");
+  const scopeSelect = document.querySelector("#editor-access-scope");
+  const readChecked = () => [...grid.querySelectorAll('input[name="permissions"]:checked')].map((input) => input.value);
+  const stashScope = () => {
+    if (scope === "") state.permissions = readChecked();
+    else state.groupPermissions[scope] = readChecked();
+  };
+  const renderScope = () => {
+    const selected = new Set(scope === "" ? state.permissions : state.groupPermissions[scope] || []);
+    grid.innerHTML = editorPermissionGroups().map((group) => `
+      <fieldset class="editor-access-group">
+        <legend>${esc(group.title)}</legend>
+        ${group.items.map(([key, label]) => `
+          <label class="editor-access-option">
+            <input type="checkbox" name="permissions" value="${esc(key)}" ${selected.has(key) ? "checked" : ""}>
+            <span>${esc(label)}</span>
+          </label>
+        `).join("")}
+      </fieldset>
+    `).join("");
+  };
+  renderScope();
+  scopeSelect.addEventListener("change", () => {
+    stashScope();
+    scope = scopeSelect.value;
+    renderScope();
+  });
+  form.addEventListener("submit", async (event) => {
     event.preventDefault();
-    const permissions = [...event.target.querySelectorAll('input[name="permissions"]:checked')].map((input) => input.value);
-    await api("/api/editor-permissions", { method: "PUT", body: JSON.stringify({ permissions }) });
+    stashScope();
+    await api("/api/editor-permissions", {
+      method: "PUT",
+      body: JSON.stringify({ permissions: state.permissions, groupPermissions: state.groupPermissions })
+    });
     notify("Akses editor tersimpan.");
   });
 }
@@ -1822,11 +1886,35 @@ function openForm(key, item = {}) {
   const form = document.querySelector("#resource-form");
   setupMarkdownEditors(form);
   wireKnownImageUploadFields(form, item);
+  if (key === "users") {
+    const roleSelect = form.querySelector('[name="role"]');
+    const toggleEditorFields = () => {
+      const isEditor = roleSelect?.value === "editor";
+      form.querySelectorAll("[data-editor-group-field], [data-editor-major-field]").forEach((el) => { el.hidden = !isEditor; });
+    };
+    roleSelect?.addEventListener("change", toggleEditorFields);
+    toggleEditorFields();
+    const majorSelect = form.querySelector("[data-major-select]");
+    if (majorSelect) {
+      api("/api/majors").then((list) => {
+        const selectedMajor = Number(majorSelect.dataset.selected || 0);
+        const options = (Array.isArray(list) ? list : [])
+          .map((major) => `<option value="${major.id}" ${selectedMajor === Number(major.id) ? "selected" : ""}>${esc(major.name)}</option>`)
+          .join("");
+        majorSelect.innerHTML = `<option value="0" ${selectedMajor === 0 ? "selected" : ""}>Tidak dibatasi</option>${options}`;
+      }).catch(() => {});
+    }
+  }
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const method = item.id ? "PUT" : "POST";
     const path = item.id ? `${config.path}/${item.id}` : config.path;
-    await api(path, { method, body: JSON.stringify(formPayload(event.target, config.fields)) });
+    const payload = formPayload(event.target, config.fields);
+    if (key === "users") {
+      payload.editorGroup = String(form.querySelector('[name="editorGroup"]')?.value || "");
+      payload.majorId = Number(form.querySelector('[name="majorId"]')?.value || 0);
+    }
+    await api(path, { method, body: JSON.stringify(payload) });
     modal.classList.remove("open");
     await resourcePage(key);
     await updateMenuBadges();

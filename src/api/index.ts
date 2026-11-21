@@ -70,6 +70,22 @@ const editorFeatureKeys = [
   "downloads", "messages", "complaints", "testimonials", "upload"
 ] as const;
 
+const editorGroups = [
+  { key: "humas", label: "Waka Humas" },
+  { key: "kurikulum", label: "Waka Kurikulum" },
+  { key: "kesiswaan", label: "Waka Kesiswaan" },
+  { key: "sarpras", label: "Waka Sarpras" },
+  { key: "konsentrasi", label: "Ketua Konsentrasi Keahlian" },
+  { key: "tu", label: "Tata Usaha" }
+] as const;
+
+const editorGroupKeys: string[] = editorGroups.map((group) => group.key);
+
+// Resource yang punya status publikasi: editor hanya boleh menyimpan sebagai draft.
+const editorDraftOnlyResources = new Set([
+  "articles", "announcements", "studentInfos", "studentAnnouncements", "agendas", "studentAgendas"
+]);
+
 const tableFields = {
   majors: ["name", "slug", "fieldCategory", "profileMarkdown", "profileCtaLabel", "profileCtaUrl", "instagram", "tiktok", "facebook", "youtube", "description", "competencies", "careerProspects", "practiceFacilities", "productiveTeachers", "achievements", "imageUrl", "isFeatured"],
   teachers: ["name", "photoUrl", "position", "subject", "expertise", "status"],
@@ -357,6 +373,8 @@ async function currentUser(c: any) {
     username: users.username,
     email: users.email,
     role: users.role,
+    editorGroup: users.editorGroup,
+    majorId: users.majorId,
     address: users.address,
     districtId: users.districtId,
     districtName: users.districtName,
@@ -388,6 +406,36 @@ function normalizeRole(value: unknown) {
   return String(value || "").trim() === "editor" ? "editor" : "admin";
 }
 
+function normalizeEditorGroup(value: unknown) {
+  const key = String(value || "").trim();
+  return editorGroupKeys.includes(key) ? key : "";
+}
+
+function normalizeMajorId(value: unknown) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : 0;
+}
+
+function normalizeEditorGroupPermissions(value: unknown) {
+  const raw = typeof value === "string"
+    ? (() => {
+      try {
+        return JSON.parse(value);
+      } catch {
+        return null;
+      }
+    })()
+    : value;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {} as Record<string, string[]>;
+  const result: Record<string, string[]> = {};
+  for (const key of editorGroupKeys) {
+    if (Object.prototype.hasOwnProperty.call(raw, key)) {
+      result[key] = normalizeEditorPermissions((raw as Record<string, unknown>)[key]);
+    }
+  }
+  return result;
+}
+
 async function requireLoggedIn(c: any, next: any) {
   const user = await currentUser(c);
   if (!user) return c.json(fail("Sesi login tidak valid.", 401), 401);
@@ -400,12 +448,32 @@ async function getEditorPermissions() {
   return normalizeEditorPermissions((settings as any)?.editorPermissions);
 }
 
+async function getEditorGroupPermissions() {
+  const settings = await db.select().from(schoolSettings).get();
+  return normalizeEditorGroupPermissions((settings as any)?.editorGroupPermissions);
+}
+
+// Izin efektif seorang editor: set kelompoknya bila kelompok valid dan punya
+// entri di peta izin kelompok; selain itu fallback ke izin global lama.
+async function getEditorPermissionsForUser(user: any) {
+  if (user?.role === "editor") {
+    const group = normalizeEditorGroup((user as any).editorGroup);
+    if (group) {
+      const groupPermissions = await getEditorGroupPermissions();
+      if (Object.prototype.hasOwnProperty.call(groupPermissions, group)) {
+        return groupPermissions[group];
+      }
+    }
+  }
+  return getEditorPermissions();
+}
+
 async function requireAuthenticated(c: any, next: any) {
   const user = await currentUser(c);
   if (!user) return c.json(fail("Sesi admin tidak valid.", 401), 401);
   if (user.role !== "admin" && user.role !== "editor") return c.json(fail("Akses admin/editor diperlukan.", 403), 403);
   c.set("user", user);
-  c.set("editorPermissions", user.role === "admin" ? [...editorFeatureKeys] : await getEditorPermissions());
+  c.set("editorPermissions", user.role === "admin" ? [...editorFeatureKeys] : await getEditorPermissionsForUser(user));
   await next();
 }
 
@@ -418,7 +486,7 @@ function requireFeature(feature: string) {
       await next();
       return;
     }
-    const permissions = await getEditorPermissions();
+    const permissions = await getEditorPermissionsForUser(user);
     if (user.role !== "editor" || !permissions.includes(feature)) {
       return c.json(fail("Akses editor tidak diizinkan untuk fitur ini.", 403), 403);
     }
@@ -431,33 +499,75 @@ function requireFeature(feature: string) {
 function crud(app: Hono, path: string, table: AnyTable, resource: keyof typeof tableFields, adminOnly = true) {
   const guard = adminOnly ? requireFeature(String(resource)) : async (_c: any, next: any) => next();
 
+  // Editor kelompok konsentrasi yang terikat satu jurusan (majorId > 0):
+  // ia hanya boleh melihat dan menyunting jurusannya sendiri.
+  async function scopedMajorId(c: any): Promise<number | null> {
+    if (resource !== "majors") return null;
+    const user = await currentUser(c);
+    if (!user || user.role !== "editor") return null;
+    if (normalizeEditorGroup((user as any).editorGroup) !== "konsentrasi") return null;
+    const majorId = normalizeMajorId((user as any).majorId);
+    return majorId > 0 ? majorId : null;
+  }
+
+  // Aturan tulis yang ditegakkan server: editor hanya menyimpan draft pada
+  // resource berstatus, dan artikel mencatat penulis/pengubah terakhir.
+  async function applyEditorWriteRules(c: any, data: Record<string, unknown>, isCreate: boolean) {
+    const user = await currentUser(c);
+    if (!user) return;
+    if (user.role === "editor" && editorDraftOnlyResources.has(String(resource))) {
+      data.status = "draft";
+    }
+    if (resource === "articles") {
+      data.updatedBy = user.name;
+      if (isCreate && !String(data.authorName || "").trim()) data.authorName = user.name;
+    }
+  }
+
   app.get(path, async (c) => {
-    const rows = await db.select().from(table).orderBy(desc((table as any).id));
+    const scoped = await scopedMajorId(c);
+    const rows = scoped
+      ? await db.select().from(table).where(eq((table as any).id, scoped)).orderBy(desc((table as any).id))
+      : await db.select().from(table).orderBy(desc((table as any).id));
     return c.json(ok(rows));
   });
 
   app.get(`${path}/:id`, async (c) => {
+    const scoped = await scopedMajorId(c);
+    if (scoped && Number(c.req.param("id")) !== scoped) {
+      return c.json(fail("Akses editor tidak diizinkan untuk jurusan ini.", 403), 403);
+    }
     const row = await db.select().from(table).where(eq((table as any).id, Number(c.req.param("id")))).get();
     if (!row) return c.json(fail("Data tidak ditemukan.", 404), 404);
     return c.json(ok(row));
   });
 
   app.post(path, guard, async (c) => {
+    const scoped = await scopedMajorId(c);
+    if (scoped) return c.json(fail("Editor konsentrasi tidak dapat membuat jurusan baru.", 403), 403);
     const body = await c.req.json<Record<string, unknown>>();
     const data = normalizeBody(resource, body);
+    await applyEditorWriteRules(c, data, true);
     const row = ((await db.insert(table).values(data as never).returning()) as unknown as any[])[0];
     return c.json(ok(row), 201);
   });
 
   app.put(`${path}/:id`, guard, async (c) => {
+    const scoped = await scopedMajorId(c);
+    if (scoped && Number(c.req.param("id")) !== scoped) {
+      return c.json(fail("Akses editor tidak diizinkan untuk jurusan ini.", 403), 403);
+    }
     const body = await c.req.json<Record<string, unknown>>();
     const data = normalizeBody(resource, body);
+    await applyEditorWriteRules(c, data, false);
     const row = ((await db.update(table).set(data as never).where(eq((table as any).id, Number(c.req.param("id")))).returning()) as unknown as any[])[0];
     if (!row) return c.json(fail("Data tidak ditemukan.", 404), 404);
     return c.json(ok(row));
   });
 
   app.delete(`${path}/:id`, guard, async (c) => {
+    const scoped = await scopedMajorId(c);
+    if (scoped) return c.json(fail("Editor konsentrasi tidak dapat menghapus jurusan.", 403), 403);
     const deleted = ((await db.delete(table).where(eq((table as any).id, Number(c.req.param("id")))).returning({ id: (table as any).id })) as unknown as Array<{ id: number }>)[0];
     if (!deleted) return c.json(fail("Data tidak ditemukan.", 404), 404);
     return c.json(ok({ deleted: true, id: deleted.id }));
@@ -591,17 +701,26 @@ export function apiRoutes() {
 
   app.get("/editor-permissions", requireAdmin, async (c) => c.json(ok({
     permissions: await getEditorPermissions(),
+    groupPermissions: await getEditorGroupPermissions(),
+    groups: editorGroups,
     features: editorFeatureKeys
   })));
 
   app.put("/editor-permissions", requireAdmin, async (c) => {
     const body = await c.req.json<Record<string, unknown>>();
-    const permissions = normalizeEditorPermissions(body.permissions);
     const current = await db.select().from(schoolSettings).get();
+    const data: Record<string, unknown> = {};
+    if ("permissions" in body) data.editorPermissions = normalizeEditorPermissions(body.permissions);
+    if ("groupPermissions" in body) data.editorGroupPermissions = normalizeEditorGroupPermissions(body.groupPermissions);
     const [row] = current
-      ? await db.update(schoolSettings).set({ editorPermissions: permissions } as never).where(eq(schoolSettings.id, current.id)).returning()
-      : await db.insert(schoolSettings).values({ schoolName: "Website Sekolah", editorPermissions: permissions } as never).returning();
-    return c.json(ok({ permissions: normalizeEditorPermissions((row as any).editorPermissions) }));
+      ? await db.update(schoolSettings).set(data as never).where(eq(schoolSettings.id, current.id)).returning()
+      : await db.insert(schoolSettings).values({ schoolName: "Website Sekolah", ...data } as never).returning();
+    return c.json(ok({
+      permissions: normalizeEditorPermissions((row as any).editorPermissions),
+      groupPermissions: normalizeEditorGroupPermissions((row as any).editorGroupPermissions),
+      groups: editorGroups,
+      features: editorFeatureKeys
+    }));
   });
 
   app.get("/users", requireAdmin, async (c) => {
@@ -611,6 +730,8 @@ export function apiRoutes() {
       username: users.username,
       email: users.email,
       role: users.role,
+      editorGroup: users.editorGroup,
+      majorId: users.majorId,
       address: users.address,
       districtId: users.districtId,
       districtName: users.districtName,
@@ -633,13 +754,17 @@ export function apiRoutes() {
       username: String(body.username || ""),
       email: String(body.email || ""),
       password: await hashPassword(password),
-      role: normalizeRole(body.role)
+      role: normalizeRole(body.role),
+      editorGroup: normalizeEditorGroup(body.editorGroup),
+      majorId: normalizeMajorId(body.majorId)
     }).returning({
       id: users.id,
       name: users.name,
       username: users.username,
       email: users.email,
       role: users.role,
+      editorGroup: users.editorGroup,
+      majorId: users.majorId,
       address: users.address,
       districtId: users.districtId,
       districtName: users.districtName,
@@ -655,8 +780,10 @@ export function apiRoutes() {
 
   app.put("/users/:id", requireAdmin, async (c) => {
     const body = await c.req.json<Record<string, unknown>>();
-    const data: Record<string, unknown> = pick(body, ["name", "username", "email", "role"]);
+    const data: Record<string, unknown> = pick(body, ["name", "username", "email", "role", "editorGroup", "majorId"]);
     if ("role" in data) data.role = normalizeRole(data.role);
+    if ("editorGroup" in data) data.editorGroup = normalizeEditorGroup(data.editorGroup);
+    if ("majorId" in data) data.majorId = normalizeMajorId(data.majorId);
     if (body.password) data.password = await hashPassword(String(body.password));
     const [row] = await db.update(users).set(data as never).where(eq(users.id, Number(c.req.param("id")))).returning({
       id: users.id,
@@ -664,6 +791,8 @@ export function apiRoutes() {
       username: users.username,
       email: users.email,
       role: users.role,
+      editorGroup: users.editorGroup,
+      majorId: users.majorId,
       address: users.address,
       districtId: users.districtId,
       districtName: users.districtName,
@@ -969,7 +1098,7 @@ export function apiRoutes() {
   app.get("/settings", async (c) => {
     const settings = await db.select().from(schoolSettings).get();
     if (!settings) return c.json(ok(settings));
-    const { editorPermissions: _editorPermissions, ...safeSettings } = settings as any;
+    const { editorPermissions: _editorPermissions, editorGroupPermissions: _editorGroupPermissions, ...safeSettings } = settings as any;
     return c.json(ok(safeSettings));
   });
   app.put("/settings", requireFeature("settings"), async (c) => {

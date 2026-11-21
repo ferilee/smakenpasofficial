@@ -96,7 +96,7 @@ export function adminShell(title = "Dashboard Admin") {
 </head>
 <body class="admin-body">
   <div id="admin"></div>
-  <script src="/assets/admin.js?v=68"></script>
+  <script src="/assets/admin.js?v=69"></script>
 </body>
 </html>`;
 }

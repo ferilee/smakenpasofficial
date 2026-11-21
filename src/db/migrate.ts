@@ -1,9 +1,9 @@
 import { sqlite } from "./client";
 
 const statements = [
-  `CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, username TEXT NOT NULL UNIQUE, email TEXT NOT NULL UNIQUE, password TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'admin', address TEXT NOT NULL DEFAULT '', district_id TEXT NOT NULL DEFAULT '', district_name TEXT NOT NULL DEFAULT '', village_id TEXT NOT NULL DEFAULT '', village_name TEXT NOT NULL DEFAULT '', whatsapp TEXT NOT NULL DEFAULT '', google_sub TEXT NOT NULL DEFAULT '', profile_completed INTEGER NOT NULL DEFAULT 0, last_login_at TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`,
+  `CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, username TEXT NOT NULL UNIQUE, email TEXT NOT NULL UNIQUE, password TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'admin', editor_group TEXT NOT NULL DEFAULT '', major_id INTEGER NOT NULL DEFAULT 0, address TEXT NOT NULL DEFAULT '', district_id TEXT NOT NULL DEFAULT '', district_name TEXT NOT NULL DEFAULT '', village_id TEXT NOT NULL DEFAULT '', village_name TEXT NOT NULL DEFAULT '', whatsapp TEXT NOT NULL DEFAULT '', google_sub TEXT NOT NULL DEFAULT '', profile_completed INTEGER NOT NULL DEFAULT 0, last_login_at TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`,
   `CREATE TABLE IF NOT EXISTS school_profile (id INTEGER PRIMARY KEY AUTOINCREMENT, history TEXT NOT NULL DEFAULT '', vision TEXT NOT NULL DEFAULT '', mission TEXT NOT NULL DEFAULT '', principal_name TEXT NOT NULL DEFAULT '', principal_greeting TEXT NOT NULL DEFAULT '', principal_photo_url TEXT NOT NULL DEFAULT '', profile_summary_image_url TEXT NOT NULL DEFAULT '', principal_cta_label TEXT NOT NULL DEFAULT 'Selengkapnya', principal_cta_url TEXT NOT NULL DEFAULT '/profil', former_principals TEXT NOT NULL DEFAULT '[]', identity TEXT NOT NULL DEFAULT '{}', management TEXT NOT NULL DEFAULT '{}', organization TEXT NOT NULL DEFAULT '', accreditation TEXT NOT NULL DEFAULT '', location TEXT NOT NULL DEFAULT '')`,
-  `CREATE TABLE IF NOT EXISTS school_settings (id INTEGER PRIMARY KEY AUTOINCREMENT, school_name TEXT NOT NULL, tagline TEXT NOT NULL DEFAULT '', logo_url TEXT NOT NULL DEFAULT '', favicon_url TEXT NOT NULL DEFAULT '', theme_color TEXT NOT NULL DEFAULT '#0f766e', address TEXT NOT NULL DEFAULT '', email TEXT NOT NULL DEFAULT '', phone TEXT NOT NULL DEFAULT '', whatsapp TEXT NOT NULL DEFAULT '', social_links TEXT NOT NULL DEFAULT '{}', quick_links TEXT NOT NULL DEFAULT '[]', map_embed TEXT NOT NULL DEFAULT '', wordpress_url TEXT NOT NULL DEFAULT '', ppdb_url TEXT NOT NULL DEFAULT '', meta_description TEXT NOT NULL DEFAULT '', footer_text TEXT NOT NULL DEFAULT '', editor_permissions TEXT NOT NULL DEFAULT '[]')`,
+  `CREATE TABLE IF NOT EXISTS school_settings (id INTEGER PRIMARY KEY AUTOINCREMENT, school_name TEXT NOT NULL, tagline TEXT NOT NULL DEFAULT '', logo_url TEXT NOT NULL DEFAULT '', favicon_url TEXT NOT NULL DEFAULT '', theme_color TEXT NOT NULL DEFAULT '#0f766e', address TEXT NOT NULL DEFAULT '', email TEXT NOT NULL DEFAULT '', phone TEXT NOT NULL DEFAULT '', whatsapp TEXT NOT NULL DEFAULT '', social_links TEXT NOT NULL DEFAULT '{}', quick_links TEXT NOT NULL DEFAULT '[]', map_embed TEXT NOT NULL DEFAULT '', wordpress_url TEXT NOT NULL DEFAULT '', ppdb_url TEXT NOT NULL DEFAULT '', meta_description TEXT NOT NULL DEFAULT '', footer_text TEXT NOT NULL DEFAULT '', editor_permissions TEXT NOT NULL DEFAULT '[]', editor_group_permissions TEXT NOT NULL DEFAULT '{}')`,
   `CREATE TABLE IF NOT EXISTS majors (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, slug TEXT NOT NULL UNIQUE, field_category TEXT NOT NULL DEFAULT '', profile_markdown TEXT NOT NULL DEFAULT '', profile_cta_label TEXT NOT NULL DEFAULT 'Lihat Album Foto/Video', profile_cta_url TEXT NOT NULL DEFAULT '', instagram TEXT NOT NULL DEFAULT '', tiktok TEXT NOT NULL DEFAULT '', facebook TEXT NOT NULL DEFAULT '', youtube TEXT NOT NULL DEFAULT '', description TEXT NOT NULL DEFAULT '', competencies TEXT NOT NULL DEFAULT '', career_prospects TEXT NOT NULL DEFAULT '', practice_facilities TEXT NOT NULL DEFAULT '', productive_teachers TEXT NOT NULL DEFAULT '', achievements TEXT NOT NULL DEFAULT '', image_url TEXT NOT NULL DEFAULT '', is_featured INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`,
   `CREATE TABLE IF NOT EXISTS teachers (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, photo_url TEXT NOT NULL DEFAULT '', position TEXT NOT NULL DEFAULT '', subject TEXT NOT NULL DEFAULT '', expertise TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'active', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`,
   `CREATE TABLE IF NOT EXISTS facilities (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, description TEXT NOT NULL DEFAULT '', image_url TEXT NOT NULL DEFAULT '', is_featured INTEGER NOT NULL DEFAULT 0)`,
@@ -12,7 +12,7 @@ const statements = [
   `CREATE TABLE IF NOT EXISTS agendas (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, start_date TEXT NOT NULL, end_date TEXT NOT NULL DEFAULT '', location TEXT NOT NULL DEFAULT '', description TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'scheduled', registration_enabled INTEGER NOT NULL DEFAULT 0, registration_schools TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`,
   `CREATE TABLE IF NOT EXISTS agenda_registrations (id INTEGER PRIMARY KEY AUTOINCREMENT, agenda_id INTEGER NOT NULL REFERENCES agendas(id) ON DELETE CASCADE, school_name TEXT NOT NULL DEFAULT '', participant_name TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`,
   `CREATE TABLE IF NOT EXISTS announcements (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, content TEXT NOT NULL DEFAULT '', is_priority INTEGER NOT NULL DEFAULT 0, attachment_url TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'active', published_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`,
-  `CREATE TABLE IF NOT EXISTS articles (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, slug TEXT NOT NULL UNIQUE, excerpt TEXT NOT NULL DEFAULT '', content TEXT NOT NULL DEFAULT '', cover_url TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'draft', published_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`,
+  `CREATE TABLE IF NOT EXISTS articles (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, slug TEXT NOT NULL UNIQUE, excerpt TEXT NOT NULL DEFAULT '', content TEXT NOT NULL DEFAULT '', cover_url TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'draft', author_name TEXT NOT NULL DEFAULT '', updated_by TEXT NOT NULL DEFAULT '', published_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`,
   `CREATE TABLE IF NOT EXISTS article_reactions (id INTEGER PRIMARY KEY AUTOINCREMENT, article_id INTEGER NOT NULL REFERENCES articles(id) ON DELETE CASCADE, kind TEXT NOT NULL, visitor_hash TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, UNIQUE(article_id, visitor_hash))`,
   `CREATE TABLE IF NOT EXISTS article_comments (id INTEGER PRIMARY KEY AUTOINCREMENT, article_id INTEGER NOT NULL REFERENCES articles(id) ON DELETE CASCADE, user_id INTEGER NOT NULL DEFAULT 0, name TEXT NOT NULL DEFAULT '', body TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'pending', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`,
   `CREATE TABLE IF NOT EXISTS student_infos (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, category TEXT NOT NULL DEFAULT 'Info Siswa', content TEXT NOT NULL DEFAULT '', is_priority INTEGER NOT NULL DEFAULT 0, attachment_url TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'active', published_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`,
@@ -43,6 +43,8 @@ export function migrate() {
       sqlite.run("UPDATE users SET username = lower(replace(email, '@sekolah.sch.id', '')) WHERE username = ''");
     }
     const userColumnDefaults: Record<string, string> = {
+      editor_group: "TEXT NOT NULL DEFAULT ''",
+      major_id: "INTEGER NOT NULL DEFAULT 0",
       address: "TEXT NOT NULL DEFAULT ''",
       district_id: "TEXT NOT NULL DEFAULT ''",
       district_name: "TEXT NOT NULL DEFAULT ''",
@@ -86,6 +88,17 @@ export function migrate() {
     }
     if (!settingsColumns.some((column) => column.name === "editor_permissions")) {
       sqlite.run("ALTER TABLE school_settings ADD COLUMN editor_permissions TEXT NOT NULL DEFAULT '[]'");
+    }
+    if (!settingsColumns.some((column) => column.name === "editor_group_permissions")) {
+      sqlite.run("ALTER TABLE school_settings ADD COLUMN editor_group_permissions TEXT NOT NULL DEFAULT '{}'");
+    }
+
+    const articleColumns = sqlite.prepare("PRAGMA table_info(articles)").all() as { name: string }[];
+    if (!articleColumns.some((column) => column.name === "author_name")) {
+      sqlite.run("ALTER TABLE articles ADD COLUMN author_name TEXT NOT NULL DEFAULT ''");
+    }
+    if (!articleColumns.some((column) => column.name === "updated_by")) {
+      sqlite.run("ALTER TABLE articles ADD COLUMN updated_by TEXT NOT NULL DEFAULT ''");
     }
 
     const testimonialColumns = sqlite.prepare("PRAGMA table_info(testimonials)").all() as { name: string }[];

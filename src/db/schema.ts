@@ -8,6 +8,8 @@ export const users = sqliteTable("users", {
   email: text("email").notNull().unique(),
   password: text("password").notNull(),
   role: text("role").notNull().default("admin"),
+  editorGroup: text("editor_group").notNull().default(""),
+  majorId: integer("major_id").notNull().default(0),
   address: text("address").notNull().default(""),
   districtId: text("district_id").notNull().default(""),
   districtName: text("district_name").notNull().default(""),
@@ -57,7 +59,8 @@ export const schoolSettings = sqliteTable("school_settings", {
   ppdbUrl: text("ppdb_url").notNull().default(""),
   metaDescription: text("meta_description").notNull().default(""),
   footerText: text("footer_text").notNull().default(""),
-  editorPermissions: text("editor_permissions", { mode: "json" }).$type<string[]>().notNull().default([])
+  editorPermissions: text("editor_permissions", { mode: "json" }).$type<string[]>().notNull().default([]),
+  editorGroupPermissions: text("editor_group_permissions", { mode: "json" }).$type<Record<string, string[]>>().notNull().default({})
 });
 
 export const majors = sqliteTable("majors", {
@@ -163,6 +166,8 @@ export const articles = sqliteTable("articles", {
   content: text("content").notNull().default(""),
   coverUrl: text("cover_url").notNull().default(""),
   status: text("status").notNull().default("draft"),
+  authorName: text("author_name").notNull().default(""),
+  updatedBy: text("updated_by").notNull().default(""),
   publishedAt: text("published_at").notNull().default(sql`CURRENT_TIMESTAMP`),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`)
 });

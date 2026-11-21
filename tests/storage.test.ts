@@ -13,13 +13,12 @@ const originalEnv = {
 };
 
 function resetS3Env() {
-  process.env.S3_ENDPOINT = originalEnv.S3_ENDPOINT;
-  process.env.S3_PUBLIC_BASE_URL = originalEnv.S3_PUBLIC_BASE_URL;
-  process.env.S3_ACCESS_KEY = originalEnv.S3_ACCESS_KEY;
-  process.env.S3_SECRET_KEY = originalEnv.S3_SECRET_KEY;
-  process.env.S3_BUCKET = originalEnv.S3_BUCKET;
-  process.env.S3_REGION = originalEnv.S3_REGION;
-  process.env.S3_FORCE_PATH_STYLE = originalEnv.S3_FORCE_PATH_STYLE;
+  // Assigning undefined to process.env stores the string "undefined", which
+  // would poison later test files; delete keys that were originally unset.
+  for (const [key, value] of Object.entries(originalEnv)) {
+    if (value === undefined) delete process.env[key];
+    else process.env[key] = value;
+  }
 }
 
 afterEach(() => {

@@ -838,3 +838,179 @@ describe("messages, users, upload, and stats endpoints", () => {
     expect(body.data).toHaveProperty("pendingTestimonials");
   });
 });
+
+describe("editor groups, draft-only writes, and major scoping", () => {
+  const createdUserIds: number[] = [];
+  const createdArticleIds: number[] = [];
+  let majorAId = 0;
+  let majorBId = 0;
+
+  async function createEditor(username: string, editorGroup: string, majorId = 0) {
+    const created = await json(await adminRequest("/users", jsonInit("POST", {
+      name: `Editor ${username}`,
+      username,
+      email: `${username}@test.local`,
+      password: "secret123",
+      role: "editor",
+      editorGroup,
+      majorId
+    })));
+    createdUserIds.push(created.data.id);
+    return { id: created.data.id, cookie: `session=${testToken(created.data.id)}` };
+  }
+
+  function asUser(cookie: string, path: string, init: RequestInit = {}) {
+    return request(path, {
+      ...init,
+      headers: { Cookie: cookie, ...(init.headers || {}) }
+    });
+  }
+
+  function asUserJson(cookie: string, path: string, method: string, body: Record<string, unknown>) {
+    return asUser(cookie, path, {
+      ...jsonInit(method, body),
+      headers: { Cookie: cookie, "Content-Type": "application/json" }
+    });
+  }
+
+  beforeAll(async () => {
+    const access = await json(await adminRequest("/editor-permissions", jsonInit("PUT", {
+      permissions: ["articles"],
+      groupPermissions: {
+        humas: ["articles"],
+        konsentrasi: ["majors"]
+      }
+    })));
+    expect(access.data.permissions).toEqual(["articles"]);
+    expect(access.data.groupPermissions.humas).toEqual(["articles"]);
+    expect(access.data.groupPermissions.konsentrasi).toEqual(["majors"]);
+    expect(access.data.groups.some((group: any) => group.key === "humas" && group.label === "Waka Humas")).toBe(true);
+    expect(access.data.groups.some((group: any) => group.key === "tu" && group.label === "Tata Usaha")).toBe(true);
+
+    const majorA = await json(await adminRequest("/majors", jsonInit("POST", { name: "Jurusan Konsentrasi A" })));
+    const majorB = await json(await adminRequest("/majors", jsonInit("POST", { name: "Jurusan Konsentrasi B" })));
+    majorAId = majorA.data.id;
+    majorBId = majorB.data.id;
+  });
+
+  afterAll(async () => {
+    for (const id of createdArticleIds) await adminRequest(`/articles/${id}`, { method: "DELETE" });
+    for (const id of createdUserIds) await adminRequest(`/users/${id}`, { method: "DELETE" });
+    if (majorAId) await adminRequest(`/majors/${majorAId}`, { method: "DELETE" });
+    if (majorBId) await adminRequest(`/majors/${majorBId}`, { method: "DELETE" });
+    await adminRequest("/editor-permissions", jsonInit("PUT", { permissions: [], groupPermissions: {} }));
+  });
+
+  test("editor writes are forced to draft and record the author", async () => {
+    const editor = await createEditor("editorhumas", "humas");
+
+    const me = await json(await asUser(editor.cookie, "/auth/me"));
+    expect(me.data.role).toBe("editor");
+    expect(me.data.editorGroup).toBe("humas");
+    expect(me.data.permissions).toEqual(["articles"]);
+
+    const res = await asUserJson(editor.cookie, "/articles", "POST", {
+      title: "Berita Editor Humas",
+      content: "Ditulis oleh editor humas.",
+      status: "published"
+    });
+    const created = await json(res);
+    expect(res.status).toBe(201);
+    expect(created.data.status).toBe("draft");
+    expect(created.data.authorName).toBe("Editor editorhumas");
+    expect(created.data.updatedBy).toBe("Editor editorhumas");
+    createdArticleIds.push(created.data.id);
+
+    // Artikel terbit yang disunting editor kembali menjadi draft.
+    const published = await json(await adminRequest("/articles", jsonInit("POST", {
+      title: "Berita Terbit Admin",
+      content: "Sudah terbit.",
+      status: "published"
+    })));
+    createdArticleIds.push(published.data.id);
+    expect(published.data.status).toBe("published");
+    expect(published.data.authorName).toBeTruthy();
+
+    const edited = await json(await asUserJson(editor.cookie, `/articles/${published.data.id}`, "PUT", {
+      title: "Berita Terbit Admin",
+      content: "Diubah oleh editor.",
+      status: "published"
+    }));
+    expect(edited.data.status).toBe("draft");
+    expect(edited.data.updatedBy).toBe("Editor editorhumas");
+  });
+
+  test("group permissions gate features and missing groups fall back to global", async () => {
+    const humas = await createEditor("editorhumas2", "humas");
+
+    const allowed = await asUserJson(humas.cookie, "/articles", "POST", {
+      title: "Berita Humas Kedua",
+      content: "Boleh membuat berita.",
+      status: "draft"
+    });
+    const allowedBody = await json(allowed);
+    expect(allowed.status).toBe(201);
+    createdArticleIds.push(allowedBody.data.id);
+
+    const denied = await asUserJson(humas.cookie, "/banners", "POST", { title: "Banner Humas" });
+    expect(denied.status).toBe(403);
+
+    // Kelompok "tu" tidak punya entri di peta kelompok: memakai izin global.
+    const tu = await createEditor("editortu", "tu");
+    const tuMe = await json(await asUser(tu.cookie, "/auth/me"));
+    expect(tuMe.data.editorGroup).toBe("tu");
+    expect(tuMe.data.permissions).toEqual(["articles"]);
+
+    const fallbackAllowed = await asUserJson(tu.cookie, "/articles", "POST", {
+      title: "Berita Editor TU",
+      content: "Memakai izin global.",
+      status: "draft"
+    });
+    const fallbackBody = await json(fallbackAllowed);
+    expect(fallbackAllowed.status).toBe(201);
+    createdArticleIds.push(fallbackBody.data.id);
+
+    const fallbackDenied = await asUserJson(tu.cookie, "/banners", "POST", { title: "Banner TU" });
+    expect(fallbackDenied.status).toBe(403);
+  });
+
+  test("konsentrasi editor is scoped to the assigned major", async () => {
+    const editor = await createEditor("editorkonsentrasi", "konsentrasi", majorAId);
+
+    const me = await json(await asUser(editor.cookie, "/auth/me"));
+    expect(me.data.editorGroup).toBe("konsentrasi");
+    expect(me.data.majorId).toBe(majorAId);
+    expect(me.data.permissions).toEqual(["majors"]);
+
+    const list = await json(await asUser(editor.cookie, "/majors"));
+    expect(Array.isArray(list.data)).toBe(true);
+    expect(list.data.some((major: any) => major.id === majorAId)).toBe(true);
+    expect(list.data.some((major: any) => major.id === majorBId)).toBe(false);
+
+    const ownDetail = await asUser(editor.cookie, `/majors/${majorAId}`);
+    expect(ownDetail.status).toBe(200);
+
+    const otherDetail = await asUser(editor.cookie, `/majors/${majorBId}`);
+    expect(otherDetail.status).toBe(403);
+
+    const updateOwnRes = await asUserJson(editor.cookie, `/majors/${majorAId}`, "PUT", {
+      name: "Jurusan Konsentrasi A",
+      description: "Diperbarui ketua konsentrasi."
+    });
+    const updateOwn = await json(updateOwnRes);
+    expect(updateOwnRes.status).toBe(200);
+    expect(updateOwn.data.description).toBe("Diperbarui ketua konsentrasi.");
+
+    const updateOther = await asUserJson(editor.cookie, `/majors/${majorBId}`, "PUT", {
+      name: "Jurusan Konsentrasi B",
+      description: "Tidak boleh diubah."
+    });
+    expect(updateOther.status).toBe(403);
+
+    const create = await asUserJson(editor.cookie, "/majors", "POST", { name: "Jurusan Baru Editor" });
+    expect(create.status).toBe(403);
+
+    const remove = await asUser(editor.cookie, `/majors/${majorAId}`, { method: "DELETE" });
+    expect(remove.status).toBe(403);
+  });
+});
