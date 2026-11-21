@@ -1,4 +1,4 @@
-const CACHE_NAME = "websmakenpas-v75";
+const CACHE_NAME = "websmakenpas-v76";
 const SHELL_ASSETS = [
   "/",
   "/assets/app.css?v=78",

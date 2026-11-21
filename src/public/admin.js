@@ -158,6 +158,12 @@ const statsLabels = {
   newComplaints: "Pengaduan Baru",
   pendingTestimonials: "Testimoni Baru",
   pendingComments: "Komentar Menunggu",
+  draftArticles: "Draf Berita",
+  draftAnnouncements: "Draf Pengumuman",
+  draftAgendas: "Draf Agenda",
+  draftStudentInfos: "Draf Info Siswa",
+  draftStudentAnnouncements: "Draf Pengumuman Siswa",
+  draftStudentAgendas: "Draf Agenda Siswa",
   users: "User & Login"
 };
 
@@ -1027,20 +1033,30 @@ async function renderPage(page) {
 
 async function overview() {
   const stats = await api("/api/stats");
-  const statPermissionKey = { newMessages: "messages", newComplaints: "complaints", pendingTestimonials: "testimonials", pendingComments: "comments" };
+  const statPermissionKey = {
+    newMessages: "messages", newComplaints: "complaints", pendingTestimonials: "testimonials", pendingComments: "comments",
+    draftArticles: "articles", draftAnnouncements: "announcements", draftAgendas: "agendas",
+    draftStudentInfos: "studentInfos", draftStudentAnnouncements: "studentAnnouncements", draftStudentAgendas: "studentAgendas"
+  };
   const visibleStats = Object.entries(stats).filter(([key]) => (
     currentAdminUser?.role === "admin" ||
     key === "storageMode" ||
     currentAdminUser?.permissions?.includes(statPermissionKey[key] || key)
   ));
   const shortcuts = [
+    ["articles", "Tulis Berita"],
     ["announcements", "Tambah Pengumuman"],
     ["agendas", "Tambah Agenda"],
     ["galleries", "Tambah Galeri"],
     ["banners", "Tambah Banner"]
   ].filter(([page]) => canAccessAdminPage(page));
+  const me = currentAdminUser || {};
+  const myGroupLabel = me.role === "editor" ? editorGroupLabels[me.editorGroup] : "";
+  const greeting = me.name
+    ? `Selamat datang, ${esc(me.name)}${myGroupLabel ? ` — ${esc(myGroupLabel)}` : ""}.`
+    : "Ringkasan konten website sekolah.";
   document.querySelector("#main").innerHTML = `
-    <div class="toolbar"><div><h1>Dashboard</h1><p>Ringkasan konten website sekolah.</p></div><a class="btn secondary" href="/" target="_blank">Lihat Website</a></div>
+    <div class="toolbar"><div><h1>Dashboard</h1><p>${greeting}</p></div><a class="btn secondary" href="/" target="_blank">Lihat Website</a></div>
     <div class="grid four">
       ${visibleStats.map(([key, value]) => `<div class="card"><h3>${esc(value)}</h3><p>${esc(statsLabels[key] || resources[key]?.title || key)}</p></div>`).join("")}
     </div>
@@ -1048,6 +1064,7 @@ async function overview() {
       <h2>Perlu Perhatian</h2>
       <div data-attention-list><p class="hint">Memeriksa kondisi website…</p></div>
     </div>
+    <div data-dashboard-blocks></div>
     ${shortcuts.length ? `<div class="shortcut-row">${shortcuts.map(([page, label]) => `<button class="btn ghost" type="button" data-shortcut-add="${page}">${label}</button>`).join("")}</div>` : ""}`;
   document.querySelectorAll("[data-shortcut-add]").forEach((btn) =>
     btn.addEventListener("click", () => gotoAdminAdd(btn.dataset.shortcutAdd)));
@@ -1061,6 +1078,316 @@ async function overview() {
     list.querySelectorAll("[data-attention-page]").forEach((btn) =>
       btn.addEventListener("click", () => gotoAdminPage(btn.dataset.attentionPage)));
   }
+  const blocksEl = document.querySelector("[data-dashboard-blocks]");
+  if (blocksEl) {
+    blocksEl.innerHTML = await dashboardBlocks(stats);
+    blocksEl.querySelectorAll("[data-dash-page]").forEach((btn) =>
+      btn.addEventListener("click", () => gotoAdminPage(btn.dataset.dashPage)));
+    blocksEl.querySelectorAll("[data-dash-edit]").forEach((btn) =>
+      btn.addEventListener("click", () => gotoAdminEdit(btn.dataset.dashEdit, Number(btn.dataset.dashId))));
+  }
+}
+
+// --- Blok-blok dashboard per kelompok editor (Tahap 1) ---
+// Satu kerangka untuk semua peran; blok yang tampil mengikuti kelompok
+// pengguna DAN izin fiturnya. Admin melihat semua blok.
+
+function dashBlock(title, rowsHtml, emptyText) {
+  return `
+    <div class="card attention-card">
+      <h2>${esc(title)}</h2>
+      ${rowsHtml ? `<ul class="attention-list">${rowsHtml}</ul>` : `<p class="hint">${esc(emptyText || "")}</p>`}
+    </div>`;
+}
+
+// text harus sudah di-escape pemanggil.
+function dashRow(text, action) {
+  const btn = action.editPage
+    ? `<button class="btn ghost" type="button" data-dash-edit="${esc(action.editPage)}" data-dash-id="${esc(action.id)}">${esc(action.cta || "Edit")}</button>`
+    : `<button class="btn ghost" type="button" data-dash-page="${esc(action.page)}">${esc(action.cta || "Buka")}</button>`;
+  return `<li><span>${text}</span>${btn}</li>`;
+}
+
+async function dashboardBlocks(stats) {
+  const me = currentAdminUser || {};
+  const isAdmin = me.role === "admin";
+  const isEditor = me.role === "editor";
+  const group = me.editorGroup || "";
+  const can = (page) => canAccessAdminPage(page);
+  const inGroup = (key) => isAdmin || group === key;
+  const blocks = [];
+  const fetchList = async (path) => {
+    try {
+      const data = await api(path);
+      return Array.isArray(data) ? data : [];
+    } catch { return null; }
+  };
+  const titleOf = (row) => esc(row.title || row.name || "-");
+  const fmtDate = (value) => {
+    if (!value) return "";
+    const date = new Date(`${String(value).slice(0, 10)}T00:00:00`);
+    if (Number.isNaN(date.getTime())) return esc(value);
+    return date.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
+  };
+  const parseDate = (value) => new Date(String(value || "").replace(" ", "T"));
+
+  const albumBlock = async () => {
+    if (!can("galleries")) return "";
+    const galleries = await fetchList("/api/galleries");
+    if (!galleries) return "";
+    const rowsHtml = galleries.slice(0, 3).map((g) => dashRow(
+      `${titleOf(g)}${g.showOnHome ? ' <span class="hint">tampil di beranda</span>' : ""}`,
+      { editPage: "galleries", id: g.id, cta: "Buka" }
+    )).join("");
+    return dashBlock("Album Terbaru", rowsHtml, "Belum ada album galeri.");
+  };
+  const activeAnnouncementsBlock = async () => {
+    if (!can("announcements")) return "";
+    const list = await fetchList("/api/announcements");
+    if (!list) return "";
+    const rowsHtml = list.filter((a) => a.status === "active").slice(0, 5)
+      .map((a) => dashRow(titleOf(a), { editPage: "announcements", id: a.id, cta: "Buka" })).join("");
+    return dashBlock("Pengumuman Aktif", rowsHtml, "Tidak ada pengumuman aktif.");
+  };
+  const downloadsBlock = async () => {
+    if (!can("downloads")) return "";
+    const list = await fetchList("/api/downloads");
+    if (!list) return "";
+    const counts = new Map();
+    list.forEach((d) => {
+      const category = String(d.category || "Tanpa Kategori");
+      counts.set(category, (counts.get(category) || 0) + 1);
+    });
+    const lines = [...counts.entries()].slice(0, 4).map(([category, total]) =>
+      dashRow(`${esc(category)} <span class="hint">${total} dokumen</span>`, { page: "downloads", cta: "Buka" }));
+    if (list.length) lines.push(dashRow(`Terbaru: ${titleOf(list[0])}`, { editPage: "downloads", id: list[0].id, cta: "Buka" }));
+    return dashBlock("Dokumen Unduhan", lines.join(""), "Belum ada dokumen unduhan.");
+  };
+  const upcomingAgendasBlock = async (page, title, emptyText) => {
+    if (!can(page)) return "";
+    const list = await fetchList(resources[page].path);
+    if (!list) return "";
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const rowsHtml = list
+      .filter((a) => a.status === "scheduled" && parseDate(a.startDate) >= today)
+      .sort((a, b) => String(a.startDate).localeCompare(String(b.startDate)))
+      .slice(0, 5)
+      .map((a) => dashRow(
+        `${titleOf(a)} <span class="hint">${esc(fmtDate(a.startDate))}${a.location ? ` · ${esc(a.location)}` : ""}</span>`,
+        { editPage: page, id: a.id, cta: "Buka" }
+      )).join("");
+    return dashBlock(title, rowsHtml, emptyText);
+  };
+
+  // Blok universal editor: Draf Saya + Draf Kelompok Saya (artikel).
+  if (isEditor && can("articles")) {
+    const articles = await fetchList("/api/articles");
+    if (articles) {
+      const myName = String(me.name || "");
+      const mine = articles
+        .filter((a) => a.status === "draft" && myName && (a.authorName === myName || a.updatedBy === myName))
+        .slice(0, 5);
+      blocks.push(dashBlock("Draf Saya",
+        mine.map((a) => dashRow(titleOf(a), { editPage: "articles", id: a.id, cta: "Edit" })).join(""),
+        "Belum ada draf berita atas nama Anda."));
+      if (group) {
+        const directory = await fetchList("/api/editor-directory");
+        if (directory) {
+          const groupOf = new Map(directory.map((u) => [String(u.name || ""), u.editorGroup || ""]));
+          const groupDrafts = articles.filter((a) => {
+            if (a.status !== "draft") return false;
+            const author = String(a.authorName || a.updatedBy || "");
+            return author && author !== myName && groupOf.get(author) === group;
+          }).slice(0, 5);
+          blocks.push(dashBlock("Draf Kelompok Saya",
+            groupDrafts.map((a) => dashRow(
+              `${titleOf(a)} <span class="hint">${esc(a.authorName || a.updatedBy || "")}</span>`,
+              { editPage: "articles", id: a.id, cta: "Edit" }
+            )).join(""),
+            "Tidak ada draf dari anggota kelompok Anda."));
+        }
+      }
+    }
+  }
+
+  // Waka Humas (untuk admin: antrean terbit global).
+  if (inGroup("humas")) {
+    const queueResources = [
+      ["articles", "Berita"], ["announcements", "Pengumuman"], ["agendas", "Agenda"],
+      ["studentInfos", "Info Siswa"], ["studentAnnouncements", "Pengumuman Siswa"], ["studentAgendas", "Agenda Siswa"]
+    ];
+    if (queueResources.some(([page]) => can(page))) {
+      const queue = [];
+      for (const [page, label] of queueResources) {
+        if (!can(page)) continue;
+        const list = await fetchList(resources[page].path);
+        if (!list) continue;
+        list.filter((r) => r.status === "draft").forEach((r) => queue.push({
+          page, label, id: r.id,
+          title: r.title || r.name || "-",
+          author: r.authorName || r.updatedBy || "",
+          ts: String(r.createdAt || r.publishedAt || "")
+        }));
+      }
+      queue.sort((a, b) => b.ts.localeCompare(a.ts) || b.id - a.id);
+      blocks.push(dashBlock("Antrean Terbit",
+        queue.slice(0, 10).map((q) => dashRow(
+          `${esc(q.title)} <span class="hint">${esc(q.label)}${q.author ? ` · ${esc(q.author)}` : ""}</span>`,
+          { editPage: q.page, id: q.id, cta: "Tinjau" }
+        )).join(""),
+        "Tidak ada draf menunggu diterbitkan."));
+    }
+    if (can("comments")) {
+      const pending = Number(stats?.pendingComments || 0);
+      const comments = await fetchList("/api/comments");
+      const pendingList = comments ? comments.filter((cm) => cm.status === "pending").slice(0, 3) : [];
+      blocks.push(dashBlock(`Moderasi Komentar${pending ? ` — ${pending} menunggu` : ""}`,
+        pendingList.map((cm) => dashRow(
+          `${esc(cm.name || "Anonim")} <span class="hint">${esc(String(cm.body || "").slice(0, 90))}</span>`,
+          { page: "comments", cta: "Moderasi" }
+        )).join(""),
+        "Tidak ada komentar menunggu moderasi."));
+    }
+    const albums = await albumBlock();
+    if (albums) blocks.push(albums);
+  }
+
+  // Waka Kurikulum.
+  if (inGroup("kurikulum")) {
+    if (can("agendas")) {
+      const agendas = await fetchList("/api/agendas");
+      if (agendas) {
+        const today = new Date(); today.setHours(0, 0, 0, 0);
+        const limit = new Date(today); limit.setDate(limit.getDate() + 30);
+        const upcoming = agendas
+          .filter((a) => a.status === "scheduled" && parseDate(a.startDate) >= today && parseDate(a.startDate) <= limit)
+          .sort((a, b) => String(a.startDate).localeCompare(String(b.startDate)))
+          .slice(0, 5);
+        blocks.push(dashBlock("Agenda 30 Hari ke Depan",
+          upcoming.map((a) => dashRow(
+            `${titleOf(a)} <span class="hint">${esc(fmtDate(a.startDate))}${a.location ? ` · ${esc(a.location)}` : ""}</span>`,
+            { editPage: "agendas", id: a.id, cta: "Buka" }
+          )).join(""),
+          "Tidak ada agenda terjadwal dalam 30 hari ke depan."));
+      }
+    }
+    const announcements = await activeAnnouncementsBlock();
+    if (announcements) blocks.push(announcements);
+    const downloads = await downloadsBlock();
+    if (downloads) blocks.push(downloads);
+  }
+
+  // Waka Kesiswaan.
+  if (inGroup("kesiswaan")) {
+    if (can("studentInfos")) {
+      const list = await fetchList("/api/student-infos");
+      if (list) {
+        blocks.push(dashBlock("Info Siswa Terbaru",
+          list.filter((a) => a.status === "active").slice(0, 5)
+            .map((a) => dashRow(titleOf(a), { editPage: "studentInfos", id: a.id, cta: "Buka" })).join(""),
+          "Belum ada info siswa aktif."));
+      }
+    }
+    const studentAgendas = await upcomingAgendasBlock("studentAgendas", "Agenda Siswa Terdekat", "Tidak ada agenda siswa terjadwal.");
+    if (studentAgendas) blocks.push(studentAgendas);
+    if (can("studentAnnouncements")) {
+      const list = await fetchList("/api/student-announcements");
+      if (list) {
+        blocks.push(dashBlock("Pengumuman Siswa Aktif",
+          list.filter((a) => a.status === "active").slice(0, 5)
+            .map((a) => dashRow(titleOf(a), { editPage: "studentAnnouncements", id: a.id, cta: "Buka" })).join(""),
+          "Tidak ada pengumuman siswa aktif."));
+      }
+    }
+  }
+
+  // Waka Sarpras.
+  if (inGroup("sarpras")) {
+    if (can("facilities")) {
+      const facilities = await fetchList("/api/facilities");
+      if (facilities) {
+        const incomplete = facilities.filter((f) => !String(f.imageUrl || "").trim() || !String(f.description || "").trim());
+        blocks.push(dashBlock("Kelengkapan Fasilitas",
+          incomplete.slice(0, 8).map((f) => {
+            const missing = [
+              !String(f.imageUrl || "").trim() ? "belum ada foto" : "",
+              !String(f.description || "").trim() ? "belum ada deskripsi" : ""
+            ].filter(Boolean).join(", ");
+            return dashRow(`${titleOf(f)} <span class="hint">${esc(missing)}</span>`, { editPage: "facilities", id: f.id, cta: "Lengkapi" });
+          }).join(""),
+          "Semua fasilitas sudah memiliki foto dan deskripsi."));
+      }
+    }
+    if (can("profile")) {
+      blocks.push(dashBlock("Profil Sarana",
+        dashRow("Bagian sarana &amp; prasarana pada Profil Sekolah", { page: "profile", cta: "Buka Profil" }), ""));
+    }
+  }
+
+  // Ketua Konsentrasi Keahlian.
+  if (inGroup("konsentrasi")) {
+    const majorId = Number(me.majorId || 0);
+    if (majorId > 0 && can("majors")) {
+      try {
+        const major = await api(`/api/majors/${majorId}`);
+        if (major) {
+          const majorFields = [
+            ["description", "Deskripsi"], ["competencies", "Kompetensi"], ["careerProspects", "Prospek Karier"],
+            ["practiceFacilities", "Fasilitas Praktik"], ["productiveTeachers", "Guru Produktif"], ["achievements", "Prestasi"],
+            ["imageUrl", "Foto"], ["profileMarkdown", "Profil Markdown"]
+          ];
+          const missing = majorFields.filter(([key]) => !String(major[key] || "").trim());
+          const rowsHtml = [
+            dashRow(`<strong>${esc(major.name || "Jurusan Saya")}</strong> <span class="hint">${majorFields.length - missing.length} dari ${majorFields.length} isian terisi</span>`,
+              { editPage: "majors", id: major.id, cta: "Buka" }),
+            ...missing.map(([, label]) => dashRow(`${esc(label)} belum diisi`, { editPage: "majors", id: major.id, cta: "Lengkapi" }))
+          ].join("");
+          blocks.push(dashBlock("Kartu Jurusan Saya", rowsHtml, ""));
+        }
+      } catch { /* lewati bila gagal */ }
+    }
+    // Album Terbaru untuk admin sudah tampil lewat blok Humas.
+    if (!isAdmin) {
+      const albums = await albumBlock();
+      if (albums) blocks.push(albums);
+    }
+  }
+
+  // Tata Usaha.
+  if (inGroup("tu")) {
+    if (can("teachers")) {
+      const teachers = await fetchList("/api/teachers");
+      if (teachers) {
+        const noPhoto = teachers.filter((t) => { const u = String(t.photoUrl || ""); return !u || u.includes("example.com"); }).length;
+        const withPhoto = teachers.length - noPhoto;
+        blocks.push(dashBlock("Kelengkapan Guru & Tendik",
+          teachers.length
+            ? dashRow(`${withPhoto} dari ${teachers.length} guru &amp; tendik sudah berfoto asli${noPhoto ? ` <span class="hint">${noPhoto} belum berfoto asli</span>` : ""}`, { page: "teachers", cta: "Kelola" })
+            : "",
+          "Belum ada data guru & tendik."));
+      }
+    }
+    // Pengumuman Aktif + Dokumen Unduhan untuk admin sudah tampil lewat blok Kurikulum.
+    if (!isAdmin) {
+      const announcements = await activeAnnouncementsBlock();
+      if (announcements) blocks.push(announcements);
+      const downloads = await downloadsBlock();
+      if (downloads) blocks.push(downloads);
+    }
+  }
+
+  // Khusus admin: aktivitas editor terakhir pada berita.
+  if (isAdmin && can("articles")) {
+    const articles = await fetchList("/api/articles");
+    if (articles) {
+      blocks.push(dashBlock("Aktivitas Editor Terakhir",
+        articles.filter((a) => String(a.updatedBy || "").trim()).slice(0, 5)
+          .map((a) => dashRow(`${titleOf(a)} <span class="hint">diubah oleh ${esc(a.updatedBy)}</span>`, { editPage: "articles", id: a.id, cta: "Buka" })).join(""),
+        "Belum ada aktivitas editor pada berita."));
+    }
+  }
+
+  return blocks.join("");
 }
 
 async function singleton(title, path, fields) {
@@ -1086,7 +1413,14 @@ function editorPermissionGroups() {
     title: group.title,
     items: group.items
       .filter(([page]) => !blocked.has(page))
-      .map(([page, label]) => [page, editorFeatureLabels[page] || label])
+      .flatMap(([page, label]) => {
+        const entries = [[page, editorFeatureLabels[page] || label]];
+        // "Item Galeri" tidak punya menu sendiri sehingga tidak pernah muncul
+        // di daftar izin; sisipkan tepat sesudah "Galeri" agar bisa diatur
+        // untuk cakupan Umum maupun tiap kelompok.
+        if (page === "galleries") entries.push(["galleryItems", editorFeatureLabels.galleryItems || "Item Galeri"]);
+        return entries;
+      })
   })).filter((group) => group.items.length);
 }
 
@@ -1165,6 +1499,13 @@ async function gotoAdminAdd(page) {
   document.querySelector("#add")?.click();
 }
 
+async function gotoAdminEdit(page, id) {
+  active = page;
+  await renderPage(page);
+  closeAdminDrawer();
+  document.querySelector(`button[data-edit="${id}"]`)?.click();
+}
+
 function wizardize(form, steps) {
   if (!form || !steps.length) return;
   const panels = steps.map((step, index) => {
@@ -1235,6 +1576,23 @@ async function adminAttentionItems(stats) {
     if (can("comments") && Number(stats.pendingComments || 0) > 0)
       items.push({ text: `${stats.pendingComments} komentar berita menunggu moderasi.`, page: "comments", cta: "Moderasi Komentar" });
   }
+  try {
+    const isHumas = currentAdminUser?.role === "admin" || currentAdminUser?.editorGroup === "humas";
+    if (isHumas && can("articles")) {
+      const articles = await api("/api/articles");
+      if (Array.isArray(articles)) {
+        const cutoff = Date.now() - 3 * 24 * 60 * 60 * 1000;
+        const stale = articles.filter((a) => {
+          if (a.status !== "draft" || !a.createdAt) return false;
+          const raw = String(a.createdAt).trim();
+          const normalized = /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2})?$/.test(raw) ? `${raw.replace(" ", "T")}Z` : raw;
+          const time = new Date(normalized).getTime();
+          return !Number.isNaN(time) && time < cutoff;
+        }).length;
+        if (stale) items.push({ text: `${stale} draf berita menunggu diterbitkan lebih dari 3 hari.`, page: "articles", cta: "Buka Berita" });
+      }
+    }
+  } catch { /* lewati bila gagal */ }
   try {
     const agendas = await api("/api/agendas");
     if (can("agendas") && Array.isArray(agendas)) {
