@@ -837,6 +837,22 @@ describe("messages, users, upload, and stats endpoints", () => {
     expect(body.data).toHaveProperty("newMessages");
     expect(body.data).toHaveProperty("pendingTestimonials");
   });
+
+  test("stats counts drafts per status resource and increments with new drafts", async () => {
+    const before = await json(await adminRequest("/stats"));
+    for (const key of ["draftArticles", "draftAnnouncements", "draftAgendas", "draftStudentInfos", "draftStudentAnnouncements", "draftStudentAgendas"]) {
+      expect(typeof before.data[key]).toBe("number");
+    }
+    const created = await json(await adminRequest("/articles", jsonInit("POST", {
+      title: "Berita Draf Untuk Statistik",
+      content: "Menghitung draf.",
+      status: "draft"
+    })));
+    expect(created.data.status).toBe("draft");
+    const after = await json(await adminRequest("/stats"));
+    expect(after.data.draftArticles).toBe(before.data.draftArticles + 1);
+    await adminRequest(`/articles/${created.data.id}`, { method: "DELETE" });
+  });
 });
 
 describe("editor groups, draft-only writes, and major scoping", () => {
@@ -938,6 +954,33 @@ describe("editor groups, draft-only writes, and major scoping", () => {
     }));
     expect(edited.data.status).toBe("draft");
     expect(edited.data.updatedBy).toBe("Editor editorhumas");
+  });
+
+  test("stats draft counts follow editor permissions and editor directory stays minimal", async () => {
+    const humas = await createEditor("editorhumas3", "humas");
+    const humasStats = await json(await asUser(humas.cookie, "/stats"));
+    expect(humasStats.data).toHaveProperty("draftArticles");
+    expect(typeof humasStats.data.draftArticles).toBe("number");
+    expect(humasStats.data).not.toHaveProperty("draftAgendas");
+
+    const konsentrasi = await createEditor("editorkonsentrasi2", "konsentrasi", majorAId);
+    const konsStats = await json(await asUser(konsentrasi.cookie, "/stats"));
+    expect(konsStats.data).not.toHaveProperty("draftArticles");
+    expect(konsStats.data).toHaveProperty("majors");
+
+    const directory = await json(await asUser(humas.cookie, "/editor-directory"));
+    expect(Array.isArray(directory.data)).toBe(true);
+    const mine = directory.data.find((entry: any) => entry.name === "Editor editorhumas3");
+    expect(mine?.editorGroup).toBe("humas");
+    for (const entry of directory.data) {
+      expect(entry).toHaveProperty("name");
+      expect(entry).toHaveProperty("editorGroup");
+      expect(entry).not.toHaveProperty("email");
+      expect(entry).not.toHaveProperty("username");
+    }
+
+    const anon = await request("/editor-directory");
+    expect(anon.status).toBe(401);
   });
 
   test("group permissions gate features and missing groups fall back to global", async () => {

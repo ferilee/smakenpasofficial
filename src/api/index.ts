@@ -723,6 +723,15 @@ export function apiRoutes() {
     }));
   });
 
+  // Direktori minimal untuk dashboard editor: hanya nama + kelompok editor,
+  // dipakai mencocokkan penulis artikel ke kelompoknya (blok "Draf Kelompok
+  // Saya"). Sengaja tanpa email/username/data pribadi lain; /users tetap
+  // khusus admin.
+  app.get("/editor-directory", requireAuthenticated, async (c) => {
+    const rows = await db.select({ name: users.name, editorGroup: users.editorGroup }).from(users);
+    return c.json(ok(rows.map((row) => ({ name: row.name, editorGroup: normalizeEditorGroup(row.editorGroup) }))));
+  });
+
   app.get("/users", requireAdmin, async (c) => {
     const rows = await db.select({
       id: users.id,
@@ -1347,13 +1356,23 @@ export function apiRoutes() {
       newComplaints: countWhere("complaints", "status", "new"),
       pendingTestimonials: countWhere("testimonials", "status", "pending"),
       pendingComments: countWhere("article_comments", "status", "pending"),
+      draftArticles: countWhere("articles", "status", "draft"),
+      draftAnnouncements: countWhere("announcements", "status", "draft"),
+      draftAgendas: countWhere("agendas", "status", "draft"),
+      draftStudentInfos: countWhere("student_infos", "status", "draft"),
+      draftStudentAnnouncements: countWhere("student_announcements", "status", "draft"),
+      draftStudentAgendas: countWhere("student_agendas", "status", "draft"),
       users: count("users"),
       storageMode: storageMode()
     };
     const user = (c as any).get("user");
     if (user?.role === "admin") return c.json(ok(stats));
     const permissions = new Set((c as any).get("editorPermissions") || []);
-    const aliases: Record<string, string> = { newMessages: "messages", newComplaints: "complaints", pendingTestimonials: "testimonials", pendingComments: "comments" };
+    const aliases: Record<string, string> = {
+      newMessages: "messages", newComplaints: "complaints", pendingTestimonials: "testimonials", pendingComments: "comments",
+      draftArticles: "articles", draftAnnouncements: "announcements", draftAgendas: "agendas",
+      draftStudentInfos: "studentInfos", draftStudentAnnouncements: "studentAnnouncements", draftStudentAgendas: "studentAgendas"
+    };
     return c.json(ok(Object.fromEntries(Object.entries(stats).filter(([key]) => key === "storageMode" || permissions.has(aliases[key] || key)))));
   });
 
