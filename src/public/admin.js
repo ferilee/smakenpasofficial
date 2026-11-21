@@ -441,6 +441,20 @@ function formatAdminDate(value) {
   return new Intl.DateTimeFormat("id-ID", { dateStyle: "medium", timeStyle: "short" }).format(date);
 }
 
+function formatComplaintDate(value) {
+  if (!value) return "—";
+  const raw = String(value).trim();
+  if (!raw) return "—";
+  // SQLite CURRENT_TIMESTAMP tersimpan sebagai UTC tanpa penanda zona waktu
+  // ("YYYY-MM-DD HH:MM:SS"), jadi nilai naif seperti itu dibaca sebagai UTC.
+  const normalized = /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2})?$/.test(raw)
+    ? `${raw.replace(" ", "T")}Z`
+    : raw;
+  const date = new Date(normalized);
+  if (Number.isNaN(date.getTime())) return raw;
+  return new Intl.DateTimeFormat("id-ID", { timeZone: "Asia/Jakarta", dateStyle: "medium", timeStyle: "short" }).format(date);
+}
+
 function userLocationText(row) {
   return [row.villageName, row.districtName].filter(Boolean).join(", ") || "-";
 }
@@ -1339,7 +1353,9 @@ async function resourcePage(key) {
             <td>${row.id}</td>
             <td>${esc(title)}</td>
             <td>${esc(info)}</td>
+            ${key === "complaints" ? `<td>${esc(formatComplaintDate(row.createdAt))}</td>` : ""}
             <td>
+              ${key === "complaints" ? `<button class="btn ghost" type="button" data-view="${row.id}">Pratinjau</button>` : ""}
               ${key === "testimonials" ? `<button class="btn ghost" type="button" data-view="${row.id}">View</button>` : ""}
               ${(key === "testimonials" || key === "comments") && row.status !== "approved" ? `<button class="btn" type="button" data-approve="${row.id}">Approve</button>` : ""}
               ${key === "messages" && row.status === "new" ? `<button class="btn" type="button" data-read="${row.id}">Tandai Dibaca</button>` : ""}
@@ -1369,10 +1385,10 @@ async function resourcePage(key) {
       </div>` : ""}
     <div class="table-wrap">
       <table>
-        <thead><tr><th>ID</th><th>Judul/Nama</th><th>Info</th><th>Aksi</th></tr></thead>
+        <thead><tr><th>ID</th><th>Judul/Nama</th><th>Info</th>${key === "complaints" ? "<th>Tanggal</th>" : ""}<th>Aksi</th></tr></thead>
         <tbody>${filteredRows.map(rowMarkup).join("")}${filteredRows.length
             ? key === "teachers" ? '<tr data-search-empty hidden><td colspan="4" class="empty">Data Guru & Tendik tidak ditemukan.</td></tr>' : ""
-            : '<tr><td colspan="4" class="empty">Belum ada data.</td></tr>'}</tbody>
+            : `<tr><td colspan="${key === "complaints" ? 5 : 4}" class="empty">Belum ada data.</td></tr>`}</tbody>
       </table>
     </div>`;
   if (key === "teachers") {
@@ -1589,6 +1605,42 @@ function openDetail(key, item = {}) {
         <div class="detail-message">
           <strong>Alamat Detail</strong>
           <p>${esc(item.address || "-")}</p>
+        </div>
+      </article>`;
+    modal.classList.add("open");
+    document.querySelector("#close").addEventListener("click", () => modal.classList.remove("open"));
+    return;
+  }
+  if (key === "complaints" && item.id) {
+    const statusLabels = { new: "Baru", reviewed: "Ditinjau", resolved: "Selesai" };
+    box.innerHTML = `
+      <div class="toolbar"><h2>Pratinjau ${config.title}</h2><button class="btn ghost" id="close">Tutup</button></div>
+      <article class="detail-view">
+        <div class="detail-grid">
+          <div><strong>Tanggal</strong><p>${esc(formatComplaintDate(item.createdAt))}</p></div>
+          <div><strong>Status</strong><p>${esc(statusLabels[String(item.status || "").toLowerCase()] || item.status || "-")}</p></div>
+          <div><strong>Nama</strong><p>${esc(item.name || "-")}</p></div>
+          <div><strong>Peran Pelapor</strong><p>${esc(item.reporterRole || "-")}</p></div>
+          <div><strong>Kelas/Unit</strong><p>${esc(item.classOrUnit || "-")}</p></div>
+          <div><strong>Kategori</strong><p>${esc(item.category || "-")}</p></div>
+          <div><strong>Telepon</strong><p>${esc(item.phone || "-")}</p></div>
+          <div><strong>Email</strong><p>${esc(item.email || "-")}</p></div>
+        </div>
+        <div class="detail-message">
+          <strong>Judul</strong>
+          <p style="white-space:pre-wrap">${esc(item.title || "-")}</p>
+        </div>
+        <div class="detail-message">
+          <strong>Isi Pengaduan</strong>
+          <p style="white-space:pre-wrap">${esc(item.complaint || "-")}</p>
+        </div>
+        <div class="detail-message">
+          <strong>Harapan</strong>
+          <p style="white-space:pre-wrap">${esc(item.expectation || "-")}</p>
+        </div>
+        <div class="detail-message">
+          <strong>Lampiran</strong>
+          <p>${item.attachmentUrl ? `<a href="${esc(item.attachmentUrl)}" target="_blank" rel="noopener noreferrer">Lihat lampiran</a>` : "Tidak ada"}</p>
         </div>
       </article>`;
     modal.classList.add("open");
@@ -1880,7 +1932,7 @@ function openForm(key, item = {}) {
   const box = document.querySelector("#modal-box");
   box.innerHTML = `
     <div class="toolbar"><h2>${item.id ? "Edit" : "Tambah"} ${config.title}</h2><button class="btn ghost" id="close">Tutup</button></div>
-    <form class="form" id="resource-form">${formFields(config, item)}<button class="btn">Simpan</button></form>`;
+    <form class="form" id="resource-form">${key === "complaints" && item.id ? `<div class="field"><label>Tanggal Pengaduan</label><input value="${esc(formatComplaintDate(item.createdAt))}" readonly></div>` : ""}${formFields(config, item)}<button class="btn">Simpan</button></form>`;
   modal.classList.add("open");
   document.querySelector("#close").addEventListener("click", () => modal.classList.remove("open"));
   const form = document.querySelector("#resource-form");
