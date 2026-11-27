@@ -1246,6 +1246,12 @@ section { padding: 58px 0; }
 .registration-modal .hint { color: var(--muted, #64748b); font-size: 13.5px; }
 .workshop-subsection { margin-top: 16px; }
 .workshop-subsection h5 { margin: 0 0 10px; font-size: 15px; }
+.workshop-tabs { display: flex; flex-wrap: wrap; gap: 4px; margin: 12px 0 14px; border-bottom: 1px solid var(--line, #e2e8f0); }
+.workshop-tab { appearance: none; border: 0; border-bottom: 2px solid transparent; background: transparent; margin-bottom: -1px; padding: 9px 12px; font: inherit; font-size: 14px; font-weight: 650; color: var(--muted, #64748b); cursor: pointer; }
+.workshop-tab:hover { color: var(--ink); }
+.workshop-tab:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.workshop-tab.is-active { color: var(--brand); border-bottom-color: var(--brand); }
+.workshop-panel[hidden] { display: none; }
 .workshop-material-list { margin: 0; padding-left: 20px; display: grid; gap: 10px; }
 .workshop-material-list li { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .workshop-material-info strong { margin-right: 8px; }
@@ -2452,6 +2458,30 @@ section { padding: 58px 0; }
 .agenda-modal-item p {
   margin: 6px 0;
   color: var(--muted);
+}
+.agenda-modal-head {
+  display: grid;
+  gap: 8px;
+  padding: 2px;
+}
+.agenda-status-pill {
+  justify-self: start;
+}
+.agenda-modal-desc {
+  color: var(--muted);
+  line-height: 1.65;
+}
+.agenda-modal-location {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 13.5px;
+}
+.agenda-modal-location svg {
+  flex: none;
+  color: var(--accent);
 }
 .agenda-list-section {
   padding-top: 22px;

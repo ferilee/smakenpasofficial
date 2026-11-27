@@ -1885,15 +1885,11 @@ function setupAgendaList() {
     modalDate.textContent = end ? `${start} - ${end}` : start;
     modalTitle.textContent = item.title || "Agenda Sekolah";
     modalContent.innerHTML = `
-      <div class="agenda-modal-item">
-        <h4>Lokasi</h4>
-        <p>${esc(item.location || "-")}</p>
+      <div class="agenda-modal-head">
+        ${item.status ? `<span class="badge agenda-status-pill">${esc(item.status)}</span>` : ""}
+        <div class="markdown-content agenda-modal-desc">${renderMarkdownBlock(item.description || "-")}</div>
+        <p class="agenda-modal-location"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg><span>${esc(item.location || "-")}</span></p>
       </div>
-      <div class="agenda-modal-item">
-        <h4>Deskripsi</h4>
-        <div class="markdown-content">${renderMarkdownBlock(item.description || "-")}</div>
-      </div>
-      ${item.status ? `<div class="agenda-modal-item"><h4>Status</h4><p><span class="badge">${esc(item.status)}</span></p></div>` : ""}
       ${item.registrationEnabled ? `
       <div class="agenda-modal-item registration-block">
         <h4>Peserta Terdaftar</h4>
@@ -1988,11 +1984,30 @@ function setupAgendaList() {
       <div data-workshop-mine><p class="hint">Memuat tugas saya…</p></div>`
       : `<p>Untuk mengunduh materi dan mengunggah tugas, silakan masuk dengan akun Google.</p>
          <a class="btn" href="${esc(googleLoginHref())}">Masuk dengan Google</a>`;
+    const materialsCount = data.materials?.length || 0;
+    const galleryCount = data.gallery?.length || 0;
     rootEl.innerHTML = `
       <h4>Ruang Workshop</h4>
-      <div class="workshop-subsection"><h5>Materi</h5>${materialsHtml}${data.authenticated ? "" : '<p class="hint">Masuk dengan akun Google untuk mengunduh materi workshop.</p>'}</div>
-      <div class="workshop-subsection"><h5>Unggah Tugas</h5>${taskHtml}</div>
-      <div class="workshop-subsection"><h5>Galeri Karya</h5>${galleryHtml}</div>`;
+      <div class="workshop-tabs" role="tablist" aria-label="Ruang Workshop">
+        <button class="workshop-tab is-active" type="button" role="tab" aria-selected="true" data-workshop-tab="materi">Materi (${materialsCount})</button>
+        <button class="workshop-tab" type="button" role="tab" aria-selected="false" data-workshop-tab="unggah">Unggah Tugas</button>
+        <button class="workshop-tab" type="button" role="tab" aria-selected="false" data-workshop-tab="galeri">Galeri Karya (${galleryCount})</button>
+      </div>
+      <div class="workshop-panel" role="tabpanel" data-workshop-panel="materi">${materialsHtml}${data.authenticated ? "" : '<p class="hint">Masuk dengan akun Google untuk mengunduh materi workshop.</p>'}</div>
+      <div class="workshop-panel" role="tabpanel" data-workshop-panel="unggah" hidden>${taskHtml}</div>
+      <div class="workshop-panel" role="tabpanel" data-workshop-panel="galeri" hidden>${galleryHtml}</div>`;
+    rootEl.querySelectorAll("[data-workshop-tab]").forEach((tab) => {
+      tab.addEventListener("click", () => {
+        rootEl.querySelectorAll("[data-workshop-tab]").forEach((other) => {
+          const isActive = other === tab;
+          other.classList.toggle("is-active", isActive);
+          other.setAttribute("aria-selected", String(isActive));
+        });
+        rootEl.querySelectorAll("[data-workshop-panel]").forEach((panel) => {
+          panel.hidden = panel.dataset.workshopPanel !== tab.dataset.workshopTab;
+        });
+      });
+    });
     if (!session) return;
     const mineEl = rootEl.querySelector("[data-workshop-mine]");
     const renderMine = async () => {
