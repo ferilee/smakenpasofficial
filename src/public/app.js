@@ -1951,7 +1951,7 @@ function setupAgendaList() {
               <span class="badge">${material.kind === "file" ? "Berkas" : "Tautan"}</span>
               ${material.description ? `<p>${esc(material.description)}</p>` : ""}
             </div>
-            ${data.authenticated && material.url ? `<a class="btn ghost" href="${esc(material.url)}" target="_blank" rel="noopener noreferrer">${material.kind === "file" ? "Unduh" : "Buka"}</a>` : ""}
+            ${data.authenticated && material.url ? `<a class="btn ghost" href="${esc(material.url)}" target="_blank" rel="noopener noreferrer">${material.kind === "file" ? "Unduh" : "Buka"}</a>` : `<a class="btn ghost" href="${esc(googleLoginHref())}">Masuk untuk mengunduh</a>`}
           </li>`).join("")}
       </ol>` : '<p class="empty">Belum ada materi untuk workshop ini.</p>';
     const galleryHtml = data.gallery?.length ? `
@@ -1986,6 +1986,7 @@ function setupAgendaList() {
          <a class="btn" href="${esc(googleLoginHref())}">Masuk dengan Google</a>`;
     const materialsCount = data.materials?.length || 0;
     const galleryCount = data.gallery?.length || 0;
+    const loginNoticeHtml = !data.authenticated && materialsCount ? '<p class="hint workshop-login-notice">Masuk dengan akun Google untuk membuka dan mengunduh materi.</p>' : "";
     rootEl.innerHTML = `
       <h4>Ruang Workshop</h4>
       <div class="workshop-tabs" role="tablist" aria-label="Ruang Workshop">
@@ -1993,7 +1994,7 @@ function setupAgendaList() {
         <button class="workshop-tab" type="button" role="tab" aria-selected="false" data-workshop-tab="unggah">Unggah Tugas</button>
         <button class="workshop-tab" type="button" role="tab" aria-selected="false" data-workshop-tab="galeri">Galeri Karya (${galleryCount})</button>
       </div>
-      <div class="workshop-panel" role="tabpanel" data-workshop-panel="materi">${materialsHtml}${data.authenticated ? "" : '<p class="hint">Masuk dengan akun Google untuk mengunduh materi workshop.</p>'}</div>
+      <div class="workshop-panel" role="tabpanel" data-workshop-panel="materi">${loginNoticeHtml}${materialsHtml}</div>
       <div class="workshop-panel" role="tabpanel" data-workshop-panel="unggah" hidden>${taskHtml}</div>
       <div class="workshop-panel" role="tabpanel" data-workshop-panel="galeri" hidden>${galleryHtml}</div>`;
     rootEl.querySelectorAll("[data-workshop-tab]").forEach((tab) => {
