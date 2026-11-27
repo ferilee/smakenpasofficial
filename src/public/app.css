@@ -1244,6 +1244,28 @@ section { padding: 58px 0; }
 .registration-modal .field select,
 .registration-modal .field input { padding: 11px 13px; border: 1px solid var(--line, #e2e8f0); border-radius: 10px; font: inherit; width: 100%; }
 .registration-modal .hint { color: var(--muted, #64748b); font-size: 13.5px; }
+.workshop-subsection { margin-top: 16px; }
+.workshop-subsection h5 { margin: 0 0 10px; font-size: 15px; }
+.workshop-material-list { margin: 0; padding-left: 20px; display: grid; gap: 10px; }
+.workshop-material-list li { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.workshop-material-info strong { margin-right: 8px; }
+.workshop-material-info p { margin: 4px 0 0; color: var(--muted, #64748b); }
+.workshop-form .field { margin-bottom: 14px; display: grid; gap: 6px; }
+.workshop-form .field label { font-weight: 600; }
+.workshop-form .field input,
+.workshop-form .field select,
+.workshop-form .field textarea { padding: 11px 13px; border: 1px solid var(--line, #e2e8f0); border-radius: 10px; font: inherit; width: 100%; background: var(--surface, #fff); color: inherit; }
+.workshop-mine-list { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 10px; }
+.workshop-mine-list li { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding-top: 10px; border-top: 1px solid var(--line, #e2e8f0); }
+.workshop-mine-list .hint { margin: 4px 0 0; }
+.workshop-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.workshop-card { display: flex; flex-direction: column; border: 1px solid var(--line, #e2e8f0); border-radius: 14px; overflow: hidden; text-decoration: none; color: inherit; background: var(--surface, #fff); }
+.workshop-card-cover { width: 100%; height: 96px; object-fit: cover; display: block; background: #eaeeff; }
+.workshop-card-initial { display: flex; align-items: center; justify-content: center; font-size: 34px; font-weight: 800; color: var(--brand); }
+.workshop-card-body { display: grid; gap: 3px; padding: 10px 12px; font-size: 13px; }
+.workshop-card-body strong { font-size: 14px; line-height: 1.35; }
+.workshop-card-body span { color: var(--muted, #64748b); }
+.workshop-card-desc { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .article-back { margin-top: 28px; }
 .facility-card { overflow: hidden; }
 .facility-image { width: 100%; height: 180px; object-fit: cover; display: block; border-radius: 10px; margin-bottom: 12px; }

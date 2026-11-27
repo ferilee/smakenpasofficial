@@ -1900,6 +1900,11 @@ function setupAgendaList() {
         <p data-registration-summary>Memuat daftar peserta…</p>
         <div data-registration-list></div>
         <button class="btn" type="button" data-registration-open>Daftar sebagai Delegasi Peserta</button>
+      </div>` : ""}
+      ${item.workshopEnabled ? `
+      <div class="agenda-modal-item workshop-block" data-workshop-root>
+        <h4>Ruang Workshop</h4>
+        <p>Memuat ruang workshop…</p>
       </div>` : ""}`;
     modal.hidden = false;
     requestAnimationFrame(() => modal.classList.add("open"));
@@ -1908,6 +1913,7 @@ function setupAgendaList() {
       stopRefresh();
       refreshTimer = setInterval(loadRegistrations, 30000);
     }
+    if (item.workshopEnabled) loadWorkshop(item);
   };
 
   const closeRegModal = () => {
@@ -1926,6 +1932,129 @@ function setupAgendaList() {
     regModal.hidden = false;
     requestAnimationFrame(() => regModal.classList.add("open"));
   };
+  const workshopStatusLabels = { pending: "Menunggu Persetujuan", approved: "Disetujui", rejected: "Ditolak" };
+  const loadWorkshop = async (item) => {
+    const rootEl = modalContent.querySelector("[data-workshop-root]");
+    if (!rootEl) return;
+    let data;
+    try {
+      data = await api(`/api/public/agendas/${encodeURIComponent(item.id)}/workshop`);
+    } catch {
+      rootEl.innerHTML = `<h4>Ruang Workshop</h4><p class="empty">Ruang Workshop gagal dimuat.</p>`;
+      return;
+    }
+    const session = await loadSession();
+    const schools = Array.isArray(data.schools) ? data.schools : [];
+    const isImageFile = (row) => row.isFile && /\.(png|jpe?g|webp|gif|svg)(\?|#|$)/i.test(String(row.url || ""));
+    const materialsHtml = data.materials?.length ? `
+      <ol class="workshop-material-list">
+        ${data.materials.map((material) => `
+          <li>
+            <div class="workshop-material-info">
+              <strong>${esc(material.title)}</strong>
+              <span class="badge">${material.kind === "file" ? "Berkas" : "Tautan"}</span>
+              ${material.description ? `<p>${esc(material.description)}</p>` : ""}
+            </div>
+            ${data.authenticated && material.url ? `<a class="btn ghost" href="${esc(material.url)}" target="_blank" rel="noopener noreferrer">${material.kind === "file" ? "Unduh" : "Buka"}</a>` : ""}
+          </li>`).join("")}
+      </ol>` : '<p class="empty">Belum ada materi untuk workshop ini.</p>';
+    const galleryHtml = data.gallery?.length ? `
+      <div class="workshop-gallery">
+        ${data.gallery.map((row) => `
+          <a class="workshop-card" href="${esc(row.url || "#")}" target="_blank" rel="noopener noreferrer">
+            ${isImageFile(row) && validImageUrl(row.url) ? `<img class="workshop-card-cover" src="${esc(validImageUrl(row.url))}" alt="${esc(row.title)}">` : `<span class="workshop-card-cover workshop-card-initial" aria-hidden="true">${esc(String(row.title || "K").slice(0, 1).toUpperCase())}</span>`}
+            <span class="workshop-card-body">
+              <strong>${esc(row.title)}</strong>
+              <span>${esc(row.userName || "-")} — ${esc(row.schoolName || "-")}</span>
+              ${row.description ? `<span class="workshop-card-desc">${esc(row.description)}</span>` : ""}
+            </span>
+          </a>`).join("")}
+      </div>` : '<p class="empty">Belum ada karya yang disetujui untuk ditampilkan.</p>';
+    const taskHtml = session ? `
+      <form class="workshop-form" data-workshop-form>
+        <div class="field"><label>Nama Peserta</label><input value="${esc(session.name || "")}" readonly></div>
+        <div class="field"><label>Asal Sekolah</label>
+          ${schools.length
+            ? `<select name="schoolName" required><option value="">— Pilih sekolah —</option>${schools.map((name) => `<option value="${esc(name)}">${esc(name)}</option>`).join("")}</select>`
+            : `<input name="schoolName" value="SMK Negeri Pasirian" required>`}
+        </div>
+        <div class="field"><label>Judul Karya</label><input name="title" required maxlength="200" placeholder="cth. Media Pembelajaran Interaktif Pecahan"></div>
+        <div class="field"><label>Keterangan (opsional)</label><textarea name="description" rows="2" maxlength="1000"></textarea></div>
+        <div class="field"><label>Berkas Karya</label><input type="file" name="file" data-workshop-file><p class="hint">Isi salah satu: unggah berkas karya atau tempel tautan karya di bawah. Karya besar seperti video sebaiknya memakai tautan.</p></div>
+        <div class="field"><label>Tautan Karya</label><input name="linkUrl" type="url" placeholder="https://drive.google.com/... atau https://youtube.com/..."></div>
+        <button class="btn" type="submit">Kirim Tugas</button>
+        <p class="hint">Tugas yang dikirim menunggu persetujuan pengelola sebelum tampil di Galeri Karya.</p>
+      </form>
+      <div data-workshop-mine><p class="hint">Memuat tugas saya…</p></div>`
+      : `<p>Untuk mengunduh materi dan mengunggah tugas, silakan masuk dengan akun Google.</p>
+         <a class="btn" href="${esc(googleLoginHref())}">Masuk dengan Google</a>`;
+    rootEl.innerHTML = `
+      <h4>Ruang Workshop</h4>
+      <div class="workshop-subsection"><h5>Materi</h5>${materialsHtml}${data.authenticated ? "" : '<p class="hint">Masuk dengan akun Google untuk mengunduh materi workshop.</p>'}</div>
+      <div class="workshop-subsection"><h5>Unggah Tugas</h5>${taskHtml}</div>
+      <div class="workshop-subsection"><h5>Galeri Karya</h5>${galleryHtml}</div>`;
+    if (!session) return;
+    const mineEl = rootEl.querySelector("[data-workshop-mine]");
+    const renderMine = async () => {
+      try {
+        const mine = await api(`/api/public/agendas/${encodeURIComponent(item.id)}/workshop/submissions/mine`);
+        mineEl.innerHTML = mine.length ? `
+          <h5>Tugas Saya</h5>
+          <ul class="workshop-mine-list">
+            ${mine.map((row) => `
+              <li>
+                <div>
+                  <strong>${esc(row.title)}</strong>
+                  <span class="badge">${esc(workshopStatusLabels[row.status] || row.status || "-")}</span>
+                  <p class="hint">${esc(row.schoolName || "")} — ${esc(dateId(String(row.createdAt || "").slice(0, 10)))}</p>
+                </div>
+                ${row.status === "pending" ? `<button class="btn ghost" type="button" data-workshop-mine-delete="${row.id}">Hapus</button>` : ""}
+              </li>`).join("")}
+          </ul>` : '<p class="hint">Anda belum mengunggah tugas pada workshop ini.</p>';
+        mineEl.querySelectorAll("[data-workshop-mine-delete]").forEach((button) =>
+          button.addEventListener("click", async () => {
+            try {
+              await api(`/api/public/agendas/${encodeURIComponent(item.id)}/workshop/submissions/${button.dataset.workshopMineDelete}`, { method: "DELETE" });
+              notify("Tugas berhasil dihapus.");
+              await renderMine();
+            } catch (error) {
+              notify(error.message || "Tugas gagal dihapus.", "error");
+            }
+          }));
+      } catch {
+        mineEl.innerHTML = '<p class="hint">Tugas saya gagal dimuat.</p>';
+      }
+    };
+    await renderMine();
+    const form = rootEl.querySelector("[data-workshop-form]");
+    form?.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const submitButton = form.querySelector('button[type="submit"]');
+      if (submitButton) submitButton.disabled = true;
+      try {
+        const fileInput = form.querySelector("[data-workshop-file]");
+        if (fileInput?.files?.length) {
+          await api(`/api/public/agendas/${encodeURIComponent(item.id)}/workshop/submissions`, { method: "POST", body: new FormData(form) });
+        } else {
+          const values = Object.fromEntries(new FormData(form));
+          delete values.file;
+          await api(`/api/public/agendas/${encodeURIComponent(item.id)}/workshop/submissions`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(values)
+          });
+        }
+        form.reset();
+        notify("Tugas terkirim dan menunggu persetujuan pengelola.");
+        await renderMine();
+      } catch (error) {
+        notify(error.message || "Tugas gagal dikirim.", "error");
+      } finally {
+        if (submitButton) submitButton.disabled = false;
+      }
+    });
+  };
+
   modalContent.addEventListener("click", (event) => {
     if (event.target instanceof Element && event.target.closest("[data-registration-open]")) openRegModal();
   });

@@ -6,7 +6,7 @@ const resources = {
   teachers: { title: "Guru & Tendik", path: "/api/teachers", fields: ["name", "photoUrl", "position", "subject", "expertise", "status"] },
   facilities: { title: "Fasilitas", path: "/api/facilities", fields: ["name", "description", "imageUrl", "isFeatured"] },
   galleries: { title: "Galeri", path: "/api/galleries", fields: ["title", "slug", "category", "description", "coverUrl", "albumUrl", "showOnHome"] },
-  agendas: { title: "Agenda", path: "/api/agendas", fields: ["title", "startDate", "endDate", "location", "description", "status", "registrationEnabled", "registrationSchools"] },
+  agendas: { title: "Agenda", path: "/api/agendas", fields: ["title", "startDate", "endDate", "location", "description", "status", "registrationEnabled", "registrationSchools", "workshopEnabled"] },
   agendaRegistrations: { title: "Pendaftar Agenda", path: "/api/agenda-registrations", fields: ["agendaId", "schoolName", "participantName"] },
   announcements: { title: "Pengumuman", path: "/api/announcements", fields: ["title", "content", "isPriority", "attachmentUrl", "status", "publishedAt"] },
   articles: { title: "Berita", path: "/api/articles", fields: ["title", "slug", "excerpt", "content", "coverUrl", "status", "publishedAt"] },
@@ -95,6 +95,7 @@ const adminMenuGroups = [
 let active = "majors";
 let rows = [];
 let complaintStatusFilter = "all";
+let workshopSubmissionFilter = "pending";
 let teacherSearchQuery = "";
 let adminActionsBound = false;
 
@@ -158,6 +159,7 @@ const statsLabels = {
   newComplaints: "Pengaduan Baru",
   pendingTestimonials: "Testimoni Baru",
   pendingComments: "Komentar Menunggu",
+  pendingWorkshopSubmissions: "Tugas Workshop Menunggu",
   draftArticles: "Draf Berita",
   draftAnnouncements: "Draf Pengumuman",
   draftAgendas: "Draf Agenda",
@@ -424,6 +426,7 @@ function fieldLabel(field) {
   if (field === "schoolName") return "Nama Sekolah";
   if (field === "participantName") return "Nama Peserta";
   if (field === "registrationEnabled") return "Aktifkan Pendaftaran Delegasi Peserta";
+  if (field === "workshopEnabled") return "Aktifkan Ruang Workshop";
   if (field === "registrationSchools") return "Daftar Sekolah Pilihan (satu per baris)";
   if (field === "profileCompleted") return "Profil Lengkap";
   if (field === "lastLoginAt") return "Login Terakhir";
@@ -476,7 +479,7 @@ function userProfileInfo(row) {
 }
 
 function isBooleanField(field) {
-  return ["isFeatured", "showOnHome", "isPriority", "isActive", "registrationEnabled"].includes(field);
+  return ["isFeatured", "showOnHome", "isPriority", "isActive", "registrationEnabled", "workshopEnabled"].includes(field);
 }
 
 function markdownField(field, value, { rows = 8, hint = "", label = fieldLabel(field) } = {}) {
@@ -1035,6 +1038,7 @@ async function overview() {
   const stats = await api("/api/stats");
   const statPermissionKey = {
     newMessages: "messages", newComplaints: "complaints", pendingTestimonials: "testimonials", pendingComments: "comments",
+    pendingWorkshopSubmissions: "agendas",
     draftArticles: "articles", draftAnnouncements: "announcements", draftAgendas: "agendas",
     draftStudentInfos: "studentInfos", draftStudentAnnouncements: "studentAnnouncements", draftStudentAgendas: "studentAgendas"
   };
@@ -1575,6 +1579,8 @@ async function adminAttentionItems(stats) {
       items.push({ text: `${stats.pendingTestimonials} testimoni menunggu persetujuan.`, page: "testimonials", cta: "Tinjau Testimoni" });
     if (can("comments") && Number(stats.pendingComments || 0) > 0)
       items.push({ text: `${stats.pendingComments} komentar berita menunggu moderasi.`, page: "comments", cta: "Moderasi Komentar" });
+    if (can("agendas") && Number(stats.pendingWorkshopSubmissions || 0) > 0)
+      items.push({ text: `${stats.pendingWorkshopSubmissions} tugas workshop menunggu persetujuan.`, page: "agendas", cta: "Buka Agenda" });
   }
   try {
     const isHumas = currentAdminUser?.role === "admin" || currentAdminUser?.editorGroup === "humas";
@@ -1718,6 +1724,7 @@ async function resourcePage(key) {
               ${(key === "testimonials" || key === "comments") && row.status !== "approved" ? `<button class="btn" type="button" data-approve="${row.id}">Approve</button>` : ""}
               ${key === "messages" && row.status === "new" ? `<button class="btn" type="button" data-read="${row.id}">Tandai Dibaca</button>` : ""}
               ${key === "users" ? `<button class="btn ghost" type="button" data-view="${row.id}">Detail</button>` : ""}
+              ${key === "agendas" && row.workshopEnabled ? `<button class="btn ghost" type="button" data-workshop="${row.id}">Workshop</button>` : ""}
               <button class="btn ghost" type="button" data-edit="${row.id}">Edit</button>
               <button class="btn danger" type="button" data-delete="${row.id}">Hapus</button>
             </td>
@@ -1800,11 +1807,15 @@ function setupAdminActions() {
       }
       return;
     }
-    const target = event.target instanceof Element ? event.target.closest("button[data-edit], button[data-view], button[data-approve], button[data-read], button[data-delete], #add") : null;
+    const target = event.target instanceof Element ? event.target.closest("button[data-edit], button[data-view], button[data-approve], button[data-read], button[data-delete], button[data-workshop], #add") : null;
     if (!target) return;
     const key = active;
     const config = resources[key];
     if (!config) return;
+    if (target.dataset.workshop) {
+      openWorkshopAdmin(Number(target.dataset.workshop));
+      return;
+    }
     if (target.id === "add") {
       openForm(key);
       return;
@@ -2329,6 +2340,274 @@ function openForm(key, item = {}) {
     await resourcePage(key);
     await updateMenuBadges();
   });
+}
+
+// --- Ruang Workshop: kelola materi + moderasi tugas peserta per agenda ---
+async function openWorkshopAdmin(agendaId) {
+  const agenda = rows.find((row) => row.id === agendaId) || await api(`/api/agendas/${agendaId}`);
+  const main = document.querySelector("#main");
+  const submissionStatusLabels = { pending: "Menunggu Persetujuan", approved: "Disetujui", rejected: "Ditolak" };
+  let materials = [];
+  let submissions = [];
+  let editingMaterialId = 0;
+
+  main.innerHTML = `
+    <div class="toolbar">
+      <div><h1>Ruang Workshop</h1><p>${esc(agenda?.title || "Agenda")} — kelola materi dan tugas peserta workshop.</p></div>
+      <div class="toolbar-actions"><button class="btn ghost" type="button" data-workshop-back>Kembali ke Agenda</button></div>
+    </div>
+    <div class="card">
+      <h2>Materi Workshop</h2>
+      <p class="hint">Materi dapat berisi banyak item: berkas unggahan atau tautan luar. Urutan tampil mengikuti kolom Urutan, lalu urutan penambahan.</p>
+      <div data-workshop-materials><p class="hint">Memuat materi…</p></div>
+      <form class="form" data-workshop-material-form>
+        <h3 data-workshop-material-form-title>Tambah Materi</h3>
+        <div class="field"><label>Judul Materi</label><input name="title" required placeholder="cth. Slide Sesi 1 — Pengenalan"></div>
+        <div class="field"><label>Jenis</label><select name="kind">
+          <option value="file">Berkas unggahan</option>
+          <option value="link">Tautan luar</option>
+        </select></div>
+        <div class="field"><label>URL Materi</label><input name="url" required placeholder="Terisi otomatis setelah upload, atau tempel tautan https://...">
+          <div class="inline-upload-row">
+            <input type="file" data-workshop-material-file>
+            <button class="btn secondary" type="button" data-workshop-material-upload>Upload Berkas</button>
+          </div>
+          <p class="hint" data-workshop-material-upload-status>Pilih berkas lalu klik Upload Berkas untuk mengisi URL secara otomatis.</p>
+        </div>
+        <div class="field"><label>Keterangan (opsional)</label><textarea name="description" rows="2"></textarea></div>
+        <div class="field"><label>Urutan Tampil</label><input type="number" name="sortOrder" value="0"></div>
+        <div class="toolbar-actions">
+          <button class="btn" type="submit">Simpan Materi</button>
+          <button class="btn ghost" type="button" data-workshop-material-cancel hidden>Batal Edit</button>
+        </div>
+      </form>
+    </div>
+    <div class="card">
+      <h2>Tugas Masuk</h2>
+      <div class="toolbar">
+        <p class="hint">Tugas yang disetujui tampil di Galeri Karya pada halaman agenda. Tugas yang ditolak tidak tampil.</p>
+        <select data-workshop-submission-filter class="admin-filter">
+          <option value="pending" ${workshopSubmissionFilter === "pending" ? "selected" : ""}>Menunggu Persetujuan</option>
+          <option value="approved" ${workshopSubmissionFilter === "approved" ? "selected" : ""}>Disetujui</option>
+          <option value="rejected" ${workshopSubmissionFilter === "rejected" ? "selected" : ""}>Ditolak</option>
+          <option value="all" ${workshopSubmissionFilter === "all" ? "selected" : ""}>Semua Status</option>
+        </select>
+      </div>
+      <div data-workshop-submissions><p class="hint">Memuat tugas masuk…</p></div>
+    </div>`;
+
+  main.querySelector("[data-workshop-back]").addEventListener("click", () => resourcePage("agendas"));
+
+  const materialsEl = main.querySelector("[data-workshop-materials]");
+  const materialForm = main.querySelector("[data-workshop-material-form]");
+  const materialFormTitle = main.querySelector("[data-workshop-material-form-title]");
+  const materialCancel = main.querySelector("[data-workshop-material-cancel]");
+
+  const resetMaterialForm = () => {
+    editingMaterialId = 0;
+    materialForm.reset();
+    materialFormTitle.textContent = "Tambah Materi";
+    materialCancel.hidden = true;
+  };
+
+  const renderMaterials = () => {
+    if (!materials.length) {
+      materialsEl.innerHTML = '<p class="hint">Belum ada materi. Tambahkan lewat formulir di bawah ini.</p>';
+      return;
+    }
+    materialsEl.innerHTML = `
+      <div class="table-wrap"><table>
+        <thead><tr><th>Urutan</th><th>Judul</th><th>Jenis</th><th>URL</th><th>Aksi</th></tr></thead>
+        <tbody>${materials.map((item) => `
+          <tr>
+            <td>${esc(item.sortOrder ?? 0)}</td>
+            <td>${esc(item.title)}${item.description ? `<br><span class="hint">${esc(item.description)}</span>` : ""}</td>
+            <td>${item.kind === "file" ? "Berkas" : "Tautan"}</td>
+            <td><a href="${esc(item.url)}" target="_blank" rel="noopener noreferrer">Buka</a></td>
+            <td>
+              <button class="btn ghost" type="button" data-workshop-material-edit="${item.id}">Edit</button>
+              <button class="btn danger" type="button" data-workshop-material-delete="${item.id}">Hapus</button>
+            </td>
+          </tr>`).join("")}</tbody>
+      </table></div>`;
+    materialsEl.querySelectorAll("[data-workshop-material-edit]").forEach((button) =>
+      button.addEventListener("click", () => {
+        const item = materials.find((row) => row.id === Number(button.dataset.workshopMaterialEdit));
+        if (!item) return;
+        editingMaterialId = item.id;
+        materialFormTitle.textContent = `Edit Materi — ${item.title}`;
+        materialForm.elements.title.value = item.title || "";
+        materialForm.elements.kind.value = item.kind || "file";
+        materialForm.elements.url.value = item.url || "";
+        materialForm.elements.description.value = item.description || "";
+        materialForm.elements.sortOrder.value = item.sortOrder ?? 0;
+        materialCancel.hidden = false;
+        materialForm.scrollIntoView({ behavior: "smooth", block: "start" });
+      }));
+    materialsEl.querySelectorAll("[data-workshop-material-delete]").forEach((button) =>
+      button.addEventListener("click", async () => {
+        const item = materials.find((row) => row.id === Number(button.dataset.workshopMaterialDelete));
+        const confirmed = await confirmAction({
+          title: "Hapus Materi",
+          message: `Materi "${item?.title || ""}" akan dihapus dari Ruang Workshop.`,
+          confirmLabel: "Hapus",
+          danger: true
+        });
+        if (!confirmed) return;
+        try {
+          await api(`/api/workshop-materials/${button.dataset.workshopMaterialDelete}`, { method: "DELETE" });
+          if (editingMaterialId === Number(button.dataset.workshopMaterialDelete)) resetMaterialForm();
+          await loadMaterials();
+          notify("Materi berhasil dihapus.");
+        } catch (error) {
+          notify(error.message || "Materi gagal dihapus.", "error");
+        }
+      }));
+  };
+
+  const loadMaterials = async () => {
+    try {
+      materials = await api(`/api/agendas/${agendaId}/workshop-materials`);
+      renderMaterials();
+    } catch (error) {
+      materialsEl.innerHTML = `<p class="hint">${esc(error.message || "Materi gagal dimuat.")}</p>`;
+    }
+  };
+
+  materialForm.querySelector("[data-workshop-material-upload]").addEventListener("click", async (event) => {
+    const fileInput = materialForm.querySelector("[data-workshop-material-file]");
+    const status = materialForm.querySelector("[data-workshop-material-upload-status]");
+    const file = fileInput?.files?.[0];
+    if (!file) {
+      notify("Pilih berkas terlebih dahulu.", "warning");
+      return;
+    }
+    const button = event.currentTarget;
+    const payload = new FormData();
+    payload.append("file", file);
+    button.disabled = true;
+    button.textContent = "Mengunggah...";
+    if (status) status.textContent = "Sedang mengunggah berkas...";
+    try {
+      const res = await fetch("/api/upload", { method: "POST", body: payload });
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.error?.message || "Upload berkas gagal.");
+      materialForm.elements.url.value = json.data.url || "";
+      materialForm.elements.kind.value = "file";
+      if (status) status.textContent = "Upload selesai. URL materi terisi otomatis.";
+      notify("Berkas materi berhasil diupload.");
+    } catch (error) {
+      if (status) status.textContent = error.message || "Upload berkas gagal.";
+      notify(error.message || "Upload berkas gagal.", "error");
+    } finally {
+      button.disabled = false;
+      button.textContent = "Upload Berkas";
+    }
+  });
+
+  materialCancel.addEventListener("click", resetMaterialForm);
+  materialForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const payload = {
+      title: materialForm.elements.title.value.trim(),
+      kind: materialForm.elements.kind.value,
+      url: materialForm.elements.url.value.trim(),
+      description: materialForm.elements.description.value.trim(),
+      sortOrder: Number(materialForm.elements.sortOrder.value || 0)
+    };
+    try {
+      if (editingMaterialId) {
+        await api(`/api/workshop-materials/${editingMaterialId}`, { method: "PUT", body: JSON.stringify(payload) });
+        notify("Materi berhasil diperbarui.");
+      } else {
+        await api(`/api/agendas/${agendaId}/workshop-materials`, { method: "POST", body: JSON.stringify(payload) });
+        notify("Materi berhasil ditambahkan.");
+      }
+      resetMaterialForm();
+      await loadMaterials();
+    } catch (error) {
+      notify(error.message || "Materi gagal disimpan.", "error");
+    }
+  });
+
+  const submissionsEl = main.querySelector("[data-workshop-submissions]");
+  const renderSubmissions = () => {
+    if (!submissions.length) {
+      submissionsEl.innerHTML = '<p class="hint">Tidak ada tugas pada saringan ini.</p>';
+      return;
+    }
+    submissionsEl.innerHTML = `
+      <div class="table-wrap"><table>
+        <thead><tr><th>Peserta</th><th>Karya</th><th>Tanggal</th><th>Status</th><th>Aksi</th></tr></thead>
+        <tbody>${submissions.map((item) => {
+          const target = item.fileUrl || item.linkUrl || "";
+          return `
+          <tr>
+            <td>${esc(item.userName || "-")}<br><span class="hint">${esc(item.schoolName || "-")}</span></td>
+            <td>${esc(item.title)}${item.description ? `<br><span class="hint">${esc(item.description)}</span>` : ""}${target ? `<br><a href="${esc(target)}" target="_blank" rel="noopener noreferrer">Buka Karya</a>` : ""}</td>
+            <td>${esc(formatComplaintDate(item.createdAt))}</td>
+            <td>${esc(submissionStatusLabels[item.status] || item.status || "-")}</td>
+            <td>
+              ${item.status !== "approved" ? `<button class="btn" type="button" data-workshop-submission-status="approved" data-id="${item.id}">Setujui</button>` : ""}
+              ${item.status !== "rejected" ? `<button class="btn ghost" type="button" data-workshop-submission-status="rejected" data-id="${item.id}">Tolak</button>` : ""}
+              ${item.status !== "pending" ? `<button class="btn ghost" type="button" data-workshop-submission-status="pending" data-id="${item.id}">Tunda</button>` : ""}
+              <button class="btn danger" type="button" data-workshop-submission-delete="${item.id}">Hapus</button>
+            </td>
+          </tr>`;
+        }).join("")}</tbody>
+      </table></div>`;
+    submissionsEl.querySelectorAll("[data-workshop-submission-status]").forEach((button) =>
+      button.addEventListener("click", async () => {
+        try {
+          await api(`/api/workshop-submissions/${button.dataset.id}/status`, {
+            method: "PUT",
+            body: JSON.stringify({ status: button.dataset.workshopSubmissionStatus })
+          });
+          notify("Status tugas berhasil diperbarui.");
+          await loadSubmissions();
+          await updateMenuBadges();
+        } catch (error) {
+          notify(error.message || "Status tugas gagal diperbarui.", "error");
+        }
+      }));
+    submissionsEl.querySelectorAll("[data-workshop-submission-delete]").forEach((button) =>
+      button.addEventListener("click", async () => {
+        const item = submissions.find((row) => row.id === Number(button.dataset.workshopSubmissionDelete));
+        const confirmed = await confirmAction({
+          title: "Hapus Tugas Peserta",
+          message: `Tugas "${item?.title || ""}" dari ${item?.userName || "peserta"} akan dihapus permanen.`,
+          confirmLabel: "Hapus",
+          danger: true
+        });
+        if (!confirmed) return;
+        try {
+          await api(`/api/workshop-submissions/${button.dataset.workshopSubmissionDelete}`, { method: "DELETE" });
+          notify("Tugas berhasil dihapus.");
+          await loadSubmissions();
+          await updateMenuBadges();
+        } catch (error) {
+          notify(error.message || "Tugas gagal dihapus.", "error");
+        }
+      }));
+  };
+
+  const loadSubmissions = async () => {
+    try {
+      const query = workshopSubmissionFilter === "all" ? "" : `?status=${encodeURIComponent(workshopSubmissionFilter)}`;
+      submissions = await api(`/api/agendas/${agendaId}/workshop-submissions${query}`);
+      renderSubmissions();
+    } catch (error) {
+      submissionsEl.innerHTML = `<p class="hint">${esc(error.message || "Tugas masuk gagal dimuat.")}</p>`;
+    }
+  };
+
+  main.querySelector("[data-workshop-submission-filter]").addEventListener("change", (event) => {
+    workshopSubmissionFilter = String(event.target.value || "pending");
+    loadSubmissions();
+  });
+
+  await loadMaterials();
+  await loadSubmissions();
 }
 
 function uploadPage() {
