@@ -1037,6 +1037,24 @@ async function agendaPage() {
     </main>`, home);
 }
 
+let agendaPastSort = "newest";
+
+function comparePastAgendas(a, b, sort = agendaPastSort) {
+  const startA = dateKey(a?.startDate);
+  const startB = dateKey(b?.startDate);
+  const endA = dateKey(a?.endDate || a?.startDate);
+  const endB = dateKey(b?.endDate || b?.startDate);
+  const idA = Number(a?.id || 0);
+  const idB = Number(b?.id || 0);
+  const newestFirst = startB.localeCompare(startA) || endB.localeCompare(endA) || (idB - idA);
+  if (sort === "oldest") return -newestFirst;
+  if (sort === "title") {
+    const byTitle = String(a?.title || "").localeCompare(String(b?.title || ""), "id-ID");
+    return byTitle || newestFirst;
+  }
+  return newestFirst;
+}
+
 function agendaListSection(agendas = []) {
   const items = Array.isArray(agendas) ? agendas : [];
   const todayKey = dateKey(new Date());
@@ -1052,6 +1070,7 @@ function agendaListSection(agendas = []) {
     else if (start && start <= todayKey && end >= todayKey) todayItems.push(item);
     else upcomingItems.push(item);
   });
+  pastItems.sort((a, b) => comparePastAgendas(a, b, agendaPastSort));
   const renderRange = (item) => {
     const start = dateId(item.startDate);
     const end = item.endDate ? dateId(item.endDate) : "";
@@ -1109,9 +1128,19 @@ function agendaListSection(agendas = []) {
               </div>
               <span class="badge">${pastItems.length} agenda</span>
             </div>
-            <button class="btn ghost agenda-past-toggle" type="button" data-agenda-past-toggle aria-expanded="false" aria-controls="agenda-past-list">
-              Tampilkan agenda berlalu
-            </button>
+            <div class="agenda-past-controls">
+              <label class="agenda-past-sort">
+                <span>Urutkan:</span>
+                <select data-agenda-past-sort aria-label="Urutkan agenda berlalu">
+                  <option value="newest"${agendaPastSort === "newest" ? " selected" : ""}>Paling baru dulu</option>
+                  <option value="oldest"${agendaPastSort === "oldest" ? " selected" : ""}>Paling lama dulu</option>
+                  <option value="title"${agendaPastSort === "title" ? " selected" : ""}>Judul A–Z</option>
+                </select>
+              </label>
+              <button class="btn ghost agenda-past-toggle" type="button" data-agenda-past-toggle aria-expanded="false" aria-controls="agenda-past-list">
+                Tampilkan agenda berlalu
+              </button>
+            </div>
             <div class="agenda-card-grid agenda-card-grid-past" id="agenda-past-list" data-agenda-past-list hidden>
               ${renderCards(pastItems, "Belum ada agenda berlalu.")}
             </div>
@@ -2110,6 +2139,19 @@ function setupAgendaList() {
       button.textContent = isOpening ? "Sembunyikan agenda berlalu" : "Tampilkan agenda berlalu";
     });
   });
+  const pastSortSelect = document.querySelector("[data-agenda-past-sort]");
+  const pastList = document.getElementById("agenda-past-list");
+  if (pastSortSelect && pastList) {
+    if (pastSortSelect.value !== agendaPastSort) pastSortSelect.value = agendaPastSort;
+    pastSortSelect.addEventListener("change", () => {
+      agendaPastSort = pastSortSelect.value;
+      const cards = [...pastList.querySelectorAll(":scope > .agenda-card")];
+      if (!cards.length) return;
+      const itemOf = (card) => byId.get(String(card.querySelector("[data-agenda-open]")?.dataset.agendaOpen || ""));
+      cards.sort((cardA, cardB) => comparePastAgendas(itemOf(cardA), itemOf(cardB), agendaPastSort));
+      cards.forEach((card) => pastList.appendChild(card));
+    });
+  }
   modal.querySelectorAll("[data-agenda-list-close]").forEach((button) => button.addEventListener("click", closeModal));
   document.addEventListener("keydown", (event) => {
     if (event.key !== "Escape") return;
