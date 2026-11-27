@@ -28,7 +28,9 @@ import {
   studentServices,
   teachers,
   testimonials,
-  users
+  users,
+  workshopMaterials,
+  workshopSubmissions
 } from "../db/schema";
 import { storageMode, storeUploadedFile } from "../lib/storage";
 import { fail, hashPassword, normalizeBulletList, normalizeTeacherImportRow, ok, parseCsv, pick, resolveGoogleSheetCsvUrl, slugify, socialProfileUrl } from "../lib/utils";
@@ -92,7 +94,7 @@ const tableFields = {
   facilities: ["name", "description", "imageUrl", "isFeatured"],
   galleries: ["title", "slug", "category", "description", "coverUrl", "albumUrl", "showOnHome"],
   galleryItems: ["galleryId", "type", "title", "fileUrl", "youtubeUrl", "isFeatured"],
-  agendas: ["title", "startDate", "endDate", "location", "description", "status", "registrationEnabled", "registrationSchools"],
+  agendas: ["title", "startDate", "endDate", "location", "description", "status", "registrationEnabled", "registrationSchools", "workshopEnabled"],
   agendaRegistrations: ["agendaId", "schoolName", "participantName"],
   announcements: ["title", "content", "isPriority", "attachmentUrl", "status", "publishedAt"],
   articles: ["title", "slug", "excerpt", "content", "coverUrl", "status", "publishedAt"],
@@ -919,6 +921,239 @@ export function apiRoutes() {
     return c.json(ok({ id: row?.id, schoolName: school, participantName: participant }), 201);
   });
 
+  // --- Ruang Workshop (menempel pada agenda) ---
+  // Materi dikelola admin/editor berizin "agendas"; tugas peserta masuk
+  // antrean moderasi (pending) dan hanya tampil di galeri publik setelah
+  // disetujui. URL materi hanya dikirim ke pengunjung yang sudah login.
+  async function workshopAgenda(id: number) {
+    const agenda = await db.select().from(agendas).where(eq(agendas.id, id)).get();
+    if (!agenda || !agenda.workshopEnabled) return null;
+    return agenda;
+  }
+  function normalizeWorkshopStatus(value: unknown) {
+    const raw = String(value || "").trim().toLowerCase();
+    return raw === "approved" || raw === "rejected" || raw === "pending" ? raw : "";
+  }
+
+  app.get("/agendas/:agendaId/workshop-materials", requireFeature("agendas"), async (c) => {
+    const agendaId = Number(c.req.param("agendaId") || 0);
+    const agenda = await db.select().from(agendas).where(eq(agendas.id, agendaId)).get();
+    if (!agenda) return c.json(fail("Agenda tidak ditemukan.", 404), 404);
+    const rows = await db.select().from(workshopMaterials)
+      .where(eq(workshopMaterials.agendaId, agendaId))
+      .orderBy(asc(workshopMaterials.sortOrder), asc(workshopMaterials.id));
+    return c.json(ok(rows));
+  });
+
+  app.post("/agendas/:agendaId/workshop-materials", requireFeature("agendas"), async (c) => {
+    const agendaId = Number(c.req.param("agendaId") || 0);
+    const agenda = await db.select().from(agendas).where(eq(agendas.id, agendaId)).get();
+    if (!agenda) return c.json(fail("Agenda tidak ditemukan.", 404), 404);
+    const body = await c.req.json().catch(() => ({})) as Record<string, unknown>;
+    const title = String(body.title || "").trim();
+    const url = String(body.url || "").trim();
+    const kind = String(body.kind || "file").trim().toLowerCase();
+    if (!title) return c.json(fail("Judul materi wajib diisi."), 400);
+    if (kind !== "file" && kind !== "link") return c.json(fail("Jenis materi tidak dikenal."), 400);
+    if (!url) return c.json(fail("URL materi wajib diisi (unggah berkas atau tempel tautan)."), 400);
+    const sortOrder = Number(body.sortOrder);
+    const user = (c as any).get("user");
+    const [row] = await db.insert(workshopMaterials).values({
+      agendaId,
+      title,
+      kind,
+      url,
+      description: String(body.description || "").trim(),
+      sortOrder: Number.isFinite(sortOrder) ? Math.floor(sortOrder) : 0,
+      createdBy: String(user?.name || "")
+    }).returning();
+    return c.json(ok(row), 201);
+  });
+
+  app.put("/workshop-materials/:id", requireFeature("agendas"), async (c) => {
+    const body = await c.req.json().catch(() => ({})) as Record<string, unknown>;
+    const data: Record<string, unknown> = {};
+    if ("title" in body) data.title = String(body.title || "").trim();
+    if ("kind" in body) {
+      const kind = String(body.kind || "").trim().toLowerCase();
+      if (kind !== "file" && kind !== "link") return c.json(fail("Jenis materi tidak dikenal."), 400);
+      data.kind = kind;
+    }
+    if ("url" in body) data.url = String(body.url || "").trim();
+    if ("description" in body) data.description = String(body.description || "").trim();
+    if ("sortOrder" in body) {
+      const sortOrder = Number(body.sortOrder);
+      data.sortOrder = Number.isFinite(sortOrder) ? Math.floor(sortOrder) : 0;
+    }
+    if ("title" in data && !String(data.title)) return c.json(fail("Judul materi wajib diisi."), 400);
+    if ("url" in data && !String(data.url)) return c.json(fail("URL materi wajib diisi (unggah berkas atau tempel tautan)."), 400);
+    const [row] = await db.update(workshopMaterials).set(data as never)
+      .where(eq(workshopMaterials.id, Number(c.req.param("id") || 0))).returning();
+    if (!row) return c.json(fail("Materi tidak ditemukan.", 404), 404);
+    return c.json(ok(row));
+  });
+
+  app.delete("/workshop-materials/:id", requireFeature("agendas"), async (c) => {
+    const deleted = ((await db.delete(workshopMaterials)
+      .where(eq(workshopMaterials.id, Number(c.req.param("id") || 0)))
+      .returning({ id: workshopMaterials.id })) as unknown as Array<{ id: number }>)[0];
+    if (!deleted) return c.json(fail("Materi tidak ditemukan.", 404), 404);
+    return c.json(ok({ deleted: true, id: deleted.id }));
+  });
+
+  app.get("/agendas/:agendaId/workshop-submissions", requireFeature("agendas"), async (c) => {
+    const agendaId = Number(c.req.param("agendaId") || 0);
+    const agenda = await db.select().from(agendas).where(eq(agendas.id, agendaId)).get();
+    if (!agenda) return c.json(fail("Agenda tidak ditemukan.", 404), 404);
+    const status = normalizeWorkshopStatus(c.req.query("status"));
+    const rows = await db.select().from(workshopSubmissions)
+      .where(status
+        ? and(eq(workshopSubmissions.agendaId, agendaId), eq(workshopSubmissions.status, status))
+        : eq(workshopSubmissions.agendaId, agendaId))
+      .orderBy(asc(workshopSubmissions.id));
+    return c.json(ok(rows));
+  });
+
+  app.put("/workshop-submissions/:id/status", requireFeature("agendas"), async (c) => {
+    const body = await c.req.json().catch(() => ({})) as Record<string, unknown>;
+    const status = normalizeWorkshopStatus(body.status);
+    if (!status) return c.json(fail("Status tugas tidak dikenal."), 400);
+    const [row] = await db.update(workshopSubmissions)
+      .set({ status, updatedAt: new Date().toISOString() } as never)
+      .where(eq(workshopSubmissions.id, Number(c.req.param("id") || 0))).returning();
+    if (!row) return c.json(fail("Tugas tidak ditemukan.", 404), 404);
+    return c.json(ok(row));
+  });
+
+  app.delete("/workshop-submissions/:id", requireFeature("agendas"), async (c) => {
+    const deleted = ((await db.delete(workshopSubmissions)
+      .where(eq(workshopSubmissions.id, Number(c.req.param("id") || 0)))
+      .returning({ id: workshopSubmissions.id })) as unknown as Array<{ id: number }>)[0];
+    if (!deleted) return c.json(fail("Tugas tidak ditemukan.", 404), 404);
+    return c.json(ok({ deleted: true, id: deleted.id }));
+  });
+
+  app.get("/public/agendas/:id/workshop", async (c) => {
+    const agenda = await workshopAgenda(Number(c.req.param("id") || 0));
+    if (!agenda) return c.json(fail("Ruang Workshop tidak tersedia untuk agenda ini.", 404), 404);
+    const viewer = await currentUser(c);
+    const materials = await db.select().from(workshopMaterials)
+      .where(eq(workshopMaterials.agendaId, agenda.id))
+      .orderBy(asc(workshopMaterials.sortOrder), asc(workshopMaterials.id));
+    const gallery = await db.select().from(workshopSubmissions)
+      .where(and(eq(workshopSubmissions.agendaId, agenda.id), eq(workshopSubmissions.status, "approved")))
+      .orderBy(desc(workshopSubmissions.id));
+    return c.json(ok({
+      agenda: {
+        id: agenda.id,
+        title: agenda.title,
+        startDate: agenda.startDate,
+        endDate: agenda.endDate,
+        location: agenda.location
+      },
+      schools: registrationSchoolsList(agenda),
+      authenticated: Boolean(viewer),
+      materials: materials.map((row) => ({
+        id: row.id,
+        title: row.title,
+        kind: row.kind,
+        description: row.description,
+        sortOrder: row.sortOrder,
+        ...(viewer ? { url: row.url } : {})
+      })),
+      gallery: gallery.map((row) => ({
+        id: row.id,
+        title: row.title,
+        description: row.description,
+        userName: row.userName,
+        schoolName: row.schoolName,
+        url: row.fileUrl || row.linkUrl,
+        isFile: Boolean(row.fileUrl),
+        createdAt: row.createdAt
+      }))
+    }));
+  });
+
+  app.post("/public/agendas/:id/workshop/submissions", requireLoggedIn, async (c) => {
+    const agenda = await workshopAgenda(Number(c.req.param("id") || 0));
+    if (!agenda) return c.json(fail("Ruang Workshop tidak tersedia untuk agenda ini.", 404), 404);
+    const user = (c as any).get("user");
+    const contentType = String(c.req.header("content-type") || "");
+    let body: Record<string, unknown> = {};
+    let fileUrl = "";
+    if (contentType.includes("multipart/form-data") || contentType.includes("application/x-www-form-urlencoded")) {
+      const form = await c.req.parseBody();
+      body = form as Record<string, unknown>;
+      const input = form.file;
+      if (input instanceof File && input.size > 0) {
+        const stored = await storeUploadedFile(input, "workshop-submissions");
+        fileUrl = stored.url;
+      }
+    } else {
+      body = await c.req.json().catch(() => ({})) as Record<string, unknown>;
+    }
+    const title = String(body.title || "").trim();
+    if (!title) return c.json(fail("Judul karya wajib diisi."), 400);
+    if (title.length > 200) return c.json(fail("Judul karya terlalu panjang (maksimal 200 karakter).", 400), 400);
+    const description = String(body.description || "").trim().slice(0, 1000);
+    if (!fileUrl) fileUrl = String(body.fileUrl || "").trim();
+    const linkUrl = String(body.linkUrl || "").trim();
+    if (fileUrl && linkUrl) return c.json(fail("Isi salah satu saja: berkas atau tautan karya."), 400);
+    if (!fileUrl && !linkUrl) return c.json(fail("Karya wajib dilampirkan: unggah berkas atau tempel tautan."), 400);
+    if (linkUrl) {
+      let parsed: URL | null = null;
+      try { parsed = new URL(linkUrl); } catch { parsed = null; }
+      if (!parsed || (parsed.protocol !== "http:" && parsed.protocol !== "https:")) {
+        return c.json(fail("Tautan karya harus berupa URL http/https yang valid."), 400);
+      }
+    }
+    const schools = registrationSchoolsList(agenda);
+    let schoolName = String(body.schoolName || "").trim().replace(/\s+/g, " ");
+    if (schools.length) {
+      const canonical = schools.find((name) => name.toLowerCase() === schoolName.toLowerCase());
+      if (!canonical) return c.json(fail("Nama sekolah harus dipilih dari daftar yang tersedia."), 400);
+      schoolName = canonical;
+    } else if (!schoolName) {
+      schoolName = "SMK Negeri Pasirian";
+    }
+    const userName = String(user.name || user.username || String(user.email || "").split("@")[0] || "Pengguna").trim().slice(0, 120);
+    const [row] = await db.insert(workshopSubmissions).values({
+      agendaId: agenda.id,
+      userId: Number(user.id),
+      userName,
+      schoolName,
+      title,
+      description,
+      fileUrl,
+      linkUrl,
+      status: "pending"
+    }).returning();
+    return c.json(ok(row), 201);
+  });
+
+  app.get("/public/agendas/:id/workshop/submissions/mine", requireLoggedIn, async (c) => {
+    const agenda = await workshopAgenda(Number(c.req.param("id") || 0));
+    if (!agenda) return c.json(fail("Ruang Workshop tidak tersedia untuk agenda ini.", 404), 404);
+    const user = (c as any).get("user");
+    const rows = await db.select().from(workshopSubmissions)
+      .where(and(eq(workshopSubmissions.agendaId, agenda.id), eq(workshopSubmissions.userId, Number(user.id))))
+      .orderBy(desc(workshopSubmissions.id));
+    return c.json(ok(rows));
+  });
+
+  app.delete("/public/agendas/:id/workshop/submissions/:submissionId", requireLoggedIn, async (c) => {
+    const agenda = await workshopAgenda(Number(c.req.param("id") || 0));
+    if (!agenda) return c.json(fail("Ruang Workshop tidak tersedia untuk agenda ini.", 404), 404);
+    const user = (c as any).get("user");
+    const submissionId = Number(c.req.param("submissionId") || 0);
+    const row = await db.select().from(workshopSubmissions).where(eq(workshopSubmissions.id, submissionId)).get();
+    if (!row || row.agendaId !== agenda.id) return c.json(fail("Tugas tidak ditemukan.", 404), 404);
+    if (row.userId !== Number(user.id)) return c.json(fail("Tugas ini bukan milik Anda.", 403), 403);
+    if (row.status !== "pending") return c.json(fail("Tugas yang sudah dimoderasi tidak dapat dihapus peserta.", 403), 403);
+    await db.delete(workshopSubmissions).where(eq(workshopSubmissions.id, submissionId));
+    return c.json(ok({ deleted: true, id: submissionId }));
+  });
+
   app.get("/public/student-infos", async (c) => c.json(ok(
     await db.select().from(studentInfos).where(isActiveStudentInfo).orderBy(desc(studentInfos.publishedAt))
   )));
@@ -1356,6 +1591,7 @@ export function apiRoutes() {
       newComplaints: countWhere("complaints", "status", "new"),
       pendingTestimonials: countWhere("testimonials", "status", "pending"),
       pendingComments: countWhere("article_comments", "status", "pending"),
+      pendingWorkshopSubmissions: countWhere("workshop_submissions", "status", "pending"),
       draftArticles: countWhere("articles", "status", "draft"),
       draftAnnouncements: countWhere("announcements", "status", "draft"),
       draftAgendas: countWhere("agendas", "status", "draft"),
@@ -1370,6 +1606,7 @@ export function apiRoutes() {
     const permissions = new Set((c as any).get("editorPermissions") || []);
     const aliases: Record<string, string> = {
       newMessages: "messages", newComplaints: "complaints", pendingTestimonials: "testimonials", pendingComments: "comments",
+      pendingWorkshopSubmissions: "agendas",
       draftArticles: "articles", draftAnnouncements: "announcements", draftAgendas: "agendas",
       draftStudentInfos: "studentInfos", draftStudentAnnouncements: "studentAnnouncements", draftStudentAgendas: "studentAgendas"
     };

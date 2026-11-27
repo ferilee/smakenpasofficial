@@ -1057,3 +1057,296 @@ describe("editor groups, draft-only writes, and major scoping", () => {
     expect(remove.status).toBe(403);
   });
 });
+
+describe("ruang workshop", () => {
+  let workshopAgendaId = 0;
+  let plainAgendaId = 0;
+  let materialFileId = 0;
+  let materialLinkId = 0;
+  let submissionLinkId = 0;
+  let submissionFileId = 0;
+  let participantOneId = 0;
+  let participantTwoId = 0;
+  let editorPlainId = 0;
+  let editorAgendaId = 0;
+  let participantOneCookie = "";
+  let participantTwoCookie = "";
+  let editorPlainCookie = "";
+  let editorAgendaCookie = "";
+
+  async function createUser(name: string, username: string, email: string, role: string) {
+    const created = await json(await adminRequest("/users", jsonInit("POST", {
+      name, username, email, password: "secret123", role
+    })));
+    return { id: created.data.id as number, cookie: `session=${testToken(created.data.id)}` };
+  }
+
+  beforeAll(async () => {
+    const workshopAgenda = await json(await adminRequest("/agendas", jsonInit("POST", {
+      title: "Workshop Uji Ruang",
+      startDate: "2026-12-05",
+      endDate: "2026-12-05",
+      location: "Aula Sekolah",
+      description: "Agenda workshop untuk pengujian.",
+      status: "scheduled",
+      registrationEnabled: true,
+      registrationSchools: "SMA NEGERI 1 LUMAJANG\nSMK NEGERI PASIRIAN",
+      workshopEnabled: true
+    })));
+    expect(workshopAgenda.data.workshopEnabled).toBe(true);
+    workshopAgendaId = workshopAgenda.data.id;
+
+    const plainAgenda = await json(await adminRequest("/agendas", jsonInit("POST", {
+      title: "Agenda Tanpa Workshop",
+      startDate: "2026-12-06",
+      location: "Ruang Rapat",
+      description: "Agenda biasa tanpa ruang workshop.",
+      status: "scheduled"
+    })));
+    plainAgendaId = plainAgenda.data.id;
+
+    const one = await createUser("Peserta Satu", "pesertasatu", "peserta1@test.local", "user");
+    participantOneId = one.id;
+    participantOneCookie = one.cookie;
+    const two = await createUser("Peserta Dua", "pesertadua", "peserta2@test.local", "user");
+    participantTwoId = two.id;
+    participantTwoCookie = two.cookie;
+    const editorPlain = await createUser("Editor Tanpa Agenda", "editortanpaagenda", "editortanpaagenda@test.local", "editor");
+    editorPlainId = editorPlain.id;
+    editorPlainCookie = editorPlain.cookie;
+    const editorAgenda = await createUser("Editor Agenda", "editoragenda", "editoragenda@test.local", "editor");
+    editorAgendaId = editorAgenda.id;
+    editorAgendaCookie = editorAgenda.cookie;
+  });
+
+  afterAll(async () => {
+    await adminRequest("/editor-permissions", jsonInit("PUT", { permissions: [] }));
+    await adminRequest(`/agendas/${workshopAgendaId}`, { method: "DELETE" });
+    await adminRequest(`/agendas/${plainAgendaId}`, { method: "DELETE" });
+    for (const id of [participantOneId, participantTwoId, editorPlainId, editorAgendaId]) {
+      if (id) await adminRequest(`/users/${id}`, { method: "DELETE" });
+    }
+  });
+
+  test("migration creates workshop tables and column idempotently", async () => {
+    const { sqlite } = await import("../src/db/client");
+    const { migrate } = await import("../src/db/migrate");
+    expect(() => { migrate(); migrate(); }).not.toThrow();
+    const materialColumns = (sqlite.prepare("PRAGMA table_info(workshop_materials)").all() as { name: string }[]).map((column) => column.name);
+    expect(materialColumns).toContain("agenda_id");
+    expect(materialColumns).toContain("kind");
+    expect(materialColumns).toContain("sort_order");
+    const submissionColumns = (sqlite.prepare("PRAGMA table_info(workshop_submissions)").all() as { name: string }[]).map((column) => column.name);
+    expect(submissionColumns).toContain("user_id");
+    expect(submissionColumns).toContain("school_name");
+    expect(submissionColumns).toContain("status");
+    const agendaColumns = (sqlite.prepare("PRAGMA table_info(agendas)").all() as { name: string }[]).map((column) => column.name);
+    expect(agendaColumns).toContain("workshop_enabled");
+  });
+
+  test("public workshop endpoint returns 404 when workshop is disabled", async () => {
+    const disabled = await request(`/public/agendas/${plainAgendaId}/workshop`);
+    expect(disabled.status).toBe(404);
+    const missing = await request("/public/agendas/999999/workshop");
+    expect(missing.status).toBe(404);
+  });
+
+  test("admin manages materials and material URLs stay hidden from anonymous visitors", async () => {
+    const fileMaterial = await json(await adminRequest(`/agendas/${workshopAgendaId}/workshop-materials`, jsonInit("POST", {
+      title: "Slide Sesi 1",
+      kind: "file",
+      url: "https://contoh.sch.id/slide-sesi-1.pdf",
+      description: "Slide pembuka workshop.",
+      sortOrder: 1
+    })));
+    expect(fileMaterial.data.title).toBe("Slide Sesi 1");
+    materialFileId = fileMaterial.data.id;
+
+    const linkMaterialRes = await adminRequest(`/agendas/${workshopAgendaId}/workshop-materials`, jsonInit("POST", {
+      title: "Rekaman Sesi",
+      kind: "link",
+      url: "https://youtube.com/watch?v=uji",
+      sortOrder: 2
+    }));
+    expect(linkMaterialRes.status).toBe(201);
+    const linkMaterial = await json(linkMaterialRes);
+    materialLinkId = linkMaterial.data.id;
+
+    const invalid = await adminRequest(`/agendas/${workshopAgendaId}/workshop-materials`, jsonInit("POST", {
+      title: "Materi Tanpa URL",
+      kind: "file",
+      url: ""
+    }));
+    expect(invalid.status).toBe(400);
+
+    const denied = await request(`/agendas/${workshopAgendaId}/workshop-materials`, {
+      ...jsonInit("POST", { title: "Materi Editor", kind: "link", url: "https://contoh.sch.id" }),
+      headers: { Cookie: editorPlainCookie, "Content-Type": "application/json" }
+    });
+    expect(denied.status).toBe(403);
+
+    const list = await json(await adminRequest(`/agendas/${workshopAgendaId}/workshop-materials`));
+    expect(list.data.map((item: any) => item.id)).toEqual([materialFileId, materialLinkId]);
+
+    const anonymous = await json(await request(`/public/agendas/${workshopAgendaId}/workshop`));
+    expect(anonymous.data.authenticated).toBe(false);
+    expect(anonymous.data.materials).toHaveLength(2);
+    expect(anonymous.data.materials[0].title).toBe("Slide Sesi 1");
+    expect("url" in anonymous.data.materials[0]).toBe(false);
+    expect(anonymous.data.gallery).toEqual([]);
+    expect(anonymous.data.schools).toEqual(["SMA NEGERI 1 LUMAJANG", "SMK NEGERI PASIRIAN"]);
+
+    const loggedIn = await json(await request(`/public/agendas/${workshopAgendaId}/workshop`, {
+      headers: { Cookie: participantOneCookie }
+    }));
+    expect(loggedIn.data.authenticated).toBe(true);
+    expect(loggedIn.data.materials[0].url).toBe("https://contoh.sch.id/slide-sesi-1.pdf");
+
+    const updated = await json(await adminRequest(`/workshop-materials/${materialLinkId}`, jsonInit("PUT", { sortOrder: 0 })));
+    expect(updated.data.sortOrder).toBe(0);
+    const reordered = await json(await adminRequest(`/agendas/${workshopAgendaId}/workshop-materials`));
+    expect(reordered.data[0].id).toBe(materialLinkId);
+
+    const removed = await adminRequest(`/workshop-materials/${materialLinkId}`, { method: "DELETE" });
+    expect(removed.status).toBe(200);
+    const afterDelete = await json(await adminRequest(`/agendas/${workshopAgendaId}/workshop-materials`));
+    expect(afterDelete.data).toHaveLength(1);
+  });
+
+  test("participant submissions land as pending and follow the agenda school list", async () => {
+    const created = await request(`/public/agendas/${workshopAgendaId}/workshop/submissions`, {
+      ...jsonInit("POST", {
+        title: "Karya Satu",
+        description: "Karya tautan peserta satu.",
+        linkUrl: "https://drive.google.com/karya-satu",
+        schoolName: "sma negeri 1 lumajang"
+      }),
+      headers: { Cookie: participantOneCookie, "Content-Type": "application/json" }
+    });
+    const createdBody = await json(created);
+    expect(created.status).toBe(201);
+    expect(createdBody.data.status).toBe("pending");
+    expect(createdBody.data.schoolName).toBe("SMA NEGERI 1 LUMAJANG");
+    expect(createdBody.data.userName).toBe("Peserta Satu");
+    submissionLinkId = createdBody.data.id;
+
+    const wrongSchool = await request(`/public/agendas/${workshopAgendaId}/workshop/submissions`, {
+      ...jsonInit("POST", { title: "Karya Sekolah Lain", linkUrl: "https://drive.google.com/x", schoolName: "SMA TIDAK TERDAFTAR" }),
+      headers: { Cookie: participantOneCookie, "Content-Type": "application/json" }
+    });
+    expect(wrongSchool.status).toBe(400);
+
+    const both = await request(`/public/agendas/${workshopAgendaId}/workshop/submissions`, {
+      ...jsonInit("POST", { title: "Karya Ganda", fileUrl: "/uploads/a.pdf", linkUrl: "https://drive.google.com/x", schoolName: "SMK NEGERI PASIRIAN" }),
+      headers: { Cookie: participantOneCookie, "Content-Type": "application/json" }
+    });
+    expect(both.status).toBe(400);
+
+    const neither = await request(`/public/agendas/${workshopAgendaId}/workshop/submissions`, {
+      ...jsonInit("POST", { title: "Karya Kosong", schoolName: "SMK NEGERI PASIRIAN" }),
+      headers: { Cookie: participantOneCookie, "Content-Type": "application/json" }
+    });
+    expect(neither.status).toBe(400);
+
+    const anonymous = await request(`/public/agendas/${workshopAgendaId}/workshop/submissions`, jsonInit("POST", {
+      title: "Karya Anonim",
+      linkUrl: "https://drive.google.com/anon",
+      schoolName: "SMK NEGERI PASIRIAN"
+    }));
+    expect(anonymous.status).toBe(401);
+
+    const form = new FormData();
+    form.append("title", "Karya Berkas");
+    form.append("description", "Karya berupa berkas unggahan.");
+    form.append("schoolName", "SMK NEGERI PASIRIAN");
+    form.append("file", new File(["isi karya"], "karya.pdf", { type: "application/pdf" }));
+    const uploaded = await request(`/public/agendas/${workshopAgendaId}/workshop/submissions`, {
+      method: "POST",
+      body: form,
+      headers: { Cookie: participantOneCookie }
+    });
+    const uploadedBody = await json(uploaded);
+    expect(uploaded.status).toBe(201);
+    expect(uploadedBody.data.status).toBe("pending");
+    expect(uploadedBody.data.fileUrl).toContain("/uploads/");
+    submissionFileId = uploadedBody.data.id;
+
+    const mine = await json(await request(`/public/agendas/${workshopAgendaId}/workshop/submissions/mine`, {
+      headers: { Cookie: participantOneCookie }
+    }));
+    expect(mine.data).toHaveLength(2);
+    expect(mine.data.every((item: any) => item.status === "pending")).toBe(true);
+
+    const otherMine = await json(await request(`/public/agendas/${workshopAgendaId}/workshop/submissions/mine`, {
+      headers: { Cookie: participantTwoCookie }
+    }));
+    expect(otherMine.data).toHaveLength(0);
+
+    const publicView = await json(await request(`/public/agendas/${workshopAgendaId}/workshop`));
+    expect(publicView.data.gallery).toHaveLength(0);
+
+    const stats = await json(await adminRequest("/stats"));
+    expect(stats.data.pendingWorkshopSubmissions).toBeGreaterThanOrEqual(2);
+  });
+
+  test("moderation requires the agendas permission and approval publishes to the gallery", async () => {
+    await adminRequest("/editor-permissions", jsonInit("PUT", { permissions: [] }));
+
+    const denied = await request(`/workshop-submissions/${submissionLinkId}/status`, {
+      ...jsonInit("PUT", { status: "approved" }),
+      headers: { Cookie: editorPlainCookie, "Content-Type": "application/json" }
+    });
+    expect(denied.status).toBe(403);
+
+    const editorStats = await json(await request("/stats", { headers: { Cookie: editorPlainCookie } }));
+    expect(editorStats.data.pendingWorkshopSubmissions).toBeUndefined();
+
+    await adminRequest("/editor-permissions", jsonInit("PUT", { permissions: ["agendas"] }));
+    const approved = await request(`/workshop-submissions/${submissionLinkId}/status`, {
+      ...jsonInit("PUT", { status: "approved" }),
+      headers: { Cookie: editorAgendaCookie, "Content-Type": "application/json" }
+    });
+    const approvedBody = await json(approved);
+    expect(approved.status).toBe(200);
+    expect(approvedBody.data.status).toBe("approved");
+
+    const publicView = await json(await request(`/public/agendas/${workshopAgendaId}/workshop`));
+    expect(publicView.data.gallery).toHaveLength(1);
+    expect(publicView.data.gallery[0].title).toBe("Karya Satu");
+    expect(publicView.data.gallery[0].userName).toBe("Peserta Satu");
+    expect(publicView.data.gallery[0].url).toBe("https://drive.google.com/karya-satu");
+
+    await adminRequest("/editor-permissions", jsonInit("PUT", { permissions: [] }));
+  });
+
+  test("participants can only delete their own pending submissions", async () => {
+    const otherDelete = await request(`/public/agendas/${workshopAgendaId}/workshop/submissions/${submissionFileId}`, {
+      method: "DELETE",
+      headers: { Cookie: participantTwoCookie }
+    });
+    expect(otherDelete.status).toBe(403);
+
+    const approvedDelete = await request(`/public/agendas/${workshopAgendaId}/workshop/submissions/${submissionLinkId}`, {
+      method: "DELETE",
+      headers: { Cookie: participantOneCookie }
+    });
+    expect(approvedDelete.status).toBe(403);
+
+    const ownDelete = await request(`/public/agendas/${workshopAgendaId}/workshop/submissions/${submissionFileId}`, {
+      method: "DELETE",
+      headers: { Cookie: participantOneCookie }
+    });
+    expect(ownDelete.status).toBe(200);
+
+    const mine = await json(await request(`/public/agendas/${workshopAgendaId}/workshop/submissions/mine`, {
+      headers: { Cookie: participantOneCookie }
+    }));
+    expect(mine.data).toHaveLength(1);
+    expect(mine.data[0].id).toBe(submissionLinkId);
+
+    const adminDelete = await adminRequest(`/workshop-submissions/${submissionLinkId}`, { method: "DELETE" });
+    expect(adminDelete.status).toBe(200);
+    const queue = await json(await adminRequest(`/agendas/${workshopAgendaId}/workshop-submissions`));
+    expect(queue.data).toHaveLength(0);
+  });
+});

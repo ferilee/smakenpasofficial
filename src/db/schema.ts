@@ -137,6 +137,7 @@ export const agendas = sqliteTable("agendas", {
   status: text("status").notNull().default("scheduled"),
   registrationEnabled: integer("registration_enabled", { mode: "boolean" }).notNull().default(false),
   registrationSchools: text("registration_schools").notNull().default(""),
+  workshopEnabled: integer("workshop_enabled", { mode: "boolean" }).notNull().default(false),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`)
 });
 
@@ -146,6 +147,33 @@ export const agendaRegistrations = sqliteTable("agenda_registrations", {
   schoolName: text("school_name").notNull().default(""),
   participantName: text("participant_name").notNull().default(""),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`)
+});
+
+export const workshopMaterials = sqliteTable("workshop_materials", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  agendaId: integer("agenda_id").notNull().references(() => agendas.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  kind: text("kind").notNull().default("file"),
+  url: text("url").notNull().default(""),
+  description: text("description").notNull().default(""),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdBy: text("created_by").notNull().default(""),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`)
+});
+
+export const workshopSubmissions = sqliteTable("workshop_submissions", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  agendaId: integer("agenda_id").notNull().references(() => agendas.id, { onDelete: "cascade" }),
+  userId: integer("user_id").notNull().default(0),
+  userName: text("user_name").notNull().default(""),
+  schoolName: text("school_name").notNull().default(""),
+  title: text("title").notNull(),
+  description: text("description").notNull().default(""),
+  fileUrl: text("file_url").notNull().default(""),
+  linkUrl: text("link_url").notNull().default(""),
+  status: text("status").notNull().default("pending"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`)
 });
 
 export const announcements = sqliteTable("announcements", {
